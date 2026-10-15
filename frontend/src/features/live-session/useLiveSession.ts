@@ -289,8 +289,16 @@ export const useLiveSession = () => {
       // Initialize WebRTC and the local microphone before signaling starts.
       const webrtc = new WebRtcManager(getIceServers());
       webrtcRef.current = webrtc;
-      const localStream = await webrtc.startLocalMic();
-      setIsMicActive(true);
+      let localStream: MediaStream | null = null;
+      try {
+        localStream = await webrtc.startLocalMic();
+        setIsMicActive(true);
+      } catch (micErr) {
+        setDegradedMessage(
+          'ไมโครโฟนไม่พร้อมใช้งาน: ' +
+            (micErr instanceof Error ? micErr.message : 'ไม่สามารถเข้าถึงไมโครโฟนได้'),
+        );
+      }
       webrtc.initPeerConnection();
       webrtc.setOnIceCandidate((candidate) => {
         sendClientMessage({
@@ -302,31 +310,32 @@ export const useLiveSession = () => {
 
       // Each participant sends only their own microphone to Scribe.
       const localSpeaker: 'user' | 'caller' = localRole === 'owner' ? 'user' : 'caller';
-      const localProcessor = new AudioProcessor(
-        localStream,
-        (audioBase64) => {
-          sendClientMessage({
-            type: 'audio.chunk',
-            sessionId: targetSessionId,
-            speaker: localSpeaker,
-            audioBase64,
-            sampleRate: 16000,
-            timestampMs: Date.now(),
-          });
-          if (scammerClientRef.current) {
-            scammerClientRef.current.sendUserAudioChunk(audioBase64);
-          }
-        },
-        (rms) => {
-          setMicLevel(rms);
-        },
-      );
-      localProcessor.start();
-      userAudioProcessorRef.current = localProcessor;
+      if (localStream) {
+        const localProcessor = new AudioProcessor(
+          localStream,
+          (audioBase64) => {
+            sendClientMessage({
+              type: 'audio.chunk',
+              sessionId: targetSessionId,
+              speaker: localSpeaker,
+              audioBase64,
+              sampleRate: 16000,
+              timestampMs: Date.now(),
+            });
+            if (scammerClientRef.current) {
+              scammerClientRef.current.sendUserAudioChunk(audioBase64);
+            }
+          },
+          (rms) => {
+            setMicLevel(rms);
+          },
+        );
+        localProcessor.start();
+        userAudioProcessorRef.current = localProcessor;
+      }
 
       // Browser recognition provides immediate, reliable real-time transcript for the local speaker
       const recognizer = new BrowserSpeechRecognizer((text, isFinal) => {
-        // Send to backend so server-side pipeline and subscribers receive it
         sendClientMessage({
           type: 'transcript.client_speech',
           sessionId: targetSessionId,
@@ -397,6 +406,7 @@ export const useLiveSession = () => {
         await fetch(`${apiUrl}/sessions/${sessionId}/end`, {
           method: 'POST',
           headers: { 'content-type': 'application/json', 'x-user-id': 'demo-user' },
+          body: JSON.stringify({}),
         });
       } catch {
         // ignore
@@ -434,6 +444,7 @@ export const useLiveSession = () => {
       const res = await fetch(`${apiUrl}/sessions/${sessionId}/handoff`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-user-id': 'demo-user' },
+        body: JSON.stringify({}),
       });
       if (!res.ok) throw new Error('AI ยังไม่พร้อมรับช่วงในสถานะปัจจุบัน');
       const updated = await res.json();
@@ -449,6 +460,7 @@ export const useLiveSession = () => {
       const res = await fetch(`${apiUrl}/sessions/${sessionId}/resume-human`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-user-id': 'demo-user' },
+        body: JSON.stringify({}),
       });
       if (!res.ok) throw new Error('ยังไม่สามารถคืนสายให้ผู้ใช้ได้');
       const updated = await res.json();

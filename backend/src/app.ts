@@ -36,6 +36,18 @@ export const buildApp = async (options?: {
 }) => {
   const persistenceMode = options?.persistenceMode ?? env.PERSISTENCE_MODE;
   const app = Fastify({ logger: { level: env.LOG_LEVEL }, bodyLimit: 22 * 1024 * 1024 });
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body: string | Buffer, defaultDone) => {
+    const text = typeof body === 'string' ? body : body.toString('utf-8');
+    if (text.trim() === '') {
+      defaultDone(null, {});
+      return;
+    }
+    try {
+      defaultDone(null, JSON.parse(text));
+    } catch (err) {
+      defaultDone(err as Error, undefined);
+    }
+  });
   await app.register(cors, {
     origin: env.NODE_ENV === 'development' ? true : [env.WEB_ORIGIN, 'http://localhost:5173', 'http://127.0.0.1:5173'],
   });
