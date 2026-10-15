@@ -82,7 +82,9 @@ export class CaseService {
   }
 
   async analyze(record: StoredCase) {
-    const analyzableInputs = record.inputs.filter((input) => input.type !== 'audio');
+    // Audio inputs contain the committed transcript, not the original binary file.
+    // They therefore follow the same analysis path as text and URL submissions.
+    const analyzableInputs = record.inputs;
     if (analyzableInputs.length === 0) {
       throw new Error('CASE_HAS_NO_ANALYZABLE_INPUT');
     }

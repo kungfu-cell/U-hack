@@ -13,7 +13,21 @@ import { BrowserSpeechRecognizer } from './audio/browser-speech-recognizer';
 import { WebRtcManager } from './audio/webrtc-manager';
 
 const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
-const wsBaseUrl = apiUrl.replace(/^http/, 'ws');
+const resolvedApiUrl = new URL(apiUrl, window.location.origin).toString().replace(/\/$/, '');
+const wsBaseUrl = resolvedApiUrl.replace(/^http/, 'ws');
+
+const getIceServers = (): RTCIceServer[] => {
+  const servers: RTCIceServer[] = [
+    { urls: import.meta.env.VITE_STUN_URL ?? 'stun:stun.l.google.com:19302' },
+  ];
+  const turnUrl = import.meta.env.VITE_TURN_URL;
+  const username = import.meta.env.VITE_TURN_USERNAME;
+  const credential = import.meta.env.VITE_TURN_CREDENTIAL;
+  if (turnUrl && username && credential) {
+    servers.push({ urls: turnUrl, username, credential });
+  }
+  return servers;
+};
 
 const toRiskLevel = (score: number): RiskLevel => {
   if (score >= 80) return 'critical';
@@ -25,6 +39,9 @@ const toRiskLevel = (score: number): RiskLevel => {
 export const useLiveSession = () => {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [caseId, setCaseId] = useState<string | null>(null);
+  const [participantRole, setParticipantRole] = useState<'owner' | 'caller'>('owner');
+  const [joinCode, setJoinCode] = useState<string | null>(null);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [handoffState, setHandoffState] = useState<HandoffState>('human_active');
   const [utterances, setUtterances] = useState<Utterance[]>([]);
   const [activePartials, setActivePartials] = useState<Record<Speaker, Utterance | null>>({
@@ -50,9 +67,11 @@ export const useLiveSession = () => {
   const agentPlayerRef = useRef<AgentAudioPlayer | null>(null);
   const speechRecognizerRef = useRef<BrowserSpeechRecognizer | null>(null);
   const userAudioProcessorRef = useRef<AudioProcessor | null>(null);
-  const callerAudioProcessorRef = useRef<AudioProcessor | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isManuallyEndedRef = useRef<boolean>(false);
+  const startingRef = useRef<boolean>(false);
+  const participantRoleRef = useRef<'owner' | 'caller'>('owner');
+  const clientSpeechFallbackRef = useRef<boolean>(false);
 
   const sendClientMessage = useCallback((msg: object) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -60,11 +79,17 @@ export const useLiveSession = () => {
     }
   }, []);
 
-  const connectWebSocket = useCallback((targetSessionId: string) => {
+  const connectWebSocket = useCallback((
+    targetSessionId: string,
+    participantToken: string,
+    localRole: 'owner' | 'caller',
+  ) => {
     if (isManuallyEndedRef.current) return;
 
     setConnectionStatus('connecting');
-    const ws = new WebSocket(`${wsBaseUrl}/sessions/${targetSessionId}/ws`);
+    const ws = new WebSocket(
+      `${wsBaseUrl}/sessions/${targetSessionId}/ws?token=${encodeURIComponent(participantToken)}`,
+    );
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -86,19 +111,24 @@ export const useLiveSession = () => {
           }
         } else if (data.type === 'session.state_changed') {
           setHandoffState(data.state);
-          if (data.state === 'ai_active') {
+          if (data.state === 'ai_active' && localRole === 'owner') {
+            speechRecognizerRef.current?.stop();
             if (!agentPlayerRef.current) {
               agentPlayerRef.current = new AgentAudioPlayer();
             }
             if (webrtcRef.current && agentPlayerRef.current) {
               void webrtcRef.current.switchToAiTrack(agentPlayerRef.current.getAudioTrack());
             }
-          } else if (data.state === 'human_active' || data.state === 'waiting_for_user') {
+          } else if (
+            localRole === 'owner' &&
+            (data.state === 'human_active' || data.state === 'waiting_for_user')
+          ) {
             agentPlayerRef.current?.stopAndFlush();
             if (webrtcRef.current) {
               void webrtcRef.current.switchToHumanMic();
             }
-          } else if (data.state === 'paused_safe') {
+            speechRecognizerRef.current?.start();
+          } else if (data.state === 'paused_safe' && localRole === 'owner') {
             agentPlayerRef.current?.stopAndFlush();
             webrtcRef.current?.setLocalMicMuted(true);
           }
@@ -128,6 +158,35 @@ export const useLiveSession = () => {
           setRiskReasons(data.reasons);
         } else if (data.type === 'service.degraded') {
           setDegradedMessage(`${data.service}: ${data.message}`);
+          if (data.service.includes('scribe')) clientSpeechFallbackRef.current = true;
+        } else if (data.type === 'peer.joined' && localRole === 'owner' && data.role === 'caller') {
+          void webrtcRef.current?.createOffer().then((sdp) => {
+            sendClientMessage({ type: 'signal.offer', sessionId: targetSessionId, sdp });
+          }).catch((error: unknown) => {
+            setDegradedMessage(error instanceof Error ? error.message : 'สร้าง WebRTC offer ไม่สำเร็จ');
+          });
+        } else if (data.type === 'signal.offer' && localRole === 'caller') {
+          void webrtcRef.current?.acceptOffer(data.sdp).then((sdp) => {
+            sendClientMessage({ type: 'signal.answer', sessionId: targetSessionId, sdp });
+          }).catch((error: unknown) => {
+            setDegradedMessage(error instanceof Error ? error.message : 'รับ WebRTC offer ไม่สำเร็จ');
+          });
+        } else if (data.type === 'signal.answer' && localRole === 'owner') {
+          void webrtcRef.current?.acceptAnswer(data.sdp).catch((error: unknown) => {
+            setDegradedMessage(error instanceof Error ? error.message : 'รับ WebRTC answer ไม่สำเร็จ');
+          });
+        } else if (data.type === 'signal.ice') {
+          const candidate: RTCIceCandidateInit = {
+            candidate: data.candidate.candidate,
+            ...(data.candidate.sdpMid !== undefined ? { sdpMid: data.candidate.sdpMid } : {}),
+            ...(data.candidate.sdpMLineIndex !== undefined
+              ? { sdpMLineIndex: data.candidate.sdpMLineIndex }
+              : {}),
+            ...(data.candidate.usernameFragment !== undefined
+              ? { usernameFragment: data.candidate.usernameFragment }
+              : {}),
+          };
+          void webrtcRef.current?.addIceCandidate(candidate).catch(() => undefined);
         }
       } catch {
         // ignore
@@ -144,50 +203,106 @@ export const useLiveSession = () => {
         setConnectionStatus('reconnecting');
         // Backoff reconnect after 2 seconds
         reconnectTimeoutRef.current = setTimeout(() => {
-          connectWebSocket(targetSessionId);
+          connectWebSocket(targetSessionId, participantToken, localRole);
         }, 2000);
       } else {
         setConnectionStatus('disconnected');
       }
     };
-  }, []);
+  }, [sendClientMessage]);
 
-  const startCall = async () => {
+  const startCall = useCallback(async () => {
+    if (startingRef.current || sessionId) return;
+    startingRef.current = true;
     isManuallyEndedRef.current = false;
     setConnectionStatus('connecting');
     try {
-      // 1. Create a Case
-      const caseRecord = await createCase();
-      setCaseId(caseRecord.id);
+      const query = new URLSearchParams(window.location.search);
+      const invitedSessionId = query.get('session');
+      const invitedJoinCode = query.get('code');
+      let targetSessionId: string;
+      let targetCaseId: string;
+      let participantToken: string;
+      let localRole: 'owner' | 'caller';
 
-      // 2. Create a Session
-      const sessionRes = await fetch(`${apiUrl}/sessions`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-user-id': 'demo-user' },
-        body: JSON.stringify({ caseId: caseRecord.id }),
-      });
-      const session = await sessionRes.json();
-      setSessionId(session.id);
-      setHandoffState(session.state);
+      if (invitedSessionId && invitedJoinCode) {
+        const joinResponse = await fetch(`${apiUrl}/sessions/${invitedSessionId}/join`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ joinCode: invitedJoinCode }),
+        });
+        if (!joinResponse.ok) throw new Error('ลิงก์เชิญไม่ถูกต้องหรือหมดอายุแล้ว');
+        const joined = await joinResponse.json() as {
+          sessionId: string;
+          caseId: string;
+          state: HandoffState;
+          participantToken: string;
+        };
+        targetSessionId = joined.sessionId;
+        targetCaseId = joined.caseId;
+        participantToken = joined.participantToken;
+        localRole = 'caller';
+        setHandoffState(joined.state);
+      } else {
+        const caseRecord = await createCase();
+        const sessionResponse = await fetch(`${apiUrl}/sessions`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-user-id': 'demo-user' },
+          body: JSON.stringify({ caseId: caseRecord.id }),
+        });
+        if (!sessionResponse.ok) throw new Error('สร้างห้องสนทนาไม่สำเร็จ');
+        const session = await sessionResponse.json() as {
+          id: string;
+          caseId: string;
+          state: HandoffState;
+          joinCode: string;
+          ownerToken: string;
+        };
+        targetSessionId = session.id;
+        targetCaseId = session.caseId;
+        participantToken = session.ownerToken;
+        localRole = 'owner';
+        setJoinCode(session.joinCode);
+        const nextInviteUrl = new URL(window.location.href);
+        nextInviteUrl.search = '';
+        nextInviteUrl.searchParams.set('session', session.id);
+        nextInviteUrl.searchParams.set('code', session.joinCode);
+        setInviteUrl(nextInviteUrl.toString());
+        setHandoffState(session.state);
+      }
 
-      // 3. Connect WebSocket
-      connectWebSocket(session.id);
+      participantRoleRef.current = localRole;
+      setParticipantRole(localRole);
+      setSessionId(targetSessionId);
+      setCaseId(targetCaseId);
+      window.localStorage.setItem('scamtrap:lastCaseId', targetCaseId);
+      window.localStorage.setItem('scamtrap:lastSessionId', targetSessionId);
 
-      // 4. Initialize WebRTC & Mic
-      const webrtc = new WebRtcManager();
+      // Initialize WebRTC and the local microphone before signaling starts.
+      const webrtc = new WebRtcManager(getIceServers());
       webrtcRef.current = webrtc;
-      const userStream = await webrtc.startLocalMic();
+      const localStream = await webrtc.startLocalMic();
       setIsMicActive(true);
+      webrtc.initPeerConnection();
+      webrtc.setOnIceCandidate((candidate) => {
+        sendClientMessage({
+          type: 'signal.ice',
+          sessionId: targetSessionId,
+          candidate,
+        });
+      });
 
-      // 5. Setup AudioProcessor for user mic
-      const userProcessor = new AudioProcessor(
-        userStream,
+      // Each participant sends only their own microphone to Scribe.
+      const localSpeaker: 'user' | 'caller' = localRole === 'owner' ? 'user' : 'caller';
+      const localProcessor = new AudioProcessor(
+        localStream,
         (audioBase64) => {
           sendClientMessage({
             type: 'audio.chunk',
-            sessionId: session.id,
-            speaker: 'user',
+            sessionId: targetSessionId,
+            speaker: localSpeaker,
             audioBase64,
+            sampleRate: 16000,
             timestampMs: Date.now(),
           });
         },
@@ -195,43 +310,29 @@ export const useLiveSession = () => {
           setMicLevel(rms);
         },
       );
-      userProcessor.start();
-      userAudioProcessorRef.current = userProcessor;
+      localProcessor.start();
+      userAudioProcessorRef.current = localProcessor;
 
-      // 6. Listen for incoming remote WebRTC caller stream
-      webrtc.setOnRemoteStream((remoteStream) => {
-        const callerProcessor = new AudioProcessor(remoteStream, (audioBase64) => {
-          sendClientMessage({
-            type: 'audio.chunk',
-            sessionId: session.id,
-            speaker: 'caller',
-            audioBase64,
-            timestampMs: Date.now(),
-          });
-        });
-        callerProcessor.start();
-        callerAudioProcessorRef.current = callerProcessor;
-      });
-
-      // 7. Setup BrowserSpeechRecognizer for user speech (Web Speech API)
+      // Browser recognition provides a readable fallback transcript for the local speaker.
       const recognizer = new BrowserSpeechRecognizer((text, isFinal) => {
-        // Stream transcript to backend so session room and analysis engine receive it
-        sendClientMessage({
-          type: 'transcript.client_speech',
-          sessionId: session.id,
-          speaker: 'user',
-          text,
-          isFinal,
-        });
+        if (clientSpeechFallbackRef.current) {
+          sendClientMessage({
+            type: 'transcript.client_speech',
+            sessionId: targetSessionId,
+            speaker: localSpeaker,
+            text,
+            isFinal,
+          });
+        }
 
         // Optimistically show transcript locally in UI
         if (!isFinal) {
           setActivePartials((prev) => ({
             ...prev,
-            user: {
-              id: 'local-partial-user',
-              sessionId: session.id,
-              speaker: 'user',
+            [localSpeaker]: {
+              id: `local-partial-${localSpeaker}`,
+              sessionId: targetSessionId,
+              speaker: localSpeaker,
               text,
               transcriptState: 'partial',
               startedAtMs: Date.now(),
@@ -242,17 +343,20 @@ export const useLiveSession = () => {
         } else {
           setActivePartials((prev) => ({
             ...prev,
-            user: null,
+            [localSpeaker]: null,
           }));
         }
       }, spokenLanguageRef.current);
       recognizer.start();
       speechRecognizerRef.current = recognizer;
+
+      connectWebSocket(targetSessionId, participantToken, localRole);
     } catch (err) {
       setDegradedMessage(err instanceof Error ? err.message : 'ไม่สามารถเริ่มการเชื่อมต่อได้');
       setConnectionStatus('disconnected');
+      startingRef.current = false;
     }
-  };
+  }, [connectWebSocket, sendClientMessage, sessionId]);
 
   const endCall = async () => {
     isManuallyEndedRef.current = true;
@@ -260,7 +364,7 @@ export const useLiveSession = () => {
       clearTimeout(reconnectTimeoutRef.current);
     }
 
-    if (sessionId) {
+    if (sessionId && participantRoleRef.current === 'owner') {
       try {
         await fetch(`${apiUrl}/sessions/${sessionId}/end`, {
           method: 'POST',
@@ -274,7 +378,6 @@ export const useLiveSession = () => {
     speechRecognizerRef.current?.stop();
     speechRecognizerRef.current = null;
     userAudioProcessorRef.current?.stop();
-    callerAudioProcessorRef.current?.stop();
     agentPlayerRef.current?.close();
     agentPlayerRef.current = null;
     webrtcRef.current?.stop();
@@ -284,51 +387,43 @@ export const useLiveSession = () => {
     setMicLevel(0);
     setConnectionStatus('disconnected');
     setHandoffState('ended');
+    setSessionId(null);
+    setCaseId(null);
+    setJoinCode(null);
+    setInviteUrl(null);
+    startingRef.current = false;
   };
 
   const requestHandoff = async () => {
-    setHandoffState('ai_active');
-    speechRecognizerRef.current?.stop();
-    if (!agentPlayerRef.current) {
-      agentPlayerRef.current = new AgentAudioPlayer();
-    }
-    if (webrtcRef.current && agentPlayerRef.current) {
-      void webrtcRef.current.switchToAiTrack(agentPlayerRef.current.getAudioTrack());
-    }
-    if (!sessionId) return;
+    if (!sessionId || participantRoleRef.current !== 'owner') return;
     try {
       const res = await fetch(`${apiUrl}/sessions/${sessionId}/handoff`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-user-id': 'demo-user' },
       });
-      if (res.ok) {
-        const updated = await res.json();
-        setHandoffState(updated.state);
-      }
-    } catch {
-      // optimistic update already applied
+      if (!res.ok) throw new Error('AI ยังไม่พร้อมรับช่วงในสถานะปัจจุบัน');
+      const updated = await res.json();
+      setHandoffState(updated.state);
+    } catch (error) {
+      setDegradedMessage(error instanceof Error ? error.message : 'ขอให้ AI รับช่วงไม่สำเร็จ');
     }
   };
 
   const resumeHuman = async () => {
-    setHandoffState('human_active');
-    agentPlayerRef.current?.stopAndFlush();
-    speechRecognizerRef.current?.start();
-    if (webrtcRef.current) {
-      void webrtcRef.current.switchToHumanMic();
-    }
-    if (!sessionId) return;
+    if (!sessionId || participantRoleRef.current !== 'owner') return;
     try {
       const res = await fetch(`${apiUrl}/sessions/${sessionId}/resume-human`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-user-id': 'demo-user' },
       });
-      if (res.ok) {
-        const updated = await res.json();
-        setHandoffState(updated.state);
-      }
-    } catch {
-      // optimistic update already applied
+      if (!res.ok) throw new Error('ยังไม่สามารถคืนสายให้ผู้ใช้ได้');
+      const updated = await res.json();
+      setHandoffState(updated.state);
+      agentPlayerRef.current?.stopAndFlush();
+      await webrtcRef.current?.switchToHumanMic();
+      speechRecognizerRef.current?.start();
+    } catch (error) {
+      setDegradedMessage(error instanceof Error ? error.message : 'คืนสายให้ผู้ใช้ไม่สำเร็จ');
     }
   };
 
@@ -354,7 +449,6 @@ export const useLiveSession = () => {
       speechRecognizerRef.current?.stop();
       speechRecognizerRef.current = null;
       userAudioProcessorRef.current?.stop();
-      callerAudioProcessorRef.current?.stop();
       agentPlayerRef.current?.close();
       agentPlayerRef.current = null;
       webrtcRef.current?.stop();
@@ -369,21 +463,25 @@ export const useLiveSession = () => {
       speechRecognizerRef.current.stop();
       if (sessionId) {
         const targetSessionId = sessionId;
+        const localSpeaker: 'user' | 'caller' =
+          participantRoleRef.current === 'owner' ? 'user' : 'caller';
         const recognizer = new BrowserSpeechRecognizer((text, isFinal) => {
-          sendClientMessage({
-            type: 'transcript.client_speech',
-            sessionId: targetSessionId,
-            speaker: 'user',
-            text,
-            isFinal,
-          });
+          if (clientSpeechFallbackRef.current) {
+            sendClientMessage({
+              type: 'transcript.client_speech',
+              sessionId: targetSessionId,
+              speaker: localSpeaker,
+              text,
+              isFinal,
+            });
+          }
           if (!isFinal) {
             setActivePartials((prev) => ({
               ...prev,
-              user: {
-                id: 'local-partial-user',
+              [localSpeaker]: {
+                id: `local-partial-${localSpeaker}`,
                 sessionId: targetSessionId,
-                speaker: 'user',
+                speaker: localSpeaker,
                 text,
                 transcriptState: 'partial',
                 startedAtMs: Date.now(),
@@ -394,7 +492,7 @@ export const useLiveSession = () => {
           } else {
             setActivePartials((prev) => ({
               ...prev,
-              user: null,
+              [localSpeaker]: null,
             }));
           }
         }, lang);
@@ -415,6 +513,9 @@ export const useLiveSession = () => {
   return {
     sessionId,
     caseId,
+    participantRole,
+    joinCode,
+    inviteUrl,
     handoffState,
     utterances,
     activePartials,

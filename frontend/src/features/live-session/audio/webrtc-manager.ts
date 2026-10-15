@@ -9,6 +9,7 @@ export class WebRtcManager {
   private remoteAudio: HTMLAudioElement | null = null;
   private onRemoteStreamCallback?: (stream: MediaStream) => void;
   private onIceCandidateCallback?: (candidate: RTCIceCandidateInit) => void;
+  private pendingIceCandidates: RTCIceCandidateInit[] = [];
 
   constructor(private readonly iceServers: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }]) {}
 
@@ -94,6 +95,7 @@ export class WebRtcManager {
   async acceptOffer(sdp: string): Promise<string> {
     const peer = this.initPeerConnection();
     await peer.setRemoteDescription({ type: 'offer', sdp });
+    await this.flushPendingIceCandidates();
     const answer = await peer.createAnswer();
     await peer.setLocalDescription(answer);
     if (!answer.sdp) throw new Error('WEBRTC_ANSWER_MISSING_SDP');
@@ -103,11 +105,24 @@ export class WebRtcManager {
   async acceptAnswer(sdp: string): Promise<void> {
     const peer = this.initPeerConnection();
     await peer.setRemoteDescription({ type: 'answer', sdp });
+    await this.flushPendingIceCandidates();
   }
 
   async addIceCandidate(candidate: RTCIceCandidateInit): Promise<void> {
     const peer = this.initPeerConnection();
+    if (!peer.remoteDescription) {
+      this.pendingIceCandidates.push(candidate);
+      return;
+    }
     await peer.addIceCandidate(candidate);
+  }
+
+  private async flushPendingIceCandidates(): Promise<void> {
+    if (!this.peerConnection?.remoteDescription) return;
+    const candidates = this.pendingIceCandidates.splice(0);
+    for (const candidate of candidates) {
+      await this.peerConnection.addIceCandidate(candidate);
+    }
   }
 
   /**
@@ -190,6 +205,7 @@ export class WebRtcManager {
     }
 
     this.remoteStream = null;
+    this.pendingIceCandidates = [];
     if (this.remoteAudio) {
       this.remoteAudio.pause();
       this.remoteAudio.srcObject = null;

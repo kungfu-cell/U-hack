@@ -1,5 +1,6 @@
 import {
   addCaseInputRequestSchema,
+  audioUploadRequestSchema,
   dataWithdrawalRequestSchema,
   createShareProposalRequestSchema,
   createCaseRequestSchema,
@@ -15,6 +16,7 @@ import {
 } from '../../lib/http.js';
 import { toCaseRecord } from './case.repository.js';
 import type { CaseService } from './case.service.js';
+import type { AudioFileTranscriber } from './audio-file-transcriber.js';
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 const consentParamsSchema = z.object({ id: z.string().uuid(), consentId: z.string() });
@@ -25,6 +27,7 @@ export const registerCaseRoutes = async (
   app: FastifyInstance,
   service: CaseService,
   reviewerApiKey?: string,
+  audioTranscriber?: AudioFileTranscriber,
 ) => {
   app.post('/cases', async (request, reply) => {
     const parsed = createCaseRequestSchema.safeParse(request.body ?? {});
@@ -54,6 +57,62 @@ export const registerCaseRoutes = async (
 
     const updated = await service.addInput(record, body.data);
     return reply.status(201).send(toCaseRecord(updated));
+  });
+
+  app.post('/cases/:id/audio-uploads', async (request, reply) => {
+    const params = paramsSchema.safeParse(request.params);
+    const body = audioUploadRequestSchema.safeParse(request.body);
+    if (!params.success) return sendValidationError(reply, params.error);
+    if (!body.success) return sendValidationError(reply, body.error);
+
+    const record = await service.get(params.data.id);
+    if (!record) return sendNotFound(reply, 'Case');
+    if (record.ownerId !== getOwnerId(request)) return sendForbidden(reply);
+    if (!audioTranscriber) {
+      return reply.status(503).send({
+        error: {
+          code: 'AUDIO_TRANSCRIPTION_UNAVAILABLE',
+          message: 'Configure ElevenLabs Scribe to transcribe uploaded audio',
+        },
+      });
+    }
+
+    const bytes = Buffer.from(body.data.audioBase64, 'base64');
+    if (bytes.length === 0 || bytes.length > 15 * 1024 * 1024) {
+      return reply.status(413).send({
+        error: { code: 'AUDIO_FILE_TOO_LARGE', message: 'Audio files must not exceed 15 MB' },
+      });
+    }
+
+    try {
+      const transcript = await audioTranscriber.transcribe({
+        fileName: body.data.fileName,
+        mimeType: body.data.mimeType,
+        bytes,
+      });
+      const withTranscript = await service.addInput(record, {
+        type: 'audio',
+        content: transcript.text,
+        source: `audio_upload:${body.data.fileName}`,
+      });
+      const analyzed = await service.analyze(withTranscript);
+      return reply.status(201).send({
+        case: toCaseRecord(analyzed),
+        transcript: transcript.text,
+        provider: transcript.provider,
+      });
+    } catch (error) {
+      request.log.warn(
+        { error: error instanceof Error ? error.message.split(':')[0] : 'unknown' },
+        'Audio transcription failed',
+      );
+      return reply.status(502).send({
+        error: {
+          code: 'AUDIO_TRANSCRIPTION_FAILED',
+          message: 'The audio provider could not transcribe this file',
+        },
+      });
+    }
   });
 
   app.post('/cases/:id/analyses', async (request, reply) => {

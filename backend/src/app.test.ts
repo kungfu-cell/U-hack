@@ -89,6 +89,67 @@ describe('API smoke test', () => {
       headers: { 'x-user-id': 'owner-a' },
     });
   });
+
+  it('transcribes an authorized audio upload and analyzes the transcript', async () => {
+    app = await buildApp({
+      analysisProvider: new DemoAnalysisProvider(),
+      audioTranscriber: {
+        transcribe: async () => ({
+          text: 'ผมเป็นเจ้าหน้าที่ตำรวจ ให้โอนเงินมาตรวจสอบทันที',
+          provider: 'test_scribe',
+        }),
+      },
+    });
+    const createdResponse = await app.inject({
+      method: 'POST',
+      url: '/cases',
+      payload: { title: 'Audio case', isDemo: true },
+    });
+    const created = createdResponse.json<{ id: string }>();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/cases/${created.id}/audio-uploads`,
+      payload: {
+        fileName: 'authorized-test.wav',
+        mimeType: 'audio/wav',
+        audioBase64: Buffer.from('test audio bytes').toString('base64'),
+        consentConfirmed: true,
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json().provider).toBe('test_scribe');
+    expect(response.json().case.inputs[0].type).toBe('audio');
+    expect(response.json().case.latestAnalysis).toBeTruthy();
+  });
+
+  it('rejects an audio upload without explicit consent', async () => {
+    app = await buildApp({
+      analysisProvider: new DemoAnalysisProvider(),
+      audioTranscriber: {
+        transcribe: async () => ({ text: 'must not run', provider: 'test_scribe' }),
+      },
+    });
+    const created = (await app.inject({
+      method: 'POST',
+      url: '/cases',
+      payload: { title: 'Audio consent check', isDemo: true },
+    })).json<{ id: string }>();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/cases/${created.id}/audio-uploads`,
+      payload: {
+        fileName: 'no-consent.wav',
+        mimeType: 'audio/wav',
+        audioBase64: Buffer.from('test audio bytes').toString('base64'),
+        consentConfirmed: false,
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
 });
 
 const postgresEnabled = process.env.PERSISTENCE_MODE === 'postgres';

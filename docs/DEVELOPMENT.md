@@ -32,6 +32,7 @@ Reviewer API ปิดโดยค่าเริ่มต้น ให้กำ
 - ถอนข้อมูลตาม PDPA: `POST /cases/:id/withdrawal`
 - Reviewer queue: `GET /review/indicators`, `PATCH /review/indicators/:indicatorId`
 - Transcript: `GET /sessions/:id/utterances`, `PATCH /sessions/:id/utterances/:utteranceId`
+- ถอดไฟล์เสียงที่ยืนยันสิทธิ์แล้ว: `POST /cases/:id/audio-uploads` (สูงสุด 15 MB; เก็บเฉพาะ transcript)
 
 ข้อมูล demo จะสร้าง share proposal สำหรับทดสอบ response เท่านั้น และจะไม่ถูกเขียนลง shared-indicator review queue
 

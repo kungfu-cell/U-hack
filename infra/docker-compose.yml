@@ -17,6 +17,48 @@ services:
       timeout: 5s
       retries: 10
 
+  api:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: production
+      API_HOST: 0.0.0.0
+      API_PORT: 3001
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:5173}
+      PERSISTENCE_MODE: postgres
+      DATABASE_URL: postgresql://${POSTGRES_USER:-scamtrap}:${POSTGRES_PASSWORD:-scamtrap}@postgres:5432/${POSTGRES_DB:-scamtrap}?schema=public
+    ports:
+      - "${API_PORT:-3001}:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: ..
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_URL: /api
+        VITE_STUN_URL: ${VITE_STUN_URL:-stun:stun.l.google.com:19302}
+        VITE_TURN_URL: ${VITE_TURN_URL:-}
+        VITE_TURN_USERNAME: ${VITE_TURN_USERNAME:-}
+        VITE_TURN_CREDENTIAL: ${VITE_TURN_CREDENTIAL:-}
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-5173}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   scamtrap-postgres:
     name: scamtrap-postgres-data

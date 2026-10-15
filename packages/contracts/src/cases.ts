@@ -26,6 +26,31 @@ export const addCaseInputRequestSchema = z.object({
 });
 export type AddCaseInputRequest = z.infer<typeof addCaseInputRequestSchema>;
 
+export const audioUploadRequestSchema = z.object({
+  fileName: z.string().trim().min(1).max(180),
+  mimeType: z.enum([
+    'audio/mpeg',
+    'audio/mp3',
+    'audio/wav',
+    'audio/x-wav',
+    'audio/webm',
+    'audio/ogg',
+    'audio/mp4',
+    'audio/m4a',
+    'audio/x-m4a',
+  ]),
+  audioBase64: z.string().min(1).max(21_000_000),
+  consentConfirmed: z.literal(true),
+});
+export type AudioUploadRequest = z.infer<typeof audioUploadRequestSchema>;
+
+export const audioUploadResponseSchema = z.object({
+  case: z.lazy(() => caseSchema),
+  transcript: z.string(),
+  provider: z.string(),
+});
+export type AudioUploadResponse = z.infer<typeof audioUploadResponseSchema>;
+
 export const caseSchema = z.object({
   id: z.string(),
   title: z.string(),

@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { IncidentReport, ShareProposal, Utterance } from '@scamtrap/contracts';
-import { createShareProposal, deleteCase, getCaseReport, getSessionSnapshot } from '../../lib/api';
+import {
+  correctSessionUtterance,
+  createShareProposal,
+  getCaseReport,
+  getSessionSnapshot,
+  withdrawCase,
+} from '../../lib/api';
 
 export const ReportPlaceholder = () => {
   const [report, setReport] = useState<IncidentReport | null>(null);
@@ -48,10 +54,19 @@ export const ReportPlaceholder = () => {
 
   const removeCase = async () => {
     if (!report || !window.confirm('ลบเหตุการณ์และถอนข้อเสนอแบ่งปันทั้งหมดหรือไม่?')) return;
-    await deleteCase(report.caseId);
+    await withdrawCase(report.caseId, 'ผู้ใช้ถอนข้อมูลจากหน้ารายงาน');
     window.localStorage.removeItem('scamtrap:lastCaseId');
     setReport(null);
     setStatus('empty');
+  };
+
+  const correctUtterance = async (utterance: Utterance) => {
+    const sessionId = window.localStorage.getItem('scamtrap:lastSessionId');
+    if (!sessionId) return;
+    const correctedText = window.prompt('แก้ไขข้อความถอดเสียง', utterance.text)?.trim();
+    if (!correctedText || correctedText === utterance.text) return;
+    const corrected = await correctSessionUtterance(sessionId, utterance.id, correctedText);
+    setTimeline((current) => current.map((item) => item.id === corrected.id ? corrected : item));
   };
 
   if (status === 'loading') {
@@ -101,6 +116,9 @@ export const ReportPlaceholder = () => {
                 <strong>{utterance.speaker}</strong>
                 <span>{new Date(utterance.startedAtMs).toLocaleTimeString()}</span>
                 <p>{utterance.text}</p>
+                <button className="secondary-button" onClick={() => void correctUtterance(utterance)}>
+                  แก้ข้อความถอดเสียง
+                </button>
               </li>
             ))}
           </ol>

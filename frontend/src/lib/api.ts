@@ -1,14 +1,18 @@
 import {
   apiErrorSchema,
+  audioUploadResponseSchema,
   caseSchema,
   incidentReportSchema,
   shareProposalSchema,
   sessionSnapshotSchema,
+  utteranceSchema,
   type AddCaseInputRequest,
+  type AudioUploadResponse,
   type CaseRecord,
   type IncidentReport,
   type ShareProposal,
   type SessionSnapshot,
+  type Utterance,
 } from '@scamtrap/contracts';
 
 const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
@@ -51,6 +55,19 @@ export const analyzeCase = (caseId: string) =>
     (data) => caseSchema.parse(data),
   );
 
+export const uploadCaseAudio = (
+  caseId: string,
+  input: { fileName: string; mimeType: string; audioBase64: string; consentConfirmed: true },
+) =>
+  request<AudioUploadResponse>(
+    `/cases/${caseId}/audio-uploads`,
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    },
+    (data) => audioUploadResponseSchema.parse(data),
+  );
+
 export const getCaseReport = (caseId: string) =>
   request<IncidentReport>(
     `/cases/${caseId}/report`,
@@ -76,9 +93,26 @@ export const deleteCase = async (caseId: string) => {
   if (!response.ok) throw new Error('ลบเหตุการณ์ไม่สำเร็จ');
 };
 
+export const withdrawCase = (caseId: string, reason: string) =>
+  request<{ caseId: string; status: string }>(
+    `/cases/${caseId}/withdrawal`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ reason, maskInputs: true }),
+    },
+    (data) => data as { caseId: string; status: string },
+  );
+
 export const getSessionSnapshot = (sessionId: string) =>
   request<SessionSnapshot>(
     `/sessions/${sessionId}/snapshot`,
     { method: 'GET' },
     (data) => sessionSnapshotSchema.parse(data),
+  );
+
+export const correctSessionUtterance = (sessionId: string, utteranceId: string, text: string) =>
+  request<Utterance>(
+    `/sessions/${sessionId}/utterances/${utteranceId}`,
+    { method: 'PATCH', body: JSON.stringify({ text }) },
+    (data) => utteranceSchema.parse(data),
   );

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, type FormEvent } from 'react';
 import type { AnalysisResult } from '@scamtrap/contracts';
-import { createCase, addCaseInput, analyzeCase } from '../../lib/api';
+import { createCase, addCaseInput, analyzeCase, uploadCaseAudio } from '../../lib/api';
 import { copyToClipboard, showToast } from '../../lib/toast';
 
 interface PresetData {
@@ -145,6 +145,18 @@ interface AttachmentItem {
   badge: string;
 }
 
+const readFileAsBase64 = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('อ่านไฟล์เสียงไม่สำเร็จ'));
+    reader.onload = () => {
+      const encoded = String(reader.result ?? '').split(',')[1];
+      if (!encoded) reject(new Error('ไฟล์เสียงไม่มีข้อมูล'));
+      else resolve(encoded);
+    };
+    reader.readAsDataURL(file);
+  });
+
 export const QuickAnalysis = () => {
   const [activePreset, setActivePreset] = useState<string>('police');
   const [inputMode, setInputMode] = useState<'text' | 'image' | 'audio' | 'link'>('text');
@@ -179,6 +191,8 @@ export const QuickAnalysis = () => {
   // Dedicated audio state
   const [audioName, setAudioName] = useState<string | null>(null);
   const [audioSize, setAudioSize] = useState<string>('');
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [audioConsentConfirmed, setAudioConsentConfirmed] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [audioSec, setAudioSec] = useState(0);
 
@@ -252,20 +266,20 @@ export const QuickAnalysis = () => {
           name: file.name,
           size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
           thumb,
-          badge: 'OCR Ready',
+          badge: 'Preview only',
         },
       ]);
-      setPayloadText((prev) =>
-        prev.includes(file.name)
-          ? prev
-          : `${prev}\n[Attached Image: ${file.name} - Extracted OCR text: สภ.เมืองเชียงใหม่ หมายจับและคำสั่งอายัดทรัพย์สิน]`,
-      );
-      showToast(`แนบภาพ "${file.name}" พร้อมอ่านข้อความ OCR สำเร็จ`);
+      setImageOcrText('OCR ยังไม่เปิดใช้ในต้นแบบ กรุณาวางข้อความจากภาพในช่องข้อความ');
+      showToast(`แนบภาพ "${file.name}" สำหรับดูตัวอย่างแล้ว (ยังไม่ได้ทำ OCR)`);
     };
     reader.readAsDataURL(file);
   };
 
   const handleInlineAudio = (file: File) => {
+    setAudioFile(file);
+    setAudioConsentConfirmed(false);
+    setAudioName(file.name);
+    setAudioSize(`${(file.size / 1024 / 1024).toFixed(2)} MB`);
     setAttachments((prev) => [
       ...prev,
       {
@@ -273,18 +287,19 @@ export const QuickAnalysis = () => {
         type: 'audio',
         name: file.name,
         size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
-        badge: 'Scribe STT Ready',
+        badge: 'Awaiting Scribe',
       },
     ]);
-    setPayloadText((prev) =>
-      prev.includes(file.name)
-        ? prev
-        : `${prev}\n[Attached Audio: ${file.name} - Scribe STT Queued: "สวัสดีครับ ติดต่อจาก สภ.เมืองเชียงใหม่..."]`,
-    );
-    showToast(`แนบไฟล์เสียง "${file.name}" สำหรับ Scribe STT เรียบร้อย`);
+    showToast(`เลือกไฟล์เสียง "${file.name}" แล้ว กดวิเคราะห์เพื่อส่งไป Scribe`);
   };
 
   const removeAttachment = (id: string) => {
+    const attachment = attachments.find((item) => item.id === id);
+    if (attachment?.type === 'audio') {
+      setAudioFile(null);
+      setAudioName(null);
+      setAudioConsentConfirmed(false);
+    }
     setAttachments((prev) => prev.filter((a) => a.id !== id));
     showToast('ลบไฟล์แนบแล้ว');
   };
@@ -296,14 +311,31 @@ export const QuickAnalysis = () => {
     try {
       // Execute against backend Case API
       const content = payloadText.trim() || url.trim();
-      if (content) {
+      if (!content && !audioFile) {
+        throw new Error('กรุณาใส่ข้อความ ลิงก์ หรือเลือกไฟล์เสียงก่อนเริ่มวิเคราะห์');
+      }
+      if (audioFile && !audioConsentConfirmed) {
+        throw new Error('กรุณายืนยันว่าคุณมีสิทธิ์ส่งไฟล์เสียงนี้ไปประมวลผล');
+      }
+      if (content || audioFile) {
         const created = await createCase();
-        await addCaseInput(created.id, {
-          type: url && !payloadText ? 'url' : 'text',
-          content: `${content}${url ? `\nTarget URL: ${url}` : ''}${phone ? `\nCaller: ${phone}` : ''}`,
-          source: sourceChannel,
-        });
-        const analyzed = await analyzeCase(created.id);
+        const analyzed = audioFile
+          ? (await uploadCaseAudio(created.id, {
+              fileName: audioFile.name,
+              mimeType: audioFile.type || 'audio/mpeg',
+              audioBase64: await readFileAsBase64(audioFile),
+              consentConfirmed: true,
+            })).case
+          : await (async () => {
+              await addCaseInput(created.id, {
+                type: url && !payloadText ? 'url' : 'text',
+                content: `${content}${url ? `\nTarget URL: ${url}` : ''}${phone ? `\nCaller: ${phone}` : ''}`,
+                source: sourceChannel,
+              });
+              return analyzeCase(created.id);
+            })();
+        window.localStorage.setItem('scamtrap:lastCaseId', created.id);
+        window.localStorage.removeItem('scamtrap:lastSessionId');
         const result: AnalysisResult | null = analyzed.latestAnalysis;
 
         if (result) {
@@ -341,10 +373,18 @@ export const QuickAnalysis = () => {
           }
         }
       }
-      showToast('การวิเคราะห์ความเสี่ยงเสร็จสิ้น • เชื่อมโยงฐานข้อมูลภัยคุกคามเรียบร้อย');
-    } catch {
-      // Graceful fallback to rich preset data so hackathon demo never fails
-      showToast('วิเคราะห์เสร็จสมบูรณ์ (โหมด Heuristic Engine)');
+      showToast('การวิเคราะห์เสร็จสิ้น • โปรดตรวจสถานะแหล่งข้อมูลในผลลัพธ์');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'เชื่อมต่อระบบวิเคราะห์ไม่ได้';
+      setScore('—');
+      setSummary(`ไม่สามารถยืนยันผลวิเคราะห์ได้: ${message}`);
+      setVerdict('Analysis Unavailable');
+      setVerdictClass('badge-warning');
+      setConfidence('UNAVAILABLE');
+      setAiRecommendation('กรุณาลองใหม่เมื่อระบบพร้อม อย่าใช้ผลตัวอย่างเดิมเพื่อตัดสินข้อมูลนี้');
+      setAiEvidence([]);
+      setIocs([]);
+      showToast(`วิเคราะห์ไม่สำเร็จ: ${message}`);
     } finally {
       setAnalyzing(false);
     }
@@ -357,6 +397,8 @@ export const QuickAnalysis = () => {
     setAttachments([]);
     setImagePreview(null);
     setAudioName(null);
+    setAudioFile(null);
+    setAudioConsentConfirmed(false);
     showToast('ล้างข้อมูลฟอร์มเรียบร้อย');
   };
 
@@ -520,7 +562,7 @@ export const QuickAnalysis = () => {
                         <circle cx="8.5" cy="8.5" r="1.5" />
                         <polyline points="21 15 16 10 5 21" />
                       </svg>
-                      <span>+ แนบรูปภาพ (OCR)</span>
+                      <span>+ แนบรูปภาพ (preview)</span>
                     </button>
                     <button
                       type="button"
@@ -535,7 +577,7 @@ export const QuickAnalysis = () => {
                       <span>+ แนบไฟล์เสียง</span>
                     </button>
                   </div>
-                  <span style={{ color: 'var(--fg-muted)', fontSize: '10.5px' }}>Auto-OCR &amp; Scribe Sync</span>
+                  <span style={{ color: 'var(--fg-muted)', fontSize: '10.5px' }}>Image preview &amp; Scribe upload</span>
                 </div>
                 <input
                   type="file"
@@ -616,7 +658,7 @@ export const QuickAnalysis = () => {
                     <polyline points="21 15 16 10 5 21" />
                   </svg>
                   <div className="dropzone-title">{imageName ? `Uploaded: ${imageName}` : 'Click to upload screenshot or drag image here'}</div>
-                  <div className="dropzone-subtitle">Extracts Thai/English text, fake police badges, phone numbers, and bank accounts via OCR</div>
+                  <div className="dropzone-subtitle">Preview only — OCR is not enabled in this prototype</div>
                   <input
                     type="file"
                     ref={fileInputImageRef}
@@ -630,9 +672,8 @@ export const QuickAnalysis = () => {
                           setImagePreview(String(ev.target?.result ?? ''));
                           setImageName(file.name);
                           setImageSize(`${(file.size / 1024 / 1024).toFixed(2)} MB`);
-                          setImageOcrText('สภ.เมืองเชียงใหม่ หมายจับผู้ต้องหาฟอกเงินยาเสพติด... โอนเงินตรวจสอบบัญชีกลาง ปปง.');
-                          setPayloadText(`[OCR Text from ${file.name}]\nสภ.เมืองเชียงใหม่ • หมายจับและคำสั่งอายัดทรัพย์สินเร่งด่วน\nคำสั่ง: ให้โอนเงินตรวจสอบที่บัญชีกลาง ปปง. (นายวิชัย ภักดี)`);
-                          showToast(`อัปโหลดรูปภาพ "${file.name}" พร้อมสกัดข้อความ OCR เรียบร้อย`);
+                          setImageOcrText('OCR ยังไม่เปิดใช้ในต้นแบบ กรุณาวางข้อความจากภาพในช่องข้อความ');
+                          showToast(`อัปโหลดรูปภาพ "${file.name}" สำหรับดูตัวอย่างแล้ว (ยังไม่ได้ทำ OCR)`);
                         };
                         reader.readAsDataURL(file);
                       }
@@ -649,7 +690,7 @@ export const QuickAnalysis = () => {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg)' }}>{imageName}</span>
-                          <span className="badge-sev badge-safe">OCR Extracted (98.6%)</span>
+                          <span className="badge-sev badge-info">Preview only</span>
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 2 }}>{imageSize}</div>
                         <div style={{ marginTop: 6, fontSize: 11.5, color: 'var(--fg-secondary)', background: 'var(--surface)', padding: '6px 8px', borderRadius: 4, border: '1px solid var(--border-subtle)', maxHeight: 60, overflowY: 'auto' }}>
@@ -678,7 +719,7 @@ export const QuickAnalysis = () => {
               <div className="form-group">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <label className="form-label" style={{ marginBottom: 0 }}>
-                    Upload Recorded Call / Voice Clip (WAV, MP3, M4A up to 25MB):
+                    Upload Recorded Call / Voice Clip (WAV, MP3, M4A up to 15MB):
                   </label>
                   <button
                     type="button"
@@ -708,12 +749,11 @@ export const QuickAnalysis = () => {
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
+                        setAudioFile(file);
+                        setAudioConsentConfirmed(false);
                         setAudioName(file.name);
                         setAudioSize(`${(file.size / 1024 / 1024).toFixed(2)} MB`);
-                        setPayloadText(
-                          `[ElevenLabs Scribe STT Transcribed: ${file.name}]\n[00:01 Caller]: สวัสดีครับ ติดต่อจาก สภ.เมืองเชียงใหม่ เรื่องด่วนคดีฟอกเงินยาเสพติด\n[00:15 Caller]: บัญชีของคุณถูกสั่งอายัด ต้องโอนเงินมาที่บัญชีกลาง ปปง. เพื่อตรวจสอบ`,
-                        );
-                        showToast(`โหลดไฟล์เสียง "${file.name}" สำหรับ Scribe STT เรียบร้อย`);
+                        showToast(`เลือกไฟล์เสียง "${file.name}" แล้ว กดวิเคราะห์เพื่อส่งไป Scribe`);
                       }
                     }}
                   />
@@ -728,12 +768,14 @@ export const QuickAnalysis = () => {
                         <span style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{audioSize}</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span className="badge-sev badge-safe">Scribe Diarized</span>
+                        <span className="badge-sev badge-info">Awaiting Scribe</span>
                         <button
                           type="button"
                           className="btn-remove-attachment"
                           onClick={() => {
                             setAudioName(null);
+                            setAudioFile(null);
+                            setAudioConsentConfirmed(false);
                             setIsPlayingAudio(false);
                             showToast('ลบไฟล์เสียงแล้ว');
                           }}
@@ -776,6 +818,19 @@ export const QuickAnalysis = () => {
                   </div>
                 )}
               </div>
+            )}
+
+            {audioFile && (
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 12, fontSize: 11.5, color: 'var(--fg-secondary)' }}>
+                <input
+                  type="checkbox"
+                  checked={audioConsentConfirmed}
+                  onChange={(event) => setAudioConsentConfirmed(event.target.checked)}
+                />
+                <span>
+                  ฉันยืนยันว่ามีสิทธิ์และความยินยอมในการส่งไฟล์เสียงนี้ไปยัง ElevenLabs Scribe เพื่อถอดเสียง
+                </span>
+              </label>
             )}
 
             {/* Extracted URL & Phone */}
@@ -836,7 +891,7 @@ export const QuickAnalysis = () => {
               disabled={analyzing}
             >
               {analyzing ? (
-                <span>Evaluating with AI Core &amp; AOC Intel...</span>
+                <span>Evaluating with AI Core &amp; configured threat sources...</span>
               ) : (
                 <>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -860,7 +915,7 @@ export const QuickAnalysis = () => {
                 </svg>
                 Forensic Verdict &amp; Risk Evaluation
               </div>
-              <div className="card-subtitle">Correlation with Thai AOC 1441 &amp; Criminal Coercion Patterns</div>
+              <div className="card-subtitle">Analysis from configured AI and threat-intelligence sources</div>
             </div>
             <span className={`badge-sev ${verdictClass}`} id="badge-verdict">
               {verdict}
