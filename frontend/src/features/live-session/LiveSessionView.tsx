@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLiveSession } from './useLiveSession';
+import { AgentAudioPlayer } from './audio/agent-audio-player';
 import { showToast } from '../../lib/toast';
 
 interface DemoUtterance {
@@ -122,6 +123,47 @@ export const LiveSessionView = () => {
   useEffect(() => {
     feedEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [utterances, activePartials, demoUtteranceList]);
+
+  const previewPlayerRef = useRef<AgentAudioPlayer | null>(null);
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+
+  // Auto-initiate live session if not started
+  useEffect(() => {
+    if (!sessionId && !callEndedLocally) {
+      void startCall();
+    }
+  }, [sessionId, callEndedLocally, startCall]);
+
+  const handlePreviewVoice = async () => {
+    if (isPlayingPreview) return;
+    setIsPlayingPreview(true);
+    showToast('กำลังสังเคราะห์เสียง ElevenLabs Multilingual V2...');
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:3001'}/sessions/speak-preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: 'สวัสดีค่ะ ดิฉันรับสายแทนนะคะ ขอรบกวนทวนชื่อและยศเจ้าหน้าที่อีกครั้งได้ไหมคะ กำลังจดบันทึกไว้ค่ะ',
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.audioBase64) {
+          if (!previewPlayerRef.current) {
+            previewPlayerRef.current = new AgentAudioPlayer();
+          }
+          await previewPlayerRef.current.enqueueAudioChunk(data.audioBase64, 16000);
+          showToast('กำลังเล่นเสียง AI Agent จาก ElevenLabs 🔊');
+        } else {
+          showToast('ไม่พบข้อมูลเสียง (Fallback Mode)');
+        }
+      }
+    } catch {
+      showToast('เกิดข้อผิดพลาดในการเรียก ElevenLabs Voice');
+    } finally {
+      setTimeout(() => setIsPlayingPreview(false), 3000);
+    }
+  };
 
   const formatTimer = (sec: number) => {
     const m = String(Math.floor(sec / 60)).padStart(2, '0');
@@ -558,21 +600,42 @@ export const LiveSessionView = () => {
                   <div className="takeover-desc">
                     โอนสายให้ ScamTrap AI Agent คุยแทนเพื่อถ่วงเวลามิจฉาชีพ ปกป้องประชาชน และสกัดข้อมูลบัญชีม้า
                   </div>
+                  <div style={{ fontSize: 10.5, color: '#60a5fa', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span className="pulse-dot-green" style={{ width: 6, height: 6 }} />
+                    <span>ElevenLabs Multilingual V2 (Voice: Eric • 16kHz PCM Stream)</span>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  className="btn-action btn-action-primary"
-                  onClick={handleToggleTakeover}
-                  disabled={callEndedLocally}
-                  style={{
-                    height: 34,
-                    padding: '0 14px',
-                    background: isAiActive ? 'var(--crimson-dark)' : 'var(--emerald-dark)',
-                    borderColor: isAiActive ? 'var(--crimson)' : 'var(--emerald)',
-                  }}
-                >
-                  <span>{isAiActive ? 'Stop AI & Resume Self' : 'Engage AI Takeover'}</span>
-                </button>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn-action btn-action-ghost"
+                    onClick={handlePreviewVoice}
+                    disabled={isPlayingPreview}
+                    style={{
+                      height: 34,
+                      fontSize: 11.5,
+                      borderColor: 'rgba(96, 165, 250, 0.4)',
+                      color: isPlayingPreview ? 'var(--emerald)' : 'var(--fg)',
+                    }}
+                    title="ทดสอบฟังเสียง Agent ภาษาไทยที่สังเคราะห์ผ่าน ElevenLabs"
+                  >
+                    <span>{isPlayingPreview ? '🔊 กำลังเล่นเสียง...' : '🔊 ฟังตัวอย่างเสียง AI'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-action btn-action-primary"
+                    onClick={handleToggleTakeover}
+                    disabled={callEndedLocally}
+                    style={{
+                      height: 34,
+                      padding: '0 14px',
+                      background: isAiActive ? 'var(--crimson-dark)' : 'var(--emerald-dark)',
+                      borderColor: isAiActive ? 'var(--crimson)' : 'var(--emerald)',
+                    }}
+                  >
+                    <span>{isAiActive ? 'Stop AI & Resume Self' : 'Engage AI Takeover'}</span>
+                  </button>
+                </div>
               </div>
 
               {/* Hackathon Demo Simulation Triggers */}

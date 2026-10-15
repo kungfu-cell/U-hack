@@ -83,7 +83,7 @@ export const registerSessionRoutes = async (
       const updated = service.requestHandoff(session);
       const pipeline = liveManager?.getOrCreatePipeline(session.id, session.caseId);
       pipeline?.setState(updated.state);
-      pipeline?.addAiUtterance('สวัสดีค่ะ ดิฉันรับสายแทนเจ้าของเบอร์นะคะ ขอทราบชื่อและหน่วยงานที่ติดต่อมาค่ะ');
+      void pipeline?.triggerInitialGreeting();
 
       return reply.send(updated);
 
@@ -131,6 +131,29 @@ export const registerSessionRoutes = async (
       void pipeline.simulateSpeech(body.data.speaker, body.data.text);
 
       return reply.send({ status: 'ok', simulated: body.data });
+    });
+
+    app.post('/sessions/speak-preview', async (request, reply) => {
+      const body = z.object({ text: z.string().min(1) }).safeParse(request.body);
+      if (!body.success) return sendValidationError(reply, body.error);
+
+      if (liveManager?.agentClient) {
+        const dummyContext = {
+          sessionId: 'preview',
+          channel: 'voice' as const,
+          threatScore: 90,
+          callerNumber: '+66812345678',
+          detectedTactics: ['urgency' as const],
+          extractedEntities: [],
+          startedAt: new Date().toISOString(),
+        };
+        const res = await liveManager.agentClient.generateReply(dummyContext, body.data.text);
+        return reply.send({
+          text: res.text,
+          audioBase64: res.audioBase64,
+        });
+      }
+      return reply.send({ text: body.data.text, audioBase64: '' });
     });
   }
 };

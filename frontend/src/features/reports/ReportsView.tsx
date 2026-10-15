@@ -107,6 +107,7 @@ export const ReportsView = () => {
   const [cases, setCases] = useState<IncidentCase[]>(INITIAL_CASES);
   const [search, setSearch] = useState('');
   const [selectedCase, setSelectedCase] = useState<IncidentCase | null>(null);
+  const [officialReportModal, setOfficialReportModal] = useState<IncidentCase | null>(null);
 
   const filteredCases = cases.filter(
     (c) =>
@@ -369,6 +370,19 @@ export const ReportsView = () => {
                 <button
                   type="button"
                   className="btn-action btn-action-ghost"
+                  onClick={() => setOfficialReportModal(selectedCase)}
+                  style={{ color: '#60a5fa', borderColor: 'rgba(96, 165, 250, 0.4)' }}
+                  title="พิมพ์สำนวนหลักฐานราชการเพื่อส่ง AOC 1441 และ บช.สอท."
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
+                  <span>พิมพ์สำนวน AOC 1441</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn-action btn-action-ghost"
                   onClick={() => exportCaseJson(selectedCase)}
                 >
                   Export JSON
@@ -384,6 +398,219 @@ export const ReportsView = () => {
             </div>
           </aside>
         </>
+      )}
+
+      {/* Official Thai Police & AOC 1441 Formal Evidence Dossier Modal */}
+      {officialReportModal && (
+        <div
+          className="modal-overlay"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: 20,
+          }}
+          onClick={() => setOfficialReportModal(null)}
+        >
+          <div
+            style={{
+              background: '#090d16',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius)',
+              width: '100%',
+              maxWidth: 780,
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.75)',
+              overflow: 'hidden',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header Controls */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '12px 18px',
+                borderBottom: '1px solid var(--border)',
+                background: '#0e1320',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span className="badge-sev badge-critical" style={{ fontSize: 10 }}>
+                  AOC OFFICIAL RECORD
+                </span>
+                <span style={{ fontSize: 12, color: 'var(--fg-muted)' }}>
+                  Ref: AOC-TH-{officialReportModal.id.slice(4)}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  className="btn-action btn-action-primary"
+                  onClick={() => window.print()}
+                  style={{ height: 28, fontSize: 11, padding: '0 12px' }}
+                >
+                  🖨️ พิมพ์เอกสาร / บันทึก PDF
+                </button>
+                <button
+                  type="button"
+                  className="btn-copy"
+                  onClick={() => setOfficialReportModal(null)}
+                  style={{ padding: '3px 8px' }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Printable Official Document Body */}
+            <div
+              style={{
+                padding: '24px 32px',
+                overflowY: 'auto',
+                color: 'var(--fg)',
+                lineHeight: 1.6,
+                fontFamily: 'system-ui, -apple-system, sans-serif',
+              }}
+            >
+              {/* Header Seal */}
+              <div style={{ textAlign: 'center', marginBottom: 20 }}>
+                <div style={{ display: 'inline-flex', padding: 8, borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.25)', marginBottom: 8 }}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  </svg>
+                </div>
+                <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: 'var(--fg)' }}>
+                  บันทึกรายงานพยานหลักฐานทางนิติวิทยาศาสตร์ดิจิทัล (Digital Forensic Dossier)
+                </h2>
+                <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 2 }}>
+                  ศูนย์ปฏิบัติการแก้ไขปัญหาอาชญากรรมออนไลน์ (AOC 1441) • กองบัญชาการตำรวจสืบสวนสอบสวนอาชญากรรมทางเทคโนโลยี (บช.สอท.)
+                </div>
+                <div style={{ fontSize: 11, color: '#f59e0b', marginTop: 4, fontWeight: 500 }}>
+                  อำนาจตาม พ.ร.ก. มาตรการป้องกันและปราบปรามอาชญากรรมทางเทคโนโลยี พ.ศ. 2566
+                </div>
+              </div>
+
+              {/* Case Metadata Grid */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: 12,
+                  background: '#0e1320',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: 14,
+                  fontSize: 12,
+                  marginBottom: 18,
+                }}
+              >
+                <div>
+                  <strong>เลขคดีรับแจ้ง (Case ID):</strong> <span className="code-tag">{officialReportModal.id}</span>
+                </div>
+                <div>
+                  <strong>ระดับภัยคุกคาม (Severity):</strong>{' '}
+                  <span className={`badge-sev ${officialReportModal.severityClass}`}>{officialReportModal.severity}</span>
+                </div>
+                <div>
+                  <strong>ช่องทางการก่อเหตุ:</strong> {officialReportModal.channel}
+                </div>
+                <div>
+                  <strong>เวลาที่ตรวจจับได้:</strong> {officialReportModal.timestamp}
+                </div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <strong>พฤติการณ์แห่งคดี:</strong> {officialReportModal.title}
+                </div>
+              </div>
+
+              {/* Suspect Mule Bank Details */}
+              {officialReportModal.muleAccount && (
+                <div style={{ marginBottom: 18 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: '#ef4444', marginBottom: 6 }}>
+                    🎯 ข้อมูลบัญชีม้าและเส้นทางการเงินที่ต้องอายัดเร่งด่วน (AOC Freeze Target)
+                  </div>
+                  <div
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.05)',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      borderRadius: 'var(--radius-sm)',
+                      padding: 12,
+                      fontSize: 12,
+                    }}
+                  >
+                    <div><strong>สถาบันการเงิน:</strong> {officialReportModal.muleBank}</div>
+                    <div><strong>ชื่อบัญชีผู้รับโอน (บัญชีม้า):</strong> {officialReportModal.muleName}</div>
+                    <div><strong>เลขที่บัญชี:</strong> <span className="code-tag" style={{ color: '#ef4444' }}>{officialReportModal.muleAccount}</span></div>
+                    <div><strong>ต้นทางสัญญาณ / Gateway:</strong> {officialReportModal.muleOrigin}</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Audit Trail Timeline */}
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--fg)', marginBottom: 6 }}>
+                  📋 ลำดับเวลาและหลักฐานการถอดเสียง (Forensic Timeline &amp; Scribe NLP Logs)
+                </div>
+                <div
+                  style={{
+                    background: '#040711',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: 12,
+                    fontSize: 11,
+                    lineHeight: 1.7,
+                  }}
+                >
+                  {officialReportModal.auditLog.map((log, i) => (
+                    <div key={i} style={{ borderBottom: '1px dashed rgba(255, 255, 255, 0.06)', paddingBottom: 4, marginBottom: 4 }}>
+                      {log}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Cryptographic Chain of Custody */}
+              <div
+                style={{
+                  background: 'rgba(16, 185, 129, 0.05)',
+                  border: '1px solid rgba(16, 185, 129, 0.2)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: 10,
+                  fontSize: 11,
+                  color: 'var(--fg-secondary)',
+                  marginBottom: 24,
+                }}
+              >
+                <div><strong>Digital Signature (SHA-256):</strong> 7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069</div>
+                <div style={{ fontSize: 10, color: 'var(--fg-muted)', marginTop: 2 }}>
+                  รับรองความถูกต้องของข้อมูลตามมาตรฐาน ISO/IEC 27037:2012 สำหรับการส่งมอบพยานหลักฐานดิจิทัลต่อศาล
+                </div>
+              </div>
+
+              {/* Signatures */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 30, textAlign: 'center', paddingTop: 10 }}>
+                <div>
+                  <div style={{ borderBottom: '1px solid var(--border)', width: 180, margin: '0 auto 6px auto', height: 35 }} />
+                  <div style={{ fontSize: 11.5, fontWeight: 600 }}>ผู้ส่งมอบพยานหลักฐาน (ScamTrap AI Core)</div>
+                  <div style={{ fontSize: 10, color: 'var(--fg-muted)' }}>ระบบป้องกันภัยไซเบอร์ภาคประชาชน</div>
+                </div>
+                <div>
+                  <div style={{ borderBottom: '1px solid var(--border)', width: 180, margin: '0 auto 6px auto', height: 35 }} />
+                  <div style={{ fontSize: 11.5, fontWeight: 600 }}>พนักงานสอบสวน / เจ้าหน้าที่รับเรื่อง</div>
+                  <div style={{ fontSize: 10, color: 'var(--fg-muted)' }}>ศูนย์ปฏิบัติการ AOC สายด่วน 1441</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -162,6 +162,10 @@ export const QuickAnalysis = () => {
   const [bars, setBars] = useState<[number, number, number]>(PRESETS.police.bars);
   const [iocs, setIocs] = useState(PRESETS.police.iocs);
   const [analyzing, setAnalyzing] = useState(false);
+  const [aiRecommendation, setAiRecommendation] = useState<string | null>(null);
+  const [aiEvidence, setAiEvidence] = useState<
+    Array<{ quote: string; tactic: string; explanation: string; confidence: number }>
+  >([]);
 
   // Attachments
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
@@ -218,6 +222,8 @@ export const QuickAnalysis = () => {
     setBars(data.bars);
     setIocs(data.iocs);
     setInputMode(data.mode);
+    setAiRecommendation(null);
+    setAiEvidence([]);
 
     if (key === 'warrant') {
       setImagePreview(SAMPLE_WARRANT_SVG);
@@ -306,6 +312,12 @@ export const QuickAnalysis = () => {
           setVerdict(result.level === 'critical' ? 'Critical Severity' : result.level === 'high' ? 'High Risk' : 'Low / Cleared');
           setVerdictClass(result.level === 'critical' ? 'badge-critical' : result.level === 'high' ? 'badge-warning' : 'badge-safe');
           setConfidence(result.verificationStatus.toUpperCase());
+          if (result.recommendation) {
+            setAiRecommendation(result.recommendation);
+          }
+          if (result.evidence && result.evidence.length > 0) {
+            setAiEvidence(result.evidence);
+          }
 
           // Construct IOC table from backend entities and threatChecks
           const newIocs: Array<{ type: string; val: string; status: string; statusClass: string }> = [];
@@ -925,6 +937,72 @@ export const QuickAnalysis = () => {
                 />
               </div>
             </div>
+
+            {/* AI Recommendation Alert Box */}
+            {aiRecommendation && (
+              <div
+                style={{
+                  background: 'rgba(59, 130, 246, 0.08)',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: 12,
+                  marginTop: 14,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: '11.5px',
+                    fontWeight: 600,
+                    color: '#60a5fa',
+                    marginBottom: 4,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  </svg>
+                  <span>คำแนะนำจาก OpenAI (gpt-4o-mini Semantic Guard):</span>
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--fg)', lineHeight: 1.5 }}>
+                  {aiRecommendation}
+                </div>
+              </div>
+            )}
+
+            {/* Extracted Semantic Evidence & Tactics */}
+            {aiEvidence.length > 0 && (
+              <div style={{ marginTop: 14 }}>
+                <span className="form-label">
+                  Detected Coercion Tactics &amp; Semantic Evidence ({aiEvidence.length}):
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {aiEvidence.map((ev, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        background: '#090d16',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '8px 10px',
+                        fontSize: 11.5,
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span className="code-tag" style={{ color: '#ff6b6b' }}>"{ev.quote}"</span>
+                        <span className="badge-sev badge-critical" style={{ fontSize: 9.5 }}>
+                          {ev.tactic.toUpperCase()}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--fg-secondary)', marginTop: 2 }}>
+                        {ev.explanation}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Extracted IOCs Table */}
             <div style={{ marginTop: 16 }}>

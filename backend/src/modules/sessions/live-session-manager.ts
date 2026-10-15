@@ -20,7 +20,7 @@ export class LiveSessionManager {
     private readonly scribeProvider: ScribeProvider,
     private readonly analysisProvider: AnalysisProvider,
     private readonly sessionService: SessionService,
-    private readonly agentClient?: AgentClient,
+    readonly agentClient?: AgentClient,
   ) {}
 
   getOrCreatePipeline(sessionId: string, caseId: string): AudioPipeline {

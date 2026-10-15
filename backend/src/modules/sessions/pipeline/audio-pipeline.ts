@@ -340,6 +340,30 @@ export class AudioPipeline {
     return utterance;
   }
 
+  /**
+   * Triggers the opening decoy agent greeting with ElevenLabs synthesized voice.
+   */
+  async triggerInitialGreeting(): Promise<void> {
+    const greetingPrompt = 'สวัสดีค่ะ ดิฉันรับสายแทนเจ้าของเบอร์นะคะ พอดีสัญญาณขาดหาย รบกวนแจ้งชื่อ ยศ และสังกัดสถานีตำรวจที่ติดต่อมาอีกครั้งได้ไหมคะ';
+    try {
+      const context = ContextBuilder.build(this.sessionId, this.utterances);
+      const reply = await this.agentClient.generateReply(context, greetingPrompt);
+      const textToUse = reply.text || greetingPrompt;
+      this.addAiUtterance(textToUse);
+      if (reply.audioBase64) {
+        this.onEvent({
+          type: 'agent.audio_chunk',
+          sessionId: this.sessionId,
+          audioBase64: reply.audioBase64,
+          sampleRate: 16000,
+          occurredAt: new Date().toISOString(),
+        });
+      }
+    } catch {
+      this.addAiUtterance(greetingPrompt);
+    }
+  }
+
   private handleProviderError(speaker: Speaker, error: Error): void {
     const isAuthError =
       error.message.toLowerCase().includes('authenticated') ||
