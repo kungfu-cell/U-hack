@@ -138,7 +138,11 @@ function generateWaveformBars(
   });
 }
 
-export const LiveSessionView = () => {
+interface LiveSessionViewProps {
+  onNavigateToBlacklist?: (query: string) => void;
+}
+
+export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps = {}) => {
   const {
     sessionId,
     participantRole,
@@ -1442,6 +1446,48 @@ export const LiveSessionView = () => {
                     ? `Warning: ${riskReasons[0]}`
                     : 'ยังไม่พบคำเตือนจากบทสนทนารอบนี้'}
                 </span>
+              </div>
+
+              {/* Real-Time IOC Interception & 1-Click Blacklist Cross-Reference */}
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: '10px 14px',
+                  background: 'rgba(239, 68, 68, 0.06)',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  borderRadius: 'var(--radius-sm)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 8,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="badge-sev badge-critical" style={{ fontSize: 9.5 }}>
+                    LIVE IOC DETECTED
+                  </span>
+                  <span style={{ fontSize: 11.5, color: 'var(--fg)' }}>
+                    ตรวจพบเป้าหมายในสาย: <strong style={{ color: '#f87171' }}>+66 82-419-8921</strong> (VoIP Poipet Trunk) • บัญชีม้า: <strong style={{ color: '#f87171' }}>984-2-90184-1</strong>
+                  </span>
+                </div>
+
+                {onNavigateToBlacklist && (
+                  <button
+                    type="button"
+                    className="btn-action btn-action-ghost"
+                    style={{
+                      height: 26,
+                      fontSize: 11,
+                      color: '#ef4444',
+                      borderColor: 'rgba(239, 68, 68, 0.4)',
+                    }}
+                    onClick={() => onNavigateToBlacklist('+66 82-419-8921')}
+                    title="เปิดตรวจสอบเบอร์นี้กับฐานข้อมูล Blacklist & OSINT ทันที"
+                  >
+                    🔍 ตรวจกับ Blacklist ทันที ›
+                  </button>
+                )}
               </div>
             </div>
           </div>

@@ -135,7 +135,9 @@ export const App = () => {
         <div style={{ display: activeTab === 'tab-verify' ? 'contents' : 'none' }}>
           <QuickAnalysis onNavigateToBlacklist={handleNavigateToBlacklist} />
         </div>
-        {activeTab === 'tab-live-call' && <LiveSessionView />}
+        {activeTab === 'tab-live-call' && (
+          <LiveSessionView onNavigateToBlacklist={handleNavigateToBlacklist} />
+        )}
         {activeTab === 'tab-dossier' && (
           <ReportsView
             initialSubTab={dossierSubTab}
