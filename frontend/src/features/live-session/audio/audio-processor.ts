@@ -68,6 +68,16 @@ export class AudioProcessor {
     silentGain.connect(this.audioContext.destination);
   }
 
+  async resume(): Promise<void> {
+    if (this.audioContext && this.audioContext.state === 'suspended') {
+      try {
+        await this.audioContext.resume();
+      } catch {
+        // ignore
+      }
+    }
+  }
+
   stop(): void {
     this.isRunning = false;
     try {

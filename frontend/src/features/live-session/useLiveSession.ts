@@ -507,6 +507,10 @@ export const useLiveSession = () => {
     setActiveScammerLang(chosenLang);
 
     try {
+      // Ensure microphone processor and speech recognition are active following user interaction
+      await userAudioProcessorRef.current?.resume();
+      speechRecognizerRef.current?.start();
+
       setScammerStatus('connecting');
       setIsScammerCalling(true);
       const res = await fetch(
