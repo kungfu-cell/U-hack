@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { computeLookupDigest } from '../crypto.js';
+import { computeLookupDigest, encryptValue } from '../crypto.js';
 import { AuditRepository } from '../repositories/audit.repository.js';
 import { ConsentRepository } from '../repositories/consent.repository.js';
 import { ReportRepository } from '../repositories/report.repository.js';
@@ -228,7 +228,7 @@ describe('Data & Reports Services and Repositories', () => {
                   {
                     id: 'em-1',
                     type: 'bank_account',
-                    encryptedValue: '0819984321',
+                    encryptedValue: encryptValue('0819984321'),
                     lookupDigest: 'dig-1',
                     speaker: 'caller',
                     confidence: 0.99,

@@ -26,6 +26,7 @@ export const QuickAnalysis = () => {
         source: 'quick_analysis',
       });
       const analyzed = await analyzeCase(created.id);
+      window.localStorage.setItem('scamtrap:lastCaseId', created.id);
       setResult(analyzed.latestAnalysis);
       setStatus('idle');
     } catch (caught) {
@@ -46,8 +47,8 @@ export const QuickAnalysis = () => {
         <div className="privacy-note">
           <span aria-hidden="true">◆</span>
           <div>
-            <strong>โหมดต้นแบบ</strong>
-            <p>ผลลัพธ์หน้านี้มาจากกฎทดสอบ และยังไม่ได้ตรวจฐานภัยคุกคามจริง</p>
+            <strong>โหมดการวิเคราะห์</strong>
+            <p>ระบบจะแสดงป้าย DEMO เฉพาะเมื่อใช้ fixture; provider mode จะแสดงผลตรวจภายนอกตามสถานะจริง</p>
           </div>
         </div>
       </section>
@@ -85,7 +86,7 @@ export const QuickAnalysis = () => {
 
         {result && (
           <article className="result-panel" aria-live="polite">
-            <div className="demo-ribbon">DEMO RESULT</div>
+            {result.isDemo && <div className="demo-ribbon">DEMO RESULT</div>}
             <RiskGauge score={result.score} level={result.level} />
             <p className="result-summary">{result.summary}</p>
             <div className="recommendation">

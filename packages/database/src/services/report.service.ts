@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient, Report } from '@prisma/client';
-import { maskValue } from '../crypto.js';
+import { decryptValue, maskValue } from '../crypto.js';
 import { ReportRepository } from '../repositories/report.repository.js';
 import { IncidentCorrelationService } from './incident-correlation.service.js';
 
@@ -140,7 +140,7 @@ export class ReportService {
       return {
         id: em.id,
         type: em.type,
-        maskedValue: maskValue(em.type, em.encryptedValue.includes(':') ? em.type : em.encryptedValue),
+        maskedValue: maskValue(em.type, decryptValue(em.encryptedValue)),
         speaker: em.speaker,
         confidence: em.confidence,
         verified: em.verified,

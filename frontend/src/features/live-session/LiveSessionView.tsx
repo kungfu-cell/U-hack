@@ -12,6 +12,10 @@ const SPEAKER_LABELS: Record<string, { label: string; badgeClass: string }> = {
 export const LiveSessionView = () => {
   const {
     sessionId,
+    joinCode,
+    inviteUrl,
+    participantRole,
+    pendingInvitation,
     handoffState,
     utterances,
     activePartials,
@@ -19,10 +23,12 @@ export const LiveSessionView = () => {
     riskLevel,
     riskReasons,
     connectionStatus,
+    peerConnected,
     degradedMessage,
     isMicActive,
     micLevel,
     startCall,
+    joinCall,
     endCall,
     requestHandoff,
     resumeHuman,
@@ -62,6 +68,20 @@ export const LiveSessionView = () => {
             <span>โหมดผู้พูด:</span>
             <code className="state-badge">{handoffState}</code>
           </div>
+          {participantRole && (
+            <div className="status-row">
+              <span>บทบาทในห้อง:</span>
+              <strong>{participantRole === 'owner' ? 'เจ้าของห้อง' : 'คู่สนทนา'}</strong>
+            </div>
+          )}
+          {isCallActive && (
+            <div className="status-row">
+              <span>WebRTC peer:</span>
+              <span className={`status-pill ${peerConnected ? 'status-connected' : 'status-connecting'}`}>
+                {peerConnected ? '● เสียงสองฝั่งเชื่อมแล้ว' : '◌ รออีกฝ่ายเข้าห้อง'}
+              </span>
+            </div>
+          )}
           {isCallActive && (
             <div className="status-row mic-status-row">
               <span>ไมค์ของคุณ:</span>
@@ -87,30 +107,49 @@ export const LiveSessionView = () => {
 
         <div className="session-actions">
           {!isCallActive ? (
-            <button className="primary-button call-start-btn" onClick={startCall}>
-              📞 เริ่มสนทนาและเปิดไมค์
-            </button>
+            pendingInvitation ? (
+              <button className="primary-button call-start-btn" onClick={joinCall}>
+                📞 เข้าร่วมห้องและเปิดไมค์
+              </button>
+            ) : (
+              <button className="primary-button call-start-btn" onClick={startCall}>
+                📞 สร้างห้องสนทนาและเปิดไมค์
+              </button>
+            )
           ) : (
             <div className="active-call-controls">
               <button className="danger-button" onClick={endCall}>
                 ✕ จบการสนทนา
               </button>
-              {handoffState !== 'ai_active' && handoffState !== 'waiting_for_user' ? (
-                <button className="secondary-button" onClick={requestHandoff}>
-                  🤖 ให้ AI รับช่วงสนทนา
-                </button>
-              ) : (
-                <button className="primary-button" onClick={resumeHuman}>
-                  🎙️ กลับมาพูดเอง
-                </button>
+              {participantRole === 'owner' && (
+                handoffState === 'human_active' ? (
+                  <button className="secondary-button" onClick={requestHandoff}>
+                    🤖 ให้ AI รับช่วงสนทนา
+                  </button>
+                ) : handoffState === 'ai_active' || handoffState === 'paused_safe' ? (
+                  <button className="primary-button" onClick={resumeHuman}>
+                    🎙️ กลับมาพูดเอง
+                  </button>
+                ) : null
               )}
             </div>
           )}
         </div>
 
+        {participantRole === 'owner' && inviteUrl && (
+          <div className="invite-panel">
+            <span className="eyebrow">ลิงก์สำหรับคู่สนทนา</span>
+            <p>รหัสห้อง <strong>{joinCode}</strong></p>
+            <div className="invite-row">
+              <input aria-label="ลิงก์เข้าร่วมห้อง" readOnly value={inviteUrl} />
+              <button type="button" className="text-button" onClick={() => void navigator.clipboard.writeText(inviteUrl)}>
+                คัดลอกลิงก์
+              </button>
+            </div>
+          </div>
+        )}
 
-
-        {isCallActive && (
+        {isCallActive && participantRole === 'owner' && (
           <div className="demo-triggers-panel">
             <span className="eyebrow">ทดสอบสถานการณ์จำลอง (Hackathon Demo)</span>
             <div className="demo-btn-group">

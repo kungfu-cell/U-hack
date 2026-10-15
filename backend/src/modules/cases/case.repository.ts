@@ -8,6 +8,7 @@ export interface CaseRepository {
   create(record: StoredCase): Promise<StoredCase>;
   findById(id: string): Promise<StoredCase | undefined>;
   save(record: StoredCase): Promise<StoredCase>;
+  delete(id: string): Promise<void>;
 }
 
 export class InMemoryCaseRepository implements CaseRepository {
@@ -26,6 +27,10 @@ export class InMemoryCaseRepository implements CaseRepository {
   async save(record: StoredCase) {
     this.cases.set(record.id, structuredClone(record));
     return structuredClone(record);
+  }
+
+  async delete(id: string) {
+    this.cases.delete(id);
   }
 }
 

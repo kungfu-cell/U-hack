@@ -6,6 +6,11 @@ import { ReportPlaceholder } from '../features/reports/ReportPlaceholder';
 
 type Page = 'analyze' | 'live' | 'report';
 
+const getInitialPage = (): Page => {
+  const params = new URLSearchParams(window.location.search);
+  return params.has('session') && params.has('join') ? 'live' : 'analyze';
+};
+
 const navItems: { id: Page; label: string }[] = [
   { id: 'analyze', label: 'ตรวจสอบข้อมูล' },
   { id: 'live', label: 'สนทนาสด' },
@@ -13,12 +18,19 @@ const navItems: { id: Page; label: string }[] = [
 ];
 
 export const App = () => {
-  const [page, setPage] = useState<Page>('analyze');
+  const [page, setPage] = useState<Page>(getInitialPage);
+
+  const navigate = (nextPage: Page) => {
+    if (nextPage !== 'live' && window.location.search) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    setPage(nextPage);
+  };
 
   return (
     <div className="app-shell">
       <header className="topbar">
-        <button className="brand" onClick={() => setPage('analyze')} aria-label="ScamTrap AI home">
+        <button className="brand" onClick={() => navigate('analyze')} aria-label="ScamTrap AI home">
           <span className="brand-mark">S</span>
           <span>ScamTrap <b>AI</b></span>
         </button>
@@ -27,7 +39,7 @@ export const App = () => {
             <button
               key={item.id}
               className={page === item.id ? 'active' : ''}
-              onClick={() => setPage(item.id)}
+              onClick={() => navigate(item.id)}
             >
               {item.label}
             </button>

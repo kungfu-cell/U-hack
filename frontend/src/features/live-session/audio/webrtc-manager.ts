@@ -6,7 +6,9 @@ export class WebRtcManager {
   private localStream: MediaStream | null = null;
   private peerConnection: RTCPeerConnection | null = null;
   private remoteStream: MediaStream | null = null;
+  private remoteAudio: HTMLAudioElement | null = null;
   private onRemoteStreamCallback?: (stream: MediaStream) => void;
+  private onIceCandidateCallback?: (candidate: RTCIceCandidateInit) => void;
 
   constructor(private readonly iceServers: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }]) {}
 
@@ -24,6 +26,12 @@ export class WebRtcManager {
       video: false,
     });
 
+    if (this.peerConnection && this.peerConnection.getSenders().length === 0) {
+      for (const track of this.localStream.getAudioTracks()) {
+        this.peerConnection.addTrack(track, this.localStream);
+      }
+    }
+
     return this.localStream;
   }
 
@@ -39,7 +47,12 @@ export class WebRtcManager {
     this.onRemoteStreamCallback = callback;
   }
 
+  setOnIceCandidate(callback: (candidate: RTCIceCandidateInit) => void): void {
+    this.onIceCandidateCallback = callback;
+  }
+
   initPeerConnection(): RTCPeerConnection {
+    if (this.peerConnection) return this.peerConnection;
     this.peerConnection = new RTCPeerConnection({ iceServers: this.iceServers });
 
     if (this.localStream) {
@@ -52,11 +65,49 @@ export class WebRtcManager {
       const [remoteStream] = event.streams;
       if (remoteStream) {
         this.remoteStream = remoteStream;
+        if (!this.remoteAudio) {
+          this.remoteAudio = new Audio();
+          this.remoteAudio.autoplay = true;
+          this.remoteAudio.setAttribute('playsinline', 'true');
+        }
+        this.remoteAudio.srcObject = remoteStream;
+        void this.remoteAudio.play().catch(() => undefined);
         this.onRemoteStreamCallback?.(remoteStream);
       }
     };
 
+    this.peerConnection.onicecandidate = (event) => {
+      if (event.candidate) this.onIceCandidateCallback?.(event.candidate.toJSON());
+    };
+
     return this.peerConnection;
+  }
+
+  async createOffer(): Promise<string> {
+    const peer = this.initPeerConnection();
+    const offer = await peer.createOffer({ offerToReceiveAudio: true });
+    await peer.setLocalDescription(offer);
+    if (!offer.sdp) throw new Error('WEBRTC_OFFER_MISSING_SDP');
+    return offer.sdp;
+  }
+
+  async acceptOffer(sdp: string): Promise<string> {
+    const peer = this.initPeerConnection();
+    await peer.setRemoteDescription({ type: 'offer', sdp });
+    const answer = await peer.createAnswer();
+    await peer.setLocalDescription(answer);
+    if (!answer.sdp) throw new Error('WEBRTC_ANSWER_MISSING_SDP');
+    return answer.sdp;
+  }
+
+  async acceptAnswer(sdp: string): Promise<void> {
+    const peer = this.initPeerConnection();
+    await peer.setRemoteDescription({ type: 'answer', sdp });
+  }
+
+  async addIceCandidate(candidate: RTCIceCandidateInit): Promise<void> {
+    const peer = this.initPeerConnection();
+    await peer.addIceCandidate(candidate);
   }
 
   /**
@@ -139,5 +190,10 @@ export class WebRtcManager {
     }
 
     this.remoteStream = null;
+    if (this.remoteAudio) {
+      this.remoteAudio.pause();
+      this.remoteAudio.srcObject = null;
+      this.remoteAudio = null;
+    }
   }
 }
