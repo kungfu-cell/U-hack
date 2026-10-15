@@ -222,7 +222,7 @@ export class AudioPipeline {
       const reply = await this.agentClient.generateReply(context, callerText);
 
       if (this.getState() === 'ai_active') {
-        this.emitAgentReply(reply);
+        await this.emitAgentReply(reply);
       }
     } catch (err) {
       this.setState('paused_safe');
@@ -245,7 +245,7 @@ export class AudioPipeline {
       );
       if (this.getState() !== 'preparing_ai') return false;
       this.setState('ai_active');
-      this.emitAgentReply(reply);
+      await this.emitAgentReply(reply);
       return true;
     } catch (error) {
       this.setState('paused_safe');
@@ -260,13 +260,21 @@ export class AudioPipeline {
     }
   }
 
-  private emitAgentReply(reply: { text: string; audioBase64?: string | undefined }): void {
+  private async emitAgentReply(reply: { text: string; audioBase64?: string | undefined }): Promise<void> {
     this.addAiUtterance(reply.text);
-    if (reply.audioBase64) {
+    let audio = reply.audioBase64;
+    if (!audio && this.agentClient && 'speakText' in this.agentClient && process.env.NODE_ENV !== 'test') {
+      try {
+        audio = await (this.agentClient as { speakText: (t: string) => Promise<string> }).speakText(reply.text);
+      } catch {
+        // fallback
+      }
+    }
+    if (audio) {
       this.onEvent({
         type: 'agent.audio_chunk',
         sessionId: this.sessionId,
-        audioBase64: reply.audioBase64,
+        audioBase64: audio,
         sampleRate: 16000,
         occurredAt: new Date().toISOString(),
       });

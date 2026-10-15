@@ -2,8 +2,60 @@ import { AgentGuardrail } from './agent-guardrail.js';
 import type { AgentClient, AgentContextPacket, AgentReply } from './types.js';
 import WebSocket from 'ws';
 
+const ttsCache = new Map<string, string>();
+
+export async function fetchElevenLabsTts(
+  apiKey: string,
+  text: string,
+  voiceId = 'cjVigY5qzO86Huf0OWal',
+): Promise<string> {
+  const cacheKey = `${voiceId}:${text.trim()}`;
+  const cached = ttsCache.get(cacheKey);
+  if (cached) return cached;
+
+  if (!apiKey) return '';
+  try {
+    const ttsRes = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=pcm_16000`,
+      {
+        method: 'POST',
+        headers: {
+          'xi-api-key': apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text,
+          model_id: 'eleven_multilingual_v2',
+          voice_settings: {
+            stability: 0.55,
+            similarity_boost: 0.8,
+          },
+        }),
+        signal: AbortSignal.timeout(10000),
+      },
+    );
+    if (ttsRes.ok) {
+      const arrayBuffer = await ttsRes.arrayBuffer();
+      const base64 = Buffer.from(arrayBuffer).toString('base64');
+      if (base64) {
+        ttsCache.set(cacheKey, base64);
+        return base64;
+      }
+    }
+  } catch {
+    // Graceful fallback
+  }
+  return '';
+}
+
 export class DemoAgentAdapter implements AgentClient {
   readonly name = 'demo-decoy-agent-v1';
+
+  async speakText(text: string, voiceId = 'cjVigY5qzO86Huf0OWal'): Promise<string> {
+    const apiKey = process.env.ELEVENLABS_API_KEY;
+    if (!apiKey) return '';
+    return fetchElevenLabsTts(apiKey, text, voiceId);
+  }
 
   async generateReply(
     context: AgentContextPacket,
@@ -63,8 +115,16 @@ export class DemoAgentAdapter implements AgentClient {
     // Always sanitize through AgentGuardrail
     const guardrail = AgentGuardrail.sanitize(proposedText);
 
+    let audioBase64: string | undefined;
+    const apiKey = process.env.ELEVENLABS_API_KEY;
+    if (apiKey && process.env.NODE_ENV !== 'test') {
+      const audio = await fetchElevenLabsTts(apiKey, guardrail.sanitizedText, 'cjVigY5qzO86Huf0OWal');
+      if (audio) audioBase64 = audio;
+    }
+
     return {
       text: guardrail.sanitizedText,
+      ...(audioBase64 ? { audioBase64 } : {}),
     };
   }
 }
@@ -81,36 +141,9 @@ export class ElevenLabsAgentClient implements AgentClient {
     if (voiceId) this.voiceId = voiceId;
   }
 
-  async speakText(text: string): Promise<string> {
+  async speakText(text: string, voiceId?: string): Promise<string> {
     if (!this.apiKey) return '';
-    try {
-      const ttsRes = await fetch(
-        `https://api.elevenlabs.io/v1/text-to-speech/${this.voiceId}?output_format=pcm_16000`,
-        {
-          method: 'POST',
-          headers: {
-            'xi-api-key': this.apiKey,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            text,
-            model_id: 'eleven_multilingual_v2',
-            voice_settings: {
-              stability: 0.55,
-              similarity_boost: 0.8,
-            },
-          }),
-          signal: AbortSignal.timeout(8000),
-        },
-      );
-      if (ttsRes.ok) {
-        const arrayBuffer = await ttsRes.arrayBuffer();
-        return Buffer.from(arrayBuffer).toString('base64');
-      }
-    } catch {
-      // Fallback
-    }
-    return '';
+    return fetchElevenLabsTts(this.apiKey, text, voiceId || this.voiceId);
   }
 
   async generateReply(

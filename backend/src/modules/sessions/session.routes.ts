@@ -284,7 +284,7 @@ export const registerSessionRoutes = async (
       const recent = (previewRequests.get(requester) ?? []).filter(
         (timestamp) => now - timestamp < 60_000,
       );
-      if (recent.length >= 5) {
+      if (recent.length >= 60) {
         return reply.status(429).send({
           error: { code: 'RATE_LIMITED', message: 'Voice preview limit reached; retry in one minute' },
         });
@@ -296,17 +296,28 @@ export const registerSessionRoutes = async (
         .object({
           text: z.string().min(1),
           directText: z.boolean().optional(),
+          voiceRole: z.enum(['scammer', 'decoy']).optional(),
+          voiceId: z.string().optional(),
         })
         .safeParse(request.body);
       if (!body.success) return sendValidationError(reply, body.error);
 
+      // Scammer voice: George (JBFqnCBsd6RMkjVDRZzb - deep, stern, authoritative interrogator)
+      // Decoy voice: Eric (cjVigY5qzO86Huf0OWal - polite, reassuring assistant)
+      const targetVoice =
+        body.data.voiceId ??
+        (body.data.voiceRole === 'scammer' ? 'JBFqnCBsd6RMkjVDRZzb' : 'cjVigY5qzO86Huf0OWal');
+
       if (liveManager?.agentClient) {
         if (body.data.directText && 'speakText' in liveManager.agentClient) {
-          const directSpeaker = liveManager.agentClient as { speakText: (t: string) => Promise<string> };
-          const audio = await directSpeaker.speakText(body.data.text);
+          const directSpeaker = liveManager.agentClient as {
+            speakText: (t: string, v?: string) => Promise<string>;
+          };
+          const audio = await directSpeaker.speakText(body.data.text, targetVoice);
           return reply.send({
             text: body.data.text,
             audioBase64: audio,
+            voiceRole: body.data.voiceRole ?? 'decoy',
           });
         }
 
@@ -315,9 +326,10 @@ export const registerSessionRoutes = async (
         return reply.send({
           text: res.text,
           audioBase64: res.audioBase64,
+          voiceRole: body.data.voiceRole ?? 'decoy',
         });
       }
-      return reply.send({ text: body.data.text, audioBase64: '' });
+      return reply.send({ text: body.data.text, audioBase64: '', voiceRole: body.data.voiceRole ?? 'decoy' });
     });
   }
 };

@@ -115,6 +115,7 @@ export const LiveSessionView = () => {
   const [isUserSimSpeaking, setIsUserSimSpeaking] = useState<boolean>(false);
   const phaseRef = useRef<number>(0);
   const previewPlayerRef = useRef<AgentAudioPlayer | null>(null);
+  const callerAudioPlayerRef = useRef<AgentAudioPlayer | null>(null);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
 
   // Waveform heights state (defaults to resting baseline 4px)
@@ -311,12 +312,70 @@ export const LiveSessionView = () => {
     showToast(isMuted ? 'เปิดไมโครโฟนแล้ว (Active)' : 'ปิดไมโครโฟนแล้ว (Muted)');
   };
 
+  const playScammerSpeech = async (text: string, lang: 'th' | 'en' = 'th') => {
+    setIsCallerSimSpeaking(true);
+    const approxDurationSec = Math.max(3.8, Math.min(11, text.length * 0.075));
+    const timer = setTimeout(() => {
+      setIsCallerSimSpeaking(false);
+    }, approxDurationSec * 1000);
+
+    showToast(`กำลังสังเคราะห์เสียงมิจฉาชีพ AI (${lang === 'en' ? 'George (EN)' : 'George (TH)'})... 🚨`);
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:3001'}/sessions/speak-preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-id': 'demo-user' },
+        body: JSON.stringify({
+          text,
+          directText: true,
+          voiceRole: 'scammer',
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.audioBase64) {
+          if (!callerAudioPlayerRef.current) {
+            callerAudioPlayerRef.current = new AgentAudioPlayer();
+          }
+          await callerAudioPlayerRef.current.enqueueAudioChunk(data.audioBase64, 16000);
+          showToast(`🔊 เสียงมิจฉาชีพ AI กำลังพูดออกลำโพง (${lang === 'en' ? 'EN' : 'TH'}) 🚨`);
+          return;
+        }
+      }
+    } catch {
+      // Fallback below
+    }
+
+    // Fallback: Web Speech API speechSynthesis for zero-dependency speaker playback
+    try {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = lang === 'en' ? 'en-US' : 'th-TH';
+        utterance.rate = 0.98;
+        utterance.pitch = 0.85; // Deep, commanding tone
+        utterance.onend = () => {
+          clearTimeout(timer);
+          setIsCallerSimSpeaking(false);
+        };
+        utterance.onerror = () => {
+          clearTimeout(timer);
+          setIsCallerSimSpeaking(false);
+        };
+        window.speechSynthesis.speak(utterance);
+        showToast(`🔊 เสียงมิจฉาชีพ AI ออกลำโพง (Web Speech): ${lang === 'en' ? 'EN' : 'TH'}`);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   const handleSimulate = async (type: 'police' | 'otp' | 'user' | 'en_police' | 'en_otp' | 'en_user') => {
     if (type === 'police') {
       const text =
         'ผมร้อยตำรวจเอก สมชาย จากสถานีตำรวจภูธรเมือง ตรวจพบว่าคุณเกี่ยวข้องกับคดีฟอกเงิน ให้รีบโอนเงินมาตรวจสอบทันทีและห้ามบอกใคร';
-      setIsCallerSimSpeaking(true);
-      setTimeout(() => setIsCallerSimSpeaking(false), 4500);
+      void playScammerSpeech(text, 'th');
       await simulateSpeech('caller', text);
       setDemoUtteranceList((prev) => [
         ...prev,
@@ -328,11 +387,10 @@ export const LiveSessionView = () => {
           intent: ['AUTHORITY IMPERSONATION', 'CRIMINAL COERCION'],
         },
       ]);
-      showToast('จำลอง: ตำรวจปลอมโทรข่มขู่โอนเงิน');
+      showToast('จำลอง: ตำรวจปลอมโทรข่มขู่โอนเงิน (เสียงออกลำโพง)');
     } else if (type === 'otp') {
       const text = 'ทางธนาคารส่ง SMS รหัส OTP 6 หลักไปให้แล้ว รบกวนแจ้งรหัสเพื่อยืนยันสิทธิ์เดี๋ยวนี้';
-      setIsCallerSimSpeaking(true);
-      setTimeout(() => setIsCallerSimSpeaking(false), 3800);
+      void playScammerSpeech(text, 'th');
       await simulateSpeech('caller', text);
       setDemoUtteranceList((prev) => [
         ...prev,
@@ -344,7 +402,7 @@ export const LiveSessionView = () => {
           intent: ['SECRET REQUEST', 'URGENCY TRIGGER'],
         },
       ]);
-      showToast('จำลอง: มิจฉาชีพหลอกขอ OTP');
+      showToast('จำลอง: มิจฉาชีพหลอกขอ OTP (เสียงออกลำโพง)');
     } else if (type === 'user') {
       const text = 'ขอโทษนะครับ ผมไม่สะดวกโอนเงิน และขอโทรกลับไปตรวจสอบที่สถานีตำรวจโดยตรงครับ';
       setIsUserSimSpeaking(true);
@@ -363,8 +421,7 @@ export const LiveSessionView = () => {
     } else if (type === 'en_police') {
       const text =
         'This is Officer John Davis from Federal Fraud Taskforce. Your account is tied to an international money laundering ring. You must wire all funds to our verification vault immediately.';
-      setIsCallerSimSpeaking(true);
-      setTimeout(() => setIsCallerSimSpeaking(false), 5200);
+      void playScammerSpeech(text, 'en');
       await simulateSpeech('caller', text);
       setDemoUtteranceList((prev) => [
         ...prev,
@@ -376,12 +433,11 @@ export const LiveSessionView = () => {
           intent: ['AUTHORITY IMPERSONATION', 'URGENCY', 'MONEY ROUTING'],
         },
       ]);
-      showToast('Simulate: Impersonating Federal Police (Wire Transfer)');
+      showToast('Simulate: Impersonating Federal Police (Voice on Speaker)');
     } else if (type === 'en_otp') {
       const text =
         'We sent a 6-digit OTP passcode to your mobile device right now. Please disclose the code immediately to avoid permanent account termination.';
-      setIsCallerSimSpeaking(true);
-      setTimeout(() => setIsCallerSimSpeaking(false), 4200);
+      void playScammerSpeech(text, 'en');
       await simulateSpeech('caller', text);
       setDemoUtteranceList((prev) => [
         ...prev,
@@ -393,7 +449,7 @@ export const LiveSessionView = () => {
           intent: ['CREDENTIAL HARVESTING', 'URGENCY'],
         },
       ]);
-      showToast('Simulate: OTP Harvesting Scam');
+      showToast('Simulate: OTP Harvesting Scam (Voice on Speaker)');
     } else if (type === 'en_user') {
       const text =
         'I will not share any OTP codes or transfer money over the phone. I am contacting my bank fraud prevention desk directly.';
@@ -734,11 +790,28 @@ export const LiveSessionView = () => {
               {/* Channel A: Caller */}
               <div className={`waveform-box caller-channel ${isCallerActive ? 'active-channel' : 'idle-channel'}`}>
                 <div className="waveform-header">
-                  <span>CHANNEL A: Inbound Caller (+66 82-419-8921)</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>CHANNEL A: Inbound Caller (+66 82-419-8921)</span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        padding: '1px 6px',
+                        background: isCallerActive ? 'rgba(244,63,94,0.25)' : 'rgba(255,255,255,0.06)',
+                        color: isCallerActive ? '#f43f5e' : 'var(--fg-muted)',
+                        borderRadius: 4,
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 3,
+                      }}
+                    >
+                      🔊 Speaker: {isCallerActive ? 'Playing Voice' : 'Active'}
+                    </span>
+                  </div>
                   {isCallerActive ? (
                     <span style={{ color: '#f43f5e', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
                       <span className="pulse-dot-red" style={{ width: 6, height: 6 }} />
-                      Active Speech (กำลังพูด...)
+                      Active Speech (เสียงมิจฉาชีพออนไลน์)
                     </span>
                   ) : (
                     <span style={{ color: 'var(--fg-muted)', fontWeight: 500 }}>
@@ -977,20 +1050,43 @@ export const LiveSessionView = () => {
                     key={item.id}
                     className={`chat-bubble ${item.speaker === 'caller' ? 'bubble-inbound' : item.speaker === 'user' ? 'bubble-citizen' : 'bubble-agent'}`}
                   >
-                    <div className="bubble-meta">
+                    <div className="bubble-meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        {item.speaker === 'caller' && (
+                          <>
+                            CALLER ({item.time}){' '}
+                            {item.intent?.map((it) => (
+                              <span key={it} className="tag-intent">
+                                {it}
+                              </span>
+                            ))}
+                          </>
+                        )}
+                        {item.speaker === 'user' && `USER (${item.time})`}
+                        {item.speaker === 'ai' && (
+                          <span style={{ color: '#60a5fa' }}>SCAMTRAP AI AGENT (TAKEOVER ACTIVE)</span>
+                        )}
+                      </div>
                       {item.speaker === 'caller' && (
-                        <>
-                          CALLER ({item.time}){' '}
-                          {item.intent?.map((it) => (
-                            <span key={it} className="tag-intent">
-                              {it}
-                            </span>
-                          ))}
-                        </>
-                      )}
-                      {item.speaker === 'user' && `USER (${item.time})`}
-                      {item.speaker === 'ai' && (
-                        <span style={{ color: '#60a5fa' }}>SCAMTRAP AI AGENT (TAKEOVER ACTIVE)</span>
+                        <button
+                          type="button"
+                          className="btn-replay-voice"
+                          style={{
+                            background: 'rgba(244,63,94,0.15)',
+                            border: '1px solid rgba(244,63,94,0.35)',
+                            color: '#f43f5e',
+                            fontSize: 10,
+                            borderRadius: 4,
+                            padding: '1px 7px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                          }}
+                          onClick={() => void playScammerSpeech(item.text, /[\u0E00-\u0E7F]/.test(item.text) ? 'th' : 'en')}
+                        >
+                          🔊 ฟังเสียงซ้ำ
+                        </button>
                       )}
                     </div>
                     {item.text}
@@ -1003,8 +1099,31 @@ export const LiveSessionView = () => {
                     key={u.id}
                     className={`chat-bubble ${u.speaker === 'caller' ? 'bubble-inbound' : u.speaker === 'user' ? 'bubble-citizen' : 'bubble-agent'}`}
                   >
-                    <div className="bubble-meta">
-                      {u.speaker.toUpperCase()} ({new Date(u.startedAtMs).toLocaleTimeString()})
+                    <div className="bubble-meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        {u.speaker.toUpperCase()} ({new Date(u.startedAtMs).toLocaleTimeString()})
+                      </div>
+                      {u.speaker === 'caller' && (
+                        <button
+                          type="button"
+                          className="btn-replay-voice"
+                          style={{
+                            background: 'rgba(244,63,94,0.15)',
+                            border: '1px solid rgba(244,63,94,0.35)',
+                            color: '#f43f5e',
+                            fontSize: 10,
+                            borderRadius: 4,
+                            padding: '1px 7px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                          }}
+                          onClick={() => void playScammerSpeech(u.text, /[\u0E00-\u0E7F]/.test(u.text) ? 'th' : 'en')}
+                        >
+                          🔊 ฟังเสียงซ้ำ
+                        </button>
+                      )}
                     </div>
                     {u.text}
                   </div>
