@@ -40,6 +40,7 @@ export const useLiveSession = () => {
   >('idle');
   const [degradedMessage, setDegradedMessage] = useState<string | null>(null);
   const [isMicActive, setIsMicActive] = useState<boolean>(false);
+  const [micLevel, setMicLevel] = useState<number>(0);
 
   const wsRef = useRef<WebSocket | null>(null);
   const webrtcRef = useRef<WebRtcManager | null>(null);
@@ -176,15 +177,21 @@ export const useLiveSession = () => {
       setIsMicActive(true);
 
       // 5. Setup AudioProcessor for user mic
-      const userProcessor = new AudioProcessor(userStream, (audioBase64) => {
-        sendClientMessage({
-          type: 'audio.chunk',
-          sessionId: session.id,
-          speaker: 'user',
-          audioBase64,
-          timestampMs: Date.now(),
-        });
-      });
+      const userProcessor = new AudioProcessor(
+        userStream,
+        (audioBase64) => {
+          sendClientMessage({
+            type: 'audio.chunk',
+            sessionId: session.id,
+            speaker: 'user',
+            audioBase64,
+            timestampMs: Date.now(),
+          });
+        },
+        (rms) => {
+          setMicLevel(rms);
+        },
+      );
       userProcessor.start();
       userAudioProcessorRef.current = userProcessor;
 
@@ -271,6 +278,7 @@ export const useLiveSession = () => {
     wsRef.current?.close();
 
     setIsMicActive(false);
+    setMicLevel(0);
     setConnectionStatus('disconnected');
     setHandoffState('ended');
   };
@@ -363,6 +371,7 @@ export const useLiveSession = () => {
     connectionStatus,
     degradedMessage,
     isMicActive,
+    micLevel,
     startCall,
     endCall,
     requestHandoff,

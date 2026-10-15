@@ -21,6 +21,7 @@ export const LiveSessionView = () => {
     connectionStatus,
     degradedMessage,
     isMicActive,
+    micLevel,
     startCall,
     endCall,
     requestHandoff,
@@ -61,6 +62,20 @@ export const LiveSessionView = () => {
             <span>โหมดผู้พูด:</span>
             <code className="state-badge">{handoffState}</code>
           </div>
+          {isCallActive && (
+            <div className="status-row mic-status-row">
+              <span>ไมค์ของคุณ:</span>
+              <div className="mic-visualizer">
+                <div
+                  className="mic-level-fill"
+                  style={{ width: `${Math.min(100, Math.round(micLevel * 450))}%` }}
+                />
+              </div>
+              <span className="mic-db-text">
+                {micLevel > 0.015 ? '🎙️ ตรวจพบเสียงพูด' : '🤫 ไมค์ทำงานปกติ'}
+              </span>
+            </div>
+          )}
         </div>
 
         {degradedMessage && (

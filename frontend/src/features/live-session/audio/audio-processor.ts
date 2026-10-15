@@ -11,6 +11,7 @@ export class AudioProcessor {
   constructor(
     private readonly stream: MediaStream,
     private readonly onAudioChunk: (base64Data: string) => void,
+    private readonly onVolume?: (rms: number) => void,
     private readonly targetSampleRate = 16000,
     private readonly bufferSize = 4096,
   ) {}
@@ -36,6 +37,17 @@ export class AudioProcessor {
 
       const inputData = event.inputBuffer.getChannelData(0);
       const inputSampleRate = this.audioContext?.sampleRate ?? 48000;
+
+      // Measure volume RMS for visual feedback
+      if (this.onVolume && inputData.length > 0) {
+        let sumSquares = 0;
+        for (let i = 0; i < inputData.length; i++) {
+          const val = inputData[i] ?? 0;
+          sumSquares += val * val;
+        }
+        const rms = Math.sqrt(sumSquares / inputData.length);
+        this.onVolume(rms);
+      }
 
       // Downsample to target sample rate (16kHz)
       const downsampled = this.downsample(inputData, inputSampleRate, this.targetSampleRate);

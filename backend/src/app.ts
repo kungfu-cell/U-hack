@@ -30,15 +30,16 @@ export const buildApp = async (options?: { scribeProvider?: ScribeProvider }) =>
     timestamp: new Date().toISOString(),
   }));
 
-  const analysisProvider = env.USE_DEMO_ADAPTERS
-    ? new DemoAnalysisProvider()
-    : new OpenAIAnalysisProvider({
-        apiKey: env.OPENAI_API_KEY,
-        model: env.OPENAI_MODEL,
-        threatIntelProvider: new GoogleWebRiskProvider(
-          env.GOOGLE_WEB_RISK_API_KEY,
-        ),
-      });
+  const analysisProvider =
+    !env.USE_DEMO_ADAPTERS && Boolean(env.OPENAI_API_KEY)
+      ? new OpenAIAnalysisProvider({
+          apiKey: env.OPENAI_API_KEY,
+          model: env.OPENAI_MODEL,
+          ...(env.GOOGLE_WEB_RISK_API_KEY
+            ? { threatIntelProvider: new GoogleWebRiskProvider(env.GOOGLE_WEB_RISK_API_KEY) }
+            : {}),
+        })
+      : new DemoAnalysisProvider();
 
   const caseService = new CaseService(
     new InMemoryCaseRepository(),
