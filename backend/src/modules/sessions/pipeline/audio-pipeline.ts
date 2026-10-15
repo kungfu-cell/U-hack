@@ -34,6 +34,7 @@ export class AudioPipeline {
   private audioBuffers = new Map<Speaker, string[]>();
   private isReconnecting = new Map<Speaker, boolean>();
   private reconnectAttempts = new Map<Speaker, number>();
+  private initPromises = new Map<Speaker, Promise<void>>();
 
   constructor(options: AudioPipelineOptions) {
     this.sessionId = options.sessionId;
@@ -100,7 +101,14 @@ export class AudioPipeline {
         return;
       }
 
-      await this.initSpeakerSession(speaker);
+      let initPromise = this.initPromises.get(speaker);
+      if (!initPromise) {
+        initPromise = this.initSpeakerSession(speaker).finally(() => {
+          this.initPromises.delete(speaker);
+        });
+        this.initPromises.set(speaker, initPromise);
+      }
+      await initPromise;
       session = this.speakerSessions.get(speaker);
     }
 
@@ -333,15 +341,26 @@ export class AudioPipeline {
   }
 
   private handleProviderError(speaker: Speaker, error: Error): void {
+    const isAuthError =
+      error.message.toLowerCase().includes('authenticated') ||
+      error.message.toLowerCase().includes('auth_error') ||
+      error.message.toLowerCase().includes('permission') ||
+      error.message.toLowerCase().includes('unauthorized') ||
+      error.message.toLowerCase().includes('api key');
+
     this.onEvent({
       type: 'service.degraded',
       sessionId: this.sessionId,
       service: `elevenlabs_scribe_${speaker}`,
-      message: error.message || 'Speech-to-text provider encountered an error',
+      message: isAuthError
+        ? 'ElevenLabs API Key ขาดสิทธิ์ Speech-to-Text (Scribe) — สลับเข้าโหมดตรวจจับเสียงไมโครโฟนอัตโนมัติ'
+        : (error.message || 'Speech-to-text provider encountered an error'),
       occurredAt: new Date().toISOString(),
     });
 
-    this.scheduleReconnect(speaker);
+    if (!isAuthError) {
+      this.scheduleReconnect(speaker);
+    }
   }
 
   private handleSessionClose(speaker: Speaker): void {

@@ -6,18 +6,24 @@ const DEMO_CALLER_SCRIPTS = [
   'ตรวจสอบพบว่าคุณมีส่วนเกี่ยวข้องกับคดีฟอกเงินและมีหมายจับออกในชื่อของคุณ',
   'เพื่อแสดงความบริสุทธิ์ใจ คุณต้องโอนเงินทั้งหมดในบัญชีมาให้ทางเราตรวจสอบทันที และห้ามบอกใครเด็ดขาด',
   'แจ้งรหัส OTP 6 หลักที่เพิ่งได้รับทาง SMS มาให้เจ้าหน้าที่บันทึกเข้าระบบเดี๋ยวนี้',
+  'หากคุณไม่ให้ความร่วมมือ เจ้าหน้าที่จะเข้าควบคุมตัวที่บ้านของคุณภายในหนึ่งชั่วโมงนี้',
+  'อย่าเพิ่งวางสายเด็ดขาด การตัดสายถือว่าเป็นการขัดขืนคำสั่งเจ้าพนักงาน',
 ];
 
 const DEMO_USER_SCRIPTS = [
   'สวัสดีค่ะ จากหน่วยงานไหนนะคะ ขอทราบชื่ออีกทีค่ะ',
   'ตกใจมากค่ะ ฉันไม่เคยไปยุ่งเกี่ยวกับเรื่องฟอกเงินเลยนะคะ',
   'ทำไมต้องโอนเงินด้วยคะ ขอโทรปรึกษาครอบครัวก่อนได้ไหม',
+  'เดี๋ยวขอจดชื่อและเบอร์ติดต่อกลับเพื่อโทรเช็คกับสถานีตำรวจก่อนนะคะ',
+  'ทำไมต้องขอรหัส OTP ด้วยคะ ธนาคารบอกว่าห้ามบอกใครเด็ดขาด',
+  'ขอดูหมายจับหรือเอกสารราชการทางไลน์ก่อนได้ไหมคะ',
 ];
 
 export class DemoScribeSession implements ScribeSession {
   private scriptIndex = 0;
   private chunkCount = 0;
   private isClosed = false;
+  private isStreaming = false;
   private activeTimers: NodeJS.Timeout[] = [];
   private activeVoiceChunks = 0;
 
@@ -46,22 +52,20 @@ export class DemoScribeSession implements ScribeSession {
         isVoiceActive = rms > 0.015;
       }
     } catch {
-      isVoiceActive = true;
+      isVoiceActive = false;
     }
 
     if (isVoiceActive) {
       this.activeVoiceChunks++;
     }
 
-    // Progress scripts when voice activity is detected or on interval
-    if (this.shouldAutoAdvance && (this.activeVoiceChunks >= 6 || this.chunkCount % 12 === 0)) {
+    // Trigger transcript when actual voice activity is sustained (not when silent)
+    if (this.shouldAutoAdvance && !this.isStreaming && this.activeVoiceChunks >= 4) {
       this.activeVoiceChunks = 0;
       const scripts = this.speaker === 'caller' ? DEMO_CALLER_SCRIPTS : DEMO_USER_SCRIPTS;
-      if (this.scriptIndex < scripts.length) {
-        const text = scripts[this.scriptIndex]!;
-        this.scriptIndex++;
-        void this.simulateStream(text);
-      }
+      const text = scripts[this.scriptIndex % scripts.length]!;
+      this.scriptIndex++;
+      void this.simulateStream(text);
     }
   }
 
@@ -72,6 +76,7 @@ export class DemoScribeSession implements ScribeSession {
 
   simulateStream(fullText: string, wordsPerStep = 2, stepIntervalMs = 60): Promise<void> {
     if (this.isClosed) return Promise.resolve();
+    this.isStreaming = true;
 
     return new Promise((resolve) => {
       const words = fullText.split(' ');
@@ -79,6 +84,7 @@ export class DemoScribeSession implements ScribeSession {
 
       const step = () => {
         if (this.isClosed) {
+          this.isStreaming = false;
           resolve();
           return;
         }
@@ -93,6 +99,7 @@ export class DemoScribeSession implements ScribeSession {
           // Final partial before commit
           this.callbacks.onPartial(fullText);
           const finalTimer = setTimeout(() => {
+            this.isStreaming = false;
             if (!this.isClosed) {
               this.callbacks.onCommitted(fullText);
             }
