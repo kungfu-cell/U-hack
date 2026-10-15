@@ -313,19 +313,18 @@ export const useLiveSession = () => {
       localProcessor.start();
       userAudioProcessorRef.current = localProcessor;
 
-      // Browser recognition provides a readable fallback transcript for the local speaker.
+      // Browser recognition provides immediate, reliable real-time transcript for the local speaker
       const recognizer = new BrowserSpeechRecognizer((text, isFinal) => {
-        if (clientSpeechFallbackRef.current) {
-          sendClientMessage({
-            type: 'transcript.client_speech',
-            sessionId: targetSessionId,
-            speaker: localSpeaker,
-            text,
-            isFinal,
-          });
-        }
+        // Send to backend so server-side pipeline and subscribers receive it
+        sendClientMessage({
+          type: 'transcript.client_speech',
+          sessionId: targetSessionId,
+          speaker: localSpeaker,
+          text,
+          isFinal,
+        });
 
-        // Optimistically show transcript locally in UI
+        // Optimistically update transcript in local UI
         if (!isFinal) {
           setActivePartials((prev) => ({
             ...prev,
@@ -341,6 +340,24 @@ export const useLiveSession = () => {
             },
           }));
         } else {
+          // Commit finalized speech segment into the permanent transcript feed
+          const committedUtterance: Utterance = {
+            id: `local-commit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            sessionId: targetSessionId,
+            speaker: localSpeaker,
+            text,
+            transcriptState: 'committed',
+            startedAtMs: Date.now() - 1500,
+            endedAtMs: Date.now(),
+            createdAt: new Date().toISOString(),
+          };
+          setUtterances((prev) => {
+            // Avoid duplicate text if backend already broadcasted it
+            if (prev.some((u) => u.speaker === localSpeaker && u.text.trim() === text.trim() && Math.abs(u.endedAtMs - committedUtterance.endedAtMs) < 3000)) {
+              return prev;
+            }
+            return [...prev, committedUtterance];
+          });
           setActivePartials((prev) => ({
             ...prev,
             [localSpeaker]: null,
@@ -466,15 +483,14 @@ export const useLiveSession = () => {
         const localSpeaker: 'user' | 'caller' =
           participantRoleRef.current === 'owner' ? 'user' : 'caller';
         const recognizer = new BrowserSpeechRecognizer((text, isFinal) => {
-          if (clientSpeechFallbackRef.current) {
-            sendClientMessage({
-              type: 'transcript.client_speech',
-              sessionId: targetSessionId,
-              speaker: localSpeaker,
-              text,
-              isFinal,
-            });
-          }
+          sendClientMessage({
+            type: 'transcript.client_speech',
+            sessionId: targetSessionId,
+            speaker: localSpeaker,
+            text,
+            isFinal,
+          });
+
           if (!isFinal) {
             setActivePartials((prev) => ({
               ...prev,
@@ -490,6 +506,22 @@ export const useLiveSession = () => {
               },
             }));
           } else {
+            const committedUtterance: Utterance = {
+              id: `local-commit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+              sessionId: targetSessionId,
+              speaker: localSpeaker,
+              text,
+              transcriptState: 'committed',
+              startedAtMs: Date.now() - 1500,
+              endedAtMs: Date.now(),
+              createdAt: new Date().toISOString(),
+            };
+            setUtterances((prev) => {
+              if (prev.some((u) => u.speaker === localSpeaker && u.text.trim() === text.trim() && Math.abs(u.endedAtMs - committedUtterance.endedAtMs) < 3000)) {
+                return prev;
+              }
+              return [...prev, committedUtterance];
+            });
             setActivePartials((prev) => ({
               ...prev,
               [localSpeaker]: null,
