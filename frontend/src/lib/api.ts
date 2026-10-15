@@ -1,8 +1,14 @@
 import {
   apiErrorSchema,
   caseSchema,
+  incidentReportSchema,
+  shareProposalSchema,
+  sessionSnapshotSchema,
   type AddCaseInputRequest,
   type CaseRecord,
+  type IncidentReport,
+  type ShareProposal,
+  type SessionSnapshot,
 } from '@scamtrap/contracts';
 
 const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
@@ -43,4 +49,36 @@ export const analyzeCase = (caseId: string) =>
     `/cases/${caseId}/analyses`,
     { method: 'POST', body: '{}' },
     (data) => caseSchema.parse(data),
+  );
+
+export const getCaseReport = (caseId: string) =>
+  request<IncidentReport>(
+    `/cases/${caseId}/report`,
+    { method: 'GET' },
+    (data) => incidentReportSchema.parse(data),
+  );
+
+export const createShareProposal = (caseId: string, indicatorIds: string[]) =>
+  request<ShareProposal>(
+    `/cases/${caseId}/share-proposals`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ indicatorIds, consentConfirmed: true }),
+    },
+    (data) => shareProposalSchema.parse(data),
+  );
+
+export const deleteCase = async (caseId: string) => {
+  const response = await fetch(`${apiUrl}/cases/${caseId}`, {
+    method: 'DELETE',
+    headers: { 'x-user-id': 'demo-user' },
+  });
+  if (!response.ok) throw new Error('ลบเหตุการณ์ไม่สำเร็จ');
+};
+
+export const getSessionSnapshot = (sessionId: string) =>
+  request<SessionSnapshot>(
+    `/sessions/${sessionId}/snapshot`,
+    { method: 'GET' },
+    (data) => sessionSnapshotSchema.parse(data),
   );

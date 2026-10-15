@@ -21,6 +21,7 @@ export class AudioPipeline {
   private readonly agentClient: AgentClient;
   private readonly onEvent: (event: SessionEvent) => void;
   private readonly stateMachine: HandoffStateMachine;
+  private readonly startedAtEpochMs = Date.now();
 
   private utterances: Utterance[] = [];
   private activePartialUtterance: Record<string, Utterance | null> = {
@@ -145,14 +146,15 @@ export class AudioPipeline {
 
     const existing = this.activePartialUtterance[speaker];
     const now = Date.now();
+    const elapsedMs = now - this.startedAtEpochMs;
     const utterance: Utterance = {
       id: existing?.id ?? randomUUID(),
       sessionId: this.sessionId,
       speaker,
       text,
       transcriptState: 'partial',
-      startedAtMs: existing?.startedAtMs ?? now,
-      endedAtMs: now,
+      startedAtMs: existing?.startedAtMs ?? elapsedMs,
+      endedAtMs: elapsedMs,
       createdAt: existing?.createdAt ?? new Date(now).toISOString(),
     };
 
@@ -180,14 +182,15 @@ export class AudioPipeline {
 
     const existing = this.activePartialUtterance[speaker];
     const now = Date.now();
+    const elapsedMs = now - this.startedAtEpochMs;
     const utterance: Utterance = {
       id: existing?.id ?? randomUUID(),
       sessionId: this.sessionId,
       speaker,
       text,
       transcriptState: 'committed',
-      startedAtMs: existing?.startedAtMs ?? now - 2000,
-      endedAtMs: now,
+      startedAtMs: existing?.startedAtMs ?? Math.max(0, elapsedMs - 2000),
+      endedAtMs: elapsedMs,
       createdAt: new Date().toISOString(),
     };
 
@@ -219,24 +222,52 @@ export class AudioPipeline {
       const reply = await this.agentClient.generateReply(context, callerText);
 
       if (this.getState() === 'ai_active') {
-        this.addAiUtterance(reply.text);
-
-        if (reply.audioBase64) {
-          this.onEvent({
-            type: 'agent.audio_chunk',
-            sessionId: this.sessionId,
-            audioBase64: reply.audioBase64,
-            sampleRate: 16000,
-            occurredAt: new Date().toISOString(),
-          });
-        }
+        this.emitAgentReply(reply);
       }
     } catch (err) {
+      this.setState('paused_safe');
       this.onEvent({
         type: 'service.degraded',
         sessionId: this.sessionId,
         service: 'decoy_agent',
         message: err instanceof Error ? err.message : 'Agent response generation failed',
+        occurredAt: new Date().toISOString(),
+      });
+    }
+  }
+
+  async startHandoff(): Promise<boolean> {
+    try {
+      const context = ContextBuilder.build(this.sessionId, this.utterances);
+      const reply = await this.agentClient.generateReply(
+        context,
+        'ผู้ใช้อนุมัติให้ AI รับช่วงแล้ว กรุณาแนะนำตัวสั้น ๆ และถามชื่อกับหน่วยงานของคู่สนทนา',
+      );
+      if (this.getState() !== 'preparing_ai') return false;
+      this.setState('ai_active');
+      this.emitAgentReply(reply);
+      return true;
+    } catch (error) {
+      this.setState('paused_safe');
+      this.onEvent({
+        type: 'service.degraded',
+        sessionId: this.sessionId,
+        service: 'decoy_agent',
+        message: error instanceof Error ? error.message : 'Agent preparation failed',
+        occurredAt: new Date().toISOString(),
+      });
+      return false;
+    }
+  }
+
+  private emitAgentReply(reply: { text: string; audioBase64?: string | undefined }): void {
+    this.addAiUtterance(reply.text);
+    if (reply.audioBase64) {
+      this.onEvent({
+        type: 'agent.audio_chunk',
+        sessionId: this.sessionId,
+        audioBase64: reply.audioBase64,
+        sampleRate: 16000,
         occurredAt: new Date().toISOString(),
       });
     }
@@ -318,14 +349,15 @@ export class AudioPipeline {
   addAiUtterance(text: string): Utterance {
 
     const now = Date.now();
+    const elapsedMs = now - this.startedAtEpochMs;
     const utterance: Utterance = {
       id: randomUUID(),
       sessionId: this.sessionId,
       speaker: 'ai',
       text,
       transcriptState: 'committed',
-      startedAtMs: now - 1500,
-      endedAtMs: now,
+      startedAtMs: Math.max(0, elapsedMs - 1500),
+      endedAtMs: elapsedMs,
       createdAt: new Date().toISOString(),
     };
 
@@ -338,6 +370,30 @@ export class AudioPipeline {
     });
 
     return utterance;
+  }
+
+  /**
+   * Triggers the opening decoy agent greeting with ElevenLabs synthesized voice.
+   */
+  async triggerInitialGreeting(): Promise<void> {
+    const greetingPrompt = 'สวัสดีค่ะ ดิฉันรับสายแทนเจ้าของเบอร์นะคะ พอดีสัญญาณขาดหาย รบกวนแจ้งชื่อ ยศ และสังกัดสถานีตำรวจที่ติดต่อมาอีกครั้งได้ไหมคะ';
+    try {
+      const context = ContextBuilder.build(this.sessionId, this.utterances);
+      const reply = await this.agentClient.generateReply(context, greetingPrompt);
+      const textToUse = reply.text || greetingPrompt;
+      this.addAiUtterance(textToUse);
+      if (reply.audioBase64) {
+        this.onEvent({
+          type: 'agent.audio_chunk',
+          sessionId: this.sessionId,
+          audioBase64: reply.audioBase64,
+          sampleRate: 16000,
+          occurredAt: new Date().toISOString(),
+        });
+      }
+    } catch {
+      this.addAiUtterance(greetingPrompt);
+    }
   }
 
   private handleProviderError(speaker: Speaker, error: Error): void {

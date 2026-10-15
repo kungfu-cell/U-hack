@@ -25,14 +25,34 @@ const envSchema = z.object({
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),
+  PERSISTENCE_MODE: z.enum(["memory", "postgres"]).default("memory"),
   USE_DEMO_ADAPTERS: z
     .enum(["true", "false"])
     .default("true")
-    .transform((value) => value === "true"),
+    .transform((value) => (process.env.NODE_ENV === "test" ? true : value === "true")),
   ELEVENLABS_API_KEY: z.string().optional(),
+  ELEVENLABS_AGENT_ID: z.string().optional(),
   OPENAI_API_KEY: z.string().default(""),
-  OPENAI_MODEL: z.string().default("gpt-5.6-terra"),
+  OPENAI_MODEL: z.string().default("gpt-4o-mini"),
   GOOGLE_SAFE_BROWSING_API_KEY: z.string().default(""),
+  DATA_ENCRYPTION_SECRET: z.string().optional(),
+  DATA_PEPPER_SECRET: z.string().optional(),
+  REVIEWER_API_KEY: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.string().min(16).optional(),
+  ),
+}).superRefine((value, context) => {
+  if (value.PERSISTENCE_MODE !== "postgres") return;
+
+  for (const field of ["DATA_ENCRYPTION_SECRET", "DATA_PEPPER_SECRET"] as const) {
+    if (!value[field] || value[field].length < 32) {
+      context.addIssue({
+        code: "custom",
+        path: [field],
+        message: `${field} must contain at least 32 characters when PERSISTENCE_MODE=postgres`,
+      });
+    }
+  }
 });
 
 export const env = envSchema.parse(process.env);

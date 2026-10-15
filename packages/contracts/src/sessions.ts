@@ -17,6 +17,9 @@ export type HandoffState = z.infer<typeof handoffStateSchema>;
 export const speakerSchema = z.enum(['user', 'caller', 'ai', 'system']);
 export type Speaker = z.infer<typeof speakerSchema>;
 
+export const participantRoleSchema = z.enum(['owner', 'caller']);
+export type ParticipantRole = z.infer<typeof participantRoleSchema>;
+
 export const utteranceSchema = z.object({
   id: z.string(),
   sessionId: z.string(),
@@ -61,11 +64,38 @@ export const clientSpeechMessageSchema = z.object({
 });
 export type ClientSpeechMessage = z.infer<typeof clientSpeechMessageSchema>;
 
+const sessionDescriptionMessageSchema = z.object({
+  sessionId: z.string(),
+  sdp: z.string().min(1),
+});
+
+export const signalOfferMessageSchema = sessionDescriptionMessageSchema.extend({
+  type: z.literal('signal.offer'),
+});
+
+export const signalAnswerMessageSchema = sessionDescriptionMessageSchema.extend({
+  type: z.literal('signal.answer'),
+});
+
+export const signalIceMessageSchema = z.object({
+  type: z.literal('signal.ice'),
+  sessionId: z.string(),
+  candidate: z.object({
+    candidate: z.string(),
+    sdpMid: z.string().nullable().optional(),
+    sdpMLineIndex: z.number().int().nullable().optional(),
+    usernameFragment: z.string().nullable().optional(),
+  }),
+});
+
 export const clientMessageSchema = z.discriminatedUnion('type', [
   audioChunkMessageSchema,
   sessionSyncRequestSchema,
   pingMessageSchema,
   clientSpeechMessageSchema,
+  signalOfferMessageSchema,
+  signalAnswerMessageSchema,
+  signalIceMessageSchema,
 ]);
 export type ClientMessage = z.infer<typeof clientMessageSchema>;
 
@@ -131,6 +161,39 @@ export const sessionEventSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('agent.interrupted'),
     sessionId: z.string(),
+    occurredAt: z.string().datetime(),
+  }),
+  z.object({
+    type: z.literal('peer.joined'),
+    sessionId: z.string(),
+    role: participantRoleSchema,
+    occurredAt: z.string().datetime(),
+  }),
+  z.object({
+    type: z.literal('peer.left'),
+    sessionId: z.string(),
+    role: participantRoleSchema,
+    occurredAt: z.string().datetime(),
+  }),
+  z.object({
+    type: z.literal('signal.offer'),
+    sessionId: z.string(),
+    sdp: z.string(),
+    fromRole: participantRoleSchema,
+    occurredAt: z.string().datetime(),
+  }),
+  z.object({
+    type: z.literal('signal.answer'),
+    sessionId: z.string(),
+    sdp: z.string(),
+    fromRole: participantRoleSchema,
+    occurredAt: z.string().datetime(),
+  }),
+  z.object({
+    type: z.literal('signal.ice'),
+    sessionId: z.string(),
+    candidate: signalIceMessageSchema.shape.candidate,
+    fromRole: participantRoleSchema,
     occurredAt: z.string().datetime(),
   }),
   z.object({

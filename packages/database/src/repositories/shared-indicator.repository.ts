@@ -42,6 +42,24 @@ export class SharedIndicatorRepository {
     });
   }
 
+  async findById(id: string): Promise<SharedIndicator | null> {
+    return this.prisma.sharedIndicator.findUnique({ where: { id } });
+  }
+
+  async listForReview(
+    reviewStatus: ReviewStatus = 'PENDING',
+    limit: number = 100,
+  ): Promise<SharedIndicator[]> {
+    return this.prisma.sharedIndicator.findMany({
+      where: {
+        reviewStatus,
+        withdrawnAt: null,
+      },
+      orderBy: { createdAt: 'asc' },
+      take: limit,
+    });
+  }
+
   async withdrawIndicator(id: string, withdrawnAt: Date = new Date()): Promise<SharedIndicator> {
     return this.prisma.sharedIndicator.update({
       where: { id },

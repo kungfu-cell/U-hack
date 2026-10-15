@@ -3,6 +3,8 @@ import type { FastifyInstance } from 'fastify';
 import WebSocket from 'ws';
 import { buildApp } from '../../app.js';
 import { DemoScribeProvider } from './pipeline/demo-scribe-adapter.js';
+import { DemoAnalysisProvider } from '@scamtrap/analysis-core';
+import { DemoAgentAdapter } from './handoff/agent-client.js';
 
 let app: FastifyInstance | undefined;
 
@@ -14,21 +16,32 @@ afterEach(async () => {
 describe('Live Session WebSocket API', () => {
   it('connects to session WebSocket, receives initial sync, and handles live speech', async () => {
     const demoScribe = new DemoScribeProvider(false);
-    app = await buildApp({ scribeProvider: demoScribe });
+    app = await buildApp({
+      scribeProvider: demoScribe,
+      persistenceMode: 'memory',
+      analysisProvider: new DemoAnalysisProvider(),
+      agentClient: new DemoAgentAdapter(),
+    });
     const address = await app.listen({ host: '127.0.0.1', port: 0 });
     const port = (app.server.address() as { port: number }).port;
 
-    // 1. Create session via REST
+    // 1. Create an owned case and session via REST
+    const caseRes = await app.inject({
+      method: 'POST',
+      url: '/cases',
+      payload: { title: 'WebSocket test', isDemo: true },
+    });
+    const testCase = caseRes.json<{ id: string }>();
     const createRes = await app.inject({
       method: 'POST',
       url: '/sessions',
-      payload: { caseId: '11111111-1111-4111-8111-111111111111' },
+      payload: { caseId: testCase.id },
     });
     expect(createRes.statusCode).toBe(201);
-    const session = createRes.json<{ id: string; caseId: string }>();
+    const session = createRes.json<{ id: string; caseId: string; ownerToken: string; joinCode: string }>();
 
     // 2. Connect via WebSocket
-    const wsUrl = `ws://127.0.0.1:${port}/sessions/${session.id}/ws`;
+    const wsUrl = `ws://127.0.0.1:${port}/sessions/${session.id}/ws?token=${session.ownerToken}`;
     const ws = new WebSocket(wsUrl);
 
     const receivedEvents: any[] = [];
@@ -47,6 +60,30 @@ describe('Live Session WebSocket API', () => {
     expect(syncEvent.snapshot.sessionId).toBe(session.id);
     expect(syncEvent.snapshot.state).toBe('human_active');
 
+    // A caller joins with the short-lived room code and receives a separate token.
+    const joinRes = await app.inject({
+      method: 'POST',
+      url: `/sessions/${session.id}/join`,
+      payload: { joinCode: session.joinCode },
+    });
+    expect(joinRes.statusCode).toBe(200);
+    const joined = joinRes.json<{ participantToken: string }>();
+    const callerEvents: any[] = [];
+    const callerWs = new WebSocket(
+      `ws://127.0.0.1:${port}/sessions/${session.id}/ws?token=${joined.participantToken}`,
+    );
+    await new Promise<void>((resolve, reject) => {
+      callerWs.on('open', resolve);
+      callerWs.on('error', reject);
+      callerWs.on('message', (data) => callerEvents.push(JSON.parse(data.toString())));
+    });
+    await new Promise((r) => setTimeout(r, 60));
+    expect(receivedEvents.some((event) => event.type === 'peer.joined' && event.role === 'caller')).toBe(true);
+
+    ws.send(JSON.stringify({ type: 'signal.offer', sessionId: session.id, sdp: 'v=0\r\n' }));
+    await new Promise((r) => setTimeout(r, 60));
+    expect(callerEvents.some((event) => event.type === 'signal.offer' && event.fromRole === 'owner')).toBe(true);
+
     // 4. Test Ping / Pong
     ws.send(JSON.stringify({ type: 'ping', timestamp: 123456 }));
     await new Promise((r) => setTimeout(r, 60));
@@ -57,7 +94,7 @@ describe('Live Session WebSocket API', () => {
     // 5. Test Live Speech Simulation
     const activeSessions = demoScribe.getActiveSessions();
     // Ingest audio chunk to trigger speaker session creation
-    ws.send(
+    callerWs.send(
       JSON.stringify({
         type: 'audio.chunk',
         sessionId: session.id,
@@ -119,7 +156,7 @@ describe('Live Session WebSocket API', () => {
       url: `/sessions/${session.id}/handoff`,
       headers: { 'x-user-id': 'demo-user' },
     });
-    expect(handoffRes.statusCode).toBe(200);
+    expect(handoffRes.statusCode).toBe(202);
 
     // Wait for the automatic transition to ai_active (600ms + buffer)
     await new Promise((r) => setTimeout(r, 750));
@@ -133,6 +170,7 @@ describe('Live Session WebSocket API', () => {
     );
     expect(aiUtterance).toBeDefined();
 
+    callerWs.close();
     ws.close();
   });
 });

@@ -1,5 +1,11 @@
 import type { CaseStatus, InputType, PrismaClient } from '@scamtrap/database';
-import { database as defaultDb } from '@scamtrap/database';
+import {
+  AssessmentRepository,
+  computeLookupDigest,
+  database as defaultDb,
+  decryptValue,
+  encryptValue,
+} from '@scamtrap/database';
 import type { CaseInput, CaseRecord } from '@scamtrap/contracts';
 import type { CaseRepository, StoredCase } from './case.repository.js';
 
@@ -137,8 +143,8 @@ export class PrismaCaseRepository implements CaseRepository {
         entities: latestAssessment.entityMentions.map((em) => ({
           id: em.id,
           type: em.type as any,
-          value: em.encryptedValue,
-          normalizedValue: em.encryptedValue,
+          value: decryptValue(em.encryptedValue),
+          normalizedValue: decryptValue(em.encryptedValue),
           sourceId: em.sourceId,
           start: 0,
           end: em.encryptedValue.length,
@@ -206,6 +212,65 @@ export class PrismaCaseRepository implements CaseRepository {
       });
     }
 
+    if (record.latestAnalysis) {
+      const analysis = record.latestAnalysis;
+      const existing = await this.prisma.assessment.findUnique({ where: { id: analysis.id } });
+      if (!existing) {
+        const assessmentRepo = new AssessmentRepository(this.prisma);
+        await assessmentRepo.create({
+          id: analysis.id,
+          caseId: record.id,
+          score: analysis.score,
+          level: analysis.level,
+          summary: analysis.summary,
+          recommendation: analysis.recommendation,
+          modelVersion: analysis.modelVersion,
+          inputSnapshot: {
+            inputIds: record.inputs.map((input) => input.id),
+            analyzedAt: analysis.createdAt,
+          },
+          isDemo: analysis.isDemo,
+          evidence: analysis.evidence.map((evidence) => ({
+            id: evidence.id,
+            sourceId: evidence.sourceId,
+            quote: evidence.quote,
+            startOffset: evidence.start,
+            endOffset: evidence.end,
+            tactic: evidence.tactic,
+            explanation: evidence.explanation,
+          })),
+          entityMentions: analysis.entities.map((entity) => ({
+            id: entity.id,
+            type: entity.type,
+            encryptedValue: encryptValue(entity.normalizedValue),
+            lookupDigest: computeLookupDigest(entity.type, entity.normalizedValue),
+            sourceId: entity.sourceId,
+            speaker: entity.speaker,
+            confidence: entity.confidence,
+            verified: entity.verified,
+          })),
+          intelChecks: analysis.threatChecks.map((check) => ({
+            provider: check.provider,
+            status: check.status,
+            ...(check.threatType ? { threatType: check.threatType } : {}),
+            responseSummary: {
+              indicator: check.indicator,
+              message: check.message ?? null,
+              checkedAt: check.checkedAt,
+            },
+            isDemo: check.isDemo,
+          })),
+        });
+      }
+    }
+
     return record;
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.prisma.case.update({
+      where: { id },
+      data: { status: 'DELETED', deletedAt: new Date() },
+    });
   }
 }
