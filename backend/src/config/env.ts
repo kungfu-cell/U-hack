@@ -10,6 +10,8 @@ const envSchema = z.object({
     .enum(['true', 'false'])
     .default('true')
     .transform((value) => value === 'true'),
+  ELEVENLABS_API_KEY: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);
+

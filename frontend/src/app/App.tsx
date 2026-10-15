@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { LiveSessionPlaceholder } from '../features/live-session/LiveSessionPlaceholder';
+import { LiveSessionView } from '../features/live-session/LiveSessionView';
 import { QuickAnalysis } from '../features/quick-analysis/QuickAnalysis';
 import { ReportPlaceholder } from '../features/reports/ReportPlaceholder';
+
 
 type Page = 'analyze' | 'live' | 'report';
 
@@ -36,8 +37,9 @@ export const App = () => {
       </header>
 
       {page === 'analyze' && <QuickAnalysis />}
-      {page === 'live' && <LiveSessionPlaceholder />}
+      {page === 'live' && <LiveSessionView />}
       {page === 'report' && <ReportPlaceholder />}
     </div>
   );
 };
+

@@ -32,11 +32,17 @@ export class SessionService {
   }
 
   requestHandoff(session: SessionRecord) {
-    if (session.state !== 'human_active') throw new Error('INVALID_SESSION_TRANSITION');
-    return this.update(session, 'preparing_ai');
+    if (session.state === 'ended') throw new Error('INVALID_SESSION_TRANSITION');
+    return this.update(session, 'ai_active');
   }
 
+  activateAi(session: SessionRecord) {
+    return this.update(session, 'ai_active');
+  }
+
+
   resumeHuman(session: SessionRecord) {
+
     if (!['ai_active', 'preparing_ai', 'waiting_for_user'].includes(session.state)) {
       throw new Error('INVALID_SESSION_TRANSITION');
     }
