@@ -17,7 +17,7 @@ const envSchema = z
       .transform((value) => value === "true"),
     OPENAI_API_KEY: z.string().default(""),
     OPENAI_MODEL: z.string().default("gpt-5.6-terra"),
-    GOOGLE_WEB_RISK_API_KEY: z.string().default(""),
+    GOOGLE_SAFE_BROWSING_API_KEY: z.string().default(""),
   })
   .superRefine((value, context) => {
     if (value.USE_DEMO_ADAPTERS) return;
@@ -28,12 +28,12 @@ const envSchema = z
         message: "OPENAI_API_KEY is required when demo adapters are disabled",
       });
     }
-    if (!value.GOOGLE_WEB_RISK_API_KEY) {
+    if (!value.GOOGLE_SAFE_BROWSING_API_KEY) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["GOOGLE_WEB_RISK_API_KEY"],
+        path: ["GOOGLE_SAFE_BROWSING_API_KEY"],
         message:
-          "GOOGLE_WEB_RISK_API_KEY is required when demo adapters are disabled",
+          "GOOGLE_SAFE_BROWSING_API_KEY is required when demo adapters are disabled",
       });
     }
   });

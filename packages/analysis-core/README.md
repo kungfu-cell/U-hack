@@ -15,7 +15,7 @@ source text
 
 - `DemoAnalysisProvider` ทำงานภายในเครื่องและไม่เรียกบริการภายนอก
 - `OpenAIAnalysisProvider` ใช้ Structured Outputs แต่รับ evidence เฉพาะ quote ที่ตรงกับต้นฉบับ
-- `GoogleWebRiskProvider` ตรวจ URL กับรายการ `MALWARE` และ `SOCIAL_ENGINEERING`
+- `GoogleSafeBrowsingProvider` ตรวจ URL กับ Google Safe Browsing v5 สำหรับงาน Hackathon ที่ไม่ใช่เชิงพาณิชย์
 - หาก provider ภายนอกล่ม ระบบยังคืนผลจากกฎภายในพร้อมข้อจำกัด
 
 ## Server-side wiring
@@ -24,13 +24,15 @@ source text
 const provider = new OpenAIAnalysisProvider({
   apiKey: process.env.OPENAI_API_KEY!,
   model: "gpt-5.6-terra",
-  threatIntelProvider: new GoogleWebRiskProvider(
-    process.env.GOOGLE_WEB_RISK_API_KEY!,
+  threatIntelProvider: new GoogleSafeBrowsingProvider(
+    process.env.GOOGLE_SAFE_BROWSING_API_KEY!,
   ),
 });
 ```
 
 ห้ามสร้าง provider นี้ใน frontend หรือส่ง API key ไปยัง browser
+
+การใช้งาน Google Safe Browsing ต้องเป็นไปตามเงื่อนไขสำหรับงานที่ไม่ใช่เชิงพาณิชย์ และข้อความเตือนที่มาจาก provider ต้องคงข้อความ `Advisory provided by Google`
 
 ## Safety guarantees in code
 

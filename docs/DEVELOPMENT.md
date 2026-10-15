@@ -18,12 +18,12 @@ pnpm dev
 
 ค่าเริ่มต้น `USE_DEMO_ADAPTERS=true` ใช้ตัววิเคราะห์แบบ deterministic สำหรับพัฒนา UI และต้องแสดงป้ายว่าเป็นผลทดสอบ ไม่ใช่ผลจากผู้ให้บริการจริง
 
-เมื่อต้องการทดสอบ provider จริง ให้กำหนด `USE_DEMO_ADAPTERS=false` พร้อม `OPENAI_API_KEY` และ `GOOGLE_WEB_RISK_API_KEY` ใน `.env` ฝั่ง backend ระบบจะไม่เริ่มทำงานหาก key ไม่ครบ ห้ามใช้ข้อมูลจริงหรือข้อมูลอ่อนไหวในการทดสอบ
+เมื่อต้องการทดสอบ provider จริง ให้กำหนด `USE_DEMO_ADAPTERS=false` พร้อม `OPENAI_API_KEY` และ `GOOGLE_SAFE_BROWSING_API_KEY` ใน `.env` ฝั่ง backend ระบบจะไม่เริ่มทำงานหาก key ไม่ครบ ห้ามใช้ข้อมูลจริงหรือข้อมูลอ่อนไหวในการทดสอบ
 
 ## กติกาสำคัญ
 
 - ห้ามใส่ API key ในโค้ดหรือ commit ไฟล์ `.env`
-- เก็บ key ของ ElevenLabs, OpenAI และ Google Web Risk ที่ฝั่ง API เท่านั้น
+- เก็บ key ของ ElevenLabs, OpenAI และ Google Safe Browsing ที่ฝั่ง API เท่านั้น
 - ปกปิดข้อมูลอ่อนไหวก่อนส่ง Semantic Classifier และห้ามเก็บค่า OTP/PIN
 - วิเคราะห์เฉพาะ committed transcript; partial transcript ใช้แสดงผลเท่านั้น
 - ผล `not_found` ไม่ได้แปลว่า `safe` และ provider error ต้องแสดงเป็น `unavailable`

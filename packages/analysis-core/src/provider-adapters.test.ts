@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { analysisResultSchema } from "@scamtrap/contracts";
-import { GoogleWebRiskProvider } from "./google-web-risk.js";
+import { GoogleSafeBrowsingProvider } from "./google-safe-browsing.js";
 import { OpenAIAnalysisProvider } from "./openai-analyzer.js";
 
 const jsonResponse = (body: unknown, status = 200) =>
@@ -9,27 +9,34 @@ const jsonResponse = (body: unknown, status = 200) =>
     headers: { "content-type": "application/json" },
   });
 
-describe("GoogleWebRiskProvider", () => {
-  it("checks malware and social engineering without opening the submitted URL", async () => {
+describe("GoogleSafeBrowsingProvider", () => {
+  it("checks the submitted URL without opening it", async () => {
     let requestedUrl = "";
     const fetchImpl: typeof fetch = async (input) => {
       requestedUrl = input.toString();
-      return jsonResponse({ threat: { threatTypes: ["SOCIAL_ENGINEERING"] } });
+      return jsonResponse({
+        threats: [
+          {
+            url: "https://example.test/login",
+            threatTypes: ["SOCIAL_ENGINEERING"],
+          },
+        ],
+        cacheDuration: "300s",
+      });
     };
-    const provider = new GoogleWebRiskProvider("test-key", fetchImpl);
+    const provider = new GoogleSafeBrowsingProvider("test-key", fetchImpl);
 
     const result = await provider.checkIndicator("https://example.test/login");
 
     expect(result.status).toBe("match");
     expect(result.threatType).toBe("SOCIAL_ENGINEERING");
-    expect(requestedUrl).toContain("threatTypes=MALWARE");
-    expect(requestedUrl).toContain("threatTypes=SOCIAL_ENGINEERING");
-    expect(requestedUrl).toContain("uri=https%3A%2F%2Fexample.test%2Flogin");
+    expect(requestedUrl).toContain("urls=https%3A%2F%2Fexample.test%2Flogin");
+    expect(requestedUrl).toContain("key=test-key");
   });
 
   it("does not describe an absent lookup result as safe", async () => {
     const fetchImpl: typeof fetch = async () => jsonResponse({});
-    const provider = new GoogleWebRiskProvider("test-key", fetchImpl);
+    const provider = new GoogleSafeBrowsingProvider("test-key", fetchImpl);
 
     const result = await provider.checkIndicator("https://example.test");
 
