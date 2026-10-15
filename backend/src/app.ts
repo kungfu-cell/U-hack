@@ -19,6 +19,10 @@ import { DemoScribeProvider } from './modules/sessions/pipeline/demo-scribe-adap
 import { ElevenLabsScribeProvider } from './modules/sessions/pipeline/scribe-client.js';
 import { DemoAgentAdapter, ElevenLabsAgentClient } from './modules/sessions/handoff/agent-client.js';
 import type { ScribeProvider } from './modules/sessions/pipeline/types.js';
+import {
+  ElevenLabsAudioFileTranscriber,
+  type AudioFileTranscriber,
+} from './modules/cases/audio-file-transcriber.js';
 import { registerSessionRoutes } from './modules/sessions/session.routes.js';
 import { SessionService } from './modules/sessions/session.service.js';
 
@@ -28,9 +32,10 @@ export const buildApp = async (options?: {
   reviewerApiKey?: string;
   analysisProvider?: AnalysisProvider;
   agentClient?: AgentClient;
+  audioTranscriber?: AudioFileTranscriber;
 }) => {
   const persistenceMode = options?.persistenceMode ?? env.PERSISTENCE_MODE;
-  const app = Fastify({ logger: { level: env.LOG_LEVEL } });
+  const app = Fastify({ logger: { level: env.LOG_LEVEL }, bodyLimit: 22 * 1024 * 1024 });
   await app.register(cors, {
     origin: env.NODE_ENV === 'development' ? true : [env.WEB_ORIGIN, 'http://localhost:5173', 'http://127.0.0.1:5173'],
   });
@@ -101,7 +106,18 @@ export const buildApp = async (options?: {
     transcriptRepository,
   );
 
-  await registerCaseRoutes(app, caseService, options?.reviewerApiKey ?? env.REVIEWER_API_KEY);
+  const audioTranscriber =
+    options?.audioTranscriber ??
+    (!env.USE_DEMO_ADAPTERS && env.ELEVENLABS_API_KEY
+      ? new ElevenLabsAudioFileTranscriber(env.ELEVENLABS_API_KEY)
+      : undefined);
+
+  await registerCaseRoutes(
+    app,
+    caseService,
+    options?.reviewerApiKey ?? env.REVIEWER_API_KEY,
+    audioTranscriber,
+  );
   await registerSessionRoutes(
     app,
     sessionService,

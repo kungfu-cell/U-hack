@@ -20,6 +20,22 @@ docker compose -f infra/docker-compose.yml ps
 
 คอนเทนเนอร์จะมี Healthcheck ตรวจสอบความพร้อม `pg_isready` อัตโนมัติ
 
+### เริ่ม production-like stack ทั้งระบบ
+
+หลังตั้งค่า `.env` แล้ว สามารถ build และเปิด PostgreSQL, API และเว็บที่มี Nginx reverse proxy ได้ด้วย:
+
+```bash
+docker compose -f infra/docker-compose.yml up -d --build
+```
+
+- Web และ WebSocket proxy: `http://localhost:5173`
+- API health check: `http://localhost:3001/health`
+- ตรวจทุก service: `docker compose -f infra/docker-compose.yml ps`
+
+API container จะรัน `prisma migrate deploy` ก่อนเปิดเซิร์ฟเวอร์โดยอัตโนมัติ
+
+หากทดสอบ WebRTC ข้ามเครือข่าย ให้กำหนด `VITE_TURN_URL`, `VITE_TURN_USERNAME` และ `VITE_TURN_CREDENTIAL` ก่อน build เว็บใหม่ ค่าเริ่มต้นที่มีเฉพาะ public STUN อาจเชื่อมต่อไม่ได้เมื่ออยู่หลัง NAT หรือ firewall บางประเภท
+
 ---
 
 ## 2. การตั้งค่า Environment Variables

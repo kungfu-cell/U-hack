@@ -50,6 +50,9 @@ const DEFAULT_DEMO_UTTERANCES: DemoUtterance[] = [
 export const LiveSessionView = () => {
   const {
     sessionId,
+    participantRole,
+    joinCode,
+    inviteUrl,
     handoffState,
     utterances,
     activePartials,
@@ -70,9 +73,9 @@ export const LiveSessionView = () => {
   } = useLiveSession();
 
   const [isSpeaker, setIsSpeaker] = useState(false);
-  const [callDurationSec, setCallDurationSec] = useState(3);
+  const [callDurationSec, setCallDurationSec] = useState(0);
   const [callEndedLocally, setCallEndedLocally] = useState(false);
-  const [demoUtteranceList, setDemoUtteranceList] = useState<DemoUtterance[]>(DEFAULT_DEMO_UTTERANCES);
+  const [demoUtteranceList, setDemoUtteranceList] = useState<DemoUtterance[]>([]);
 
   // Waveform heights state
   const [callerWaveBars, setCallerWaveBars] = useState<number[]>(() =>
@@ -148,7 +151,7 @@ export const LiveSessionView = () => {
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:3001'}/sessions/speak-preview`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-user-id': 'demo-user' },
         body: JSON.stringify({
           text: previewText,
           directText: true,
@@ -186,23 +189,10 @@ export const LiveSessionView = () => {
     }
     if (isAiActive) {
       await resumeHuman();
-      showToast('ส่งสายกลับให้ผู้ใช้คุยต่อ • เปิดไมค์ผู้ใช้');
+      showToast('ส่งคำขอคืนสายให้ผู้ใช้แล้ว');
     } else {
       await requestHandoff();
-      // Add local decoy utterance for immediate visual feedback
-      setDemoUtteranceList((prev) => [
-        ...prev,
-        {
-          id: `ai-${Date.now()}`,
-          speaker: 'ai',
-          time: formatTimer(callDurationSec),
-          text:
-            spokenLanguage === 'en-US'
-              ? 'Hello Officer, the connection was interrupted. Could you please repeat your badge ID and docket reference number? I am reporting this to the fraud taskforce...'
-              : 'สวัสดีครับผู้หมวด พอดีเมื่อกี้สายสะดุด รบกวนแจ้งเลขที่คดีกับรหัสประจำตัวตำรวจใหม่อีกรอบได้ไหมครับ กำลังบันทึกเสียงรายงานผู้บังคับการกองปราบครับ...',
-        },
-      ]);
-      showToast('AI Agent เข้าคุยสายแทนแล้ว • ปิดเสียงไมค์ผู้ใช้ชั่วคราว');
+      showToast('กำลังเตรียม AI Agent รับช่วงสาย');
     }
   };
 
@@ -325,15 +315,17 @@ export const LiveSessionView = () => {
               <span style={{ color: callEndedLocally ? 'var(--fg-muted)' : 'var(--fg)' }}>
                 {callEndedLocally
                   ? 'Call Terminated (สายถูกตัดแล้ว)'
-                  : 'Active Inbound VoIP Call: +66 82-419-8921'}
+                  : participantRole === 'owner'
+                    ? 'Live Scam Shield · เจ้าของห้อง'
+                    : 'Live Scam Shield · ผู้ร่วมทดสอบ'}
               </span>
-              <span className={`badge-sev ${callEndedLocally ? 'badge-safe' : 'badge-critical'}`}>
-                {callEndedLocally ? 'Session Closed' : 'Extortion Risk'}
+              <span className={`badge-sev ${callEndedLocally || riskScore < 55 ? 'badge-safe' : 'badge-critical'}`}>
+                {callEndedLocally ? 'Session Closed' : riskScore >= 55 ? `Risk ${riskScore}%` : 'Monitoring'}
               </span>
             </div>
             <div className="call-meta-sub">
-              Origin: Poipet VoIP Trunk • WebRTC Session:{' '}
-              <span className="code-tag">{sessionId ? sessionId.slice(0, 13) : 'RTCPeer-9042'}</span>
+              WebRTC {connectionStatus} • Session:{' '}
+              <span className="code-tag">{sessionId ? sessionId.slice(0, 13) : 'pending'}</span>
             </div>
           </div>
         </div>
@@ -399,6 +391,23 @@ export const LiveSessionView = () => {
         <div className="warning-banner" style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid var(--amber)', padding: '10px 14px', borderRadius: 6, marginBottom: 16 }}>
           <strong style={{ color: 'var(--amber)' }}>⚠️ แจ้งเตือนระบบเสียง: </strong>
           <span style={{ color: 'var(--fg-secondary)', fontSize: 12 }}>{degradedMessage}</span>
+        </div>
+      )}
+
+      {participantRole === 'owner' && inviteUrl && !callEndedLocally && (
+        <div className="warning-banner" style={{ marginBottom: 16 }}>
+          <strong>ลิงก์เชิญผู้ร่วมทดสอบ · รหัส {joinCode}</strong>
+          <p style={{ overflowWrap: 'anywhere' }}>{inviteUrl}</p>
+          <button
+            type="button"
+            className="btn-action btn-action-ghost"
+            onClick={() => {
+              void navigator.clipboard.writeText(inviteUrl);
+              showToast('คัดลอกลิงก์เชิญแล้ว');
+            }}
+          >
+            คัดลอกลิงก์เชิญ
+          </button>
         </div>
       )}
 
@@ -468,14 +477,20 @@ export const LiveSessionView = () => {
                   type="button"
                   className={`btn-ios-ai-takeover ${isAiActive ? 'active' : ''}`}
                   onClick={handleToggleTakeover}
-                  disabled={callEndedLocally}
-                  style={{ opacity: callEndedLocally ? 0.4 : 1, cursor: callEndedLocally ? 'not-allowed' : 'pointer' }}
+                  disabled={callEndedLocally || participantRole !== 'owner'}
+                  style={{ opacity: callEndedLocally || participantRole !== 'owner' ? 0.4 : 1, cursor: callEndedLocally || participantRole !== 'owner' ? 'not-allowed' : 'pointer' }}
                 >
                   <svg className="ai-sparkle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                     <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" />
                   </svg>
                   <span>
-                    {isAiActive ? 'AI กำลังคุยแทน... (แตะเพื่อคุยเอง)' : 'AI รับสาย'}
+                    {participantRole !== 'owner'
+                      ? 'เจ้าของห้องเป็นผู้ควบคุม AI'
+                      : isAiActive
+                        ? 'AI กำลังคุยแทน... (แตะเพื่อคุยเอง)'
+                        : handoffState === 'preparing_ai'
+                          ? 'กำลังเตรียม AI...'
+                          : 'AI รับสาย'}
                   </span>
                 </button>
               </div>
@@ -899,7 +914,7 @@ export const LiveSessionView = () => {
                 <span style={{ color: '#ff6b6b', fontWeight: 500 }}>
                   {riskReasons.length > 0
                     ? `Warning: ${riskReasons[0]}`
-                    : 'Identified Trap: Urgency & Asset Seizure Threat'}
+                    : 'ยังไม่พบคำเตือนจากบทสนทนารอบนี้'}
                 </span>
               </div>
             </div>

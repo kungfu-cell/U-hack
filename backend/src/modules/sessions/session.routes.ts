@@ -30,6 +30,7 @@ export const registerSessionRoutes = async (
   caseService?: CaseService,
   transcriptRepository?: TranscriptRepository,
 ) => {
+  const previewRequests = new Map<string, number[]>();
   app.post('/sessions', async (request, reply) => {
     const body = createSchema.safeParse(request.body);
     if (!body.success) return sendValidationError(reply, body.error);
@@ -228,7 +229,7 @@ export const registerSessionRoutes = async (
   });
 
   if (liveManager) {
-    app.get('/sessions/:id/ws', { websocket: true }, (socket, request) => {
+    app.get('/sessions/:id/ws', { websocket: true, logLevel: 'silent' }, (socket, request) => {
       const params = paramsSchema.safeParse(request.params);
       const query = wsQuerySchema.safeParse(request.query);
       if (!params.success) {
@@ -273,6 +274,24 @@ export const registerSessionRoutes = async (
     });
 
     app.post('/sessions/speak-preview', async (request, reply) => {
+      const requester = request.headers['x-user-id'];
+      if (typeof requester !== 'string' || !requester.trim()) {
+        return reply.status(401).send({
+          error: { code: 'UNAUTHORIZED', message: 'x-user-id is required for the demo preview' },
+        });
+      }
+      const now = Date.now();
+      const recent = (previewRequests.get(requester) ?? []).filter(
+        (timestamp) => now - timestamp < 60_000,
+      );
+      if (recent.length >= 5) {
+        return reply.status(429).send({
+          error: { code: 'RATE_LIMITED', message: 'Voice preview limit reached; retry in one minute' },
+        });
+      }
+      recent.push(now);
+      previewRequests.set(requester, recent);
+
       const body = z
         .object({
           text: z.string().min(1),

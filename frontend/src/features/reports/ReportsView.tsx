@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { showToast } from '../../lib/toast';
+import { ReportPlaceholder } from './ReportPlaceholder';
 
 export interface IncidentCase {
   id: string;
@@ -108,6 +109,11 @@ export const ReportsView = () => {
   const [search, setSearch] = useState('');
   const [selectedCase, setSelectedCase] = useState<IncidentCase | null>(null);
   const [officialReportModal, setOfficialReportModal] = useState<IncidentCase | null>(null);
+  const latestCaseId = window.localStorage.getItem('scamtrap:lastCaseId');
+
+  if (latestCaseId) {
+    return <ReportPlaceholder />;
+  }
 
   const filteredCases = cases.filter(
     (c) =>
@@ -158,18 +164,22 @@ export const ReportsView = () => {
   };
 
   const dispatchAoc = (caseId: string) => {
-    showToast(`รายงาน ${caseId} ถูกส่งต่อไปยังศูนย์ AOC 1441 & บช.สอท. เรียบร้อย`);
+    showToast(`โหมดสาธิต: ยังไม่ได้ส่งรายงาน ${caseId} ไปยังหน่วยงานภายนอก`);
     setSelectedCase(null);
   };
 
   const deleteCase = (caseId: string) => {
     setCases((prev) => prev.filter((c) => c.id !== caseId));
     setSelectedCase(null);
-    showToast(`ถอนและลบประวัติ ${caseId} เรียบร้อย (PDPA Compliant)`);
+    showToast(`ลบข้อมูลสาธิต ${caseId} ออกจากหน้าจอแล้ว`);
   };
 
   return (
     <div className="tab-pane active" id="tab-dossier">
+      <div className="warning-banner" style={{ marginBottom: 16 }}>
+        <strong>ข้อมูลสาธิต</strong>
+        <p>รายการด้านล่างเป็นตัวอย่างหน้ารายงาน ยังไม่ได้ส่งข้อมูลไป AOC หรือหน่วยงานภายนอก</p>
+      </div>
       <div className="card">
         <div className="card-header">
           <div>
