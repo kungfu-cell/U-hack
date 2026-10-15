@@ -42,6 +42,8 @@ export const useLiveSession = () => {
   const [isMicActive, setIsMicActive] = useState<boolean>(false);
   const [micLevel, setMicLevel] = useState<number>(0);
   const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [spokenLanguage, setSpokenLanguageState] = useState<'th-TH' | 'en-US'>('th-TH');
+  const spokenLanguageRef = useRef<'th-TH' | 'en-US'>('th-TH');
 
   const wsRef = useRef<WebSocket | null>(null);
   const webrtcRef = useRef<WebRtcManager | null>(null);
@@ -243,7 +245,7 @@ export const useLiveSession = () => {
             user: null,
           }));
         }
-      });
+      }, spokenLanguageRef.current);
       recognizer.start();
       speechRecognizerRef.current = recognizer;
     } catch (err) {
@@ -360,6 +362,48 @@ export const useLiveSession = () => {
     };
   }, []);
 
+  const setSpokenLanguage = useCallback((lang: 'th-TH' | 'en-US') => {
+    spokenLanguageRef.current = lang;
+    setSpokenLanguageState(lang);
+    if (speechRecognizerRef.current) {
+      speechRecognizerRef.current.stop();
+      if (sessionId) {
+        const targetSessionId = sessionId;
+        const recognizer = new BrowserSpeechRecognizer((text, isFinal) => {
+          sendClientMessage({
+            type: 'transcript.client_speech',
+            sessionId: targetSessionId,
+            speaker: 'user',
+            text,
+            isFinal,
+          });
+          if (!isFinal) {
+            setActivePartials((prev) => ({
+              ...prev,
+              user: {
+                id: 'local-partial-user',
+                sessionId: targetSessionId,
+                speaker: 'user',
+                text,
+                transcriptState: 'partial',
+                startedAtMs: Date.now(),
+                endedAtMs: Date.now(),
+                createdAt: new Date().toISOString(),
+              },
+            }));
+          } else {
+            setActivePartials((prev) => ({
+              ...prev,
+              user: null,
+            }));
+          }
+        }, lang);
+        recognizer.start();
+        speechRecognizerRef.current = recognizer;
+      }
+    }
+  }, [sessionId, sendClientMessage]);
+
   const toggleMute = () => {
     setIsMuted((prev) => {
       const next = !prev;
@@ -382,6 +426,8 @@ export const useLiveSession = () => {
     isMicActive,
     micLevel,
     isMuted,
+    spokenLanguage,
+    setSpokenLanguage,
     toggleMute,
     startCall,
     endCall,

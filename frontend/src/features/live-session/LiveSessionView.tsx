@@ -59,6 +59,8 @@ export const LiveSessionView = () => {
     degradedMessage,
     micLevel,
     isMuted,
+    spokenLanguage,
+    setSpokenLanguage,
     toggleMute,
     startCall,
     endCall,
@@ -134,16 +136,22 @@ export const LiveSessionView = () => {
     }
   }, [sessionId, callEndedLocally, startCall]);
 
-  const handlePreviewVoice = async () => {
+  const handlePreviewVoice = async (lang: 'th' | 'en' = 'th') => {
     if (isPlayingPreview) return;
     setIsPlayingPreview(true);
-    showToast('กำลังสังเคราะห์เสียง ElevenLabs Multilingual V2...');
+    const previewText =
+      lang === 'en'
+        ? 'Hello, I am taking over this call. Please state your full badge number and precinct so I can verify with the department.'
+        : 'สวัสดีค่ะ ดิฉันรับสายแทนนะคะ ขอรบกวนทวนชื่อและยศเจ้าหน้าที่อีกครั้งได้ไหมคะ กำลังจดบันทึกไว้ค่ะ';
+
+    showToast(`กำลังสังเคราะห์เสียง ElevenLabs Multilingual V2 (${lang === 'en' ? 'English' : 'ไทย'})...`);
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:3001'}/sessions/speak-preview`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: 'สวัสดีค่ะ ดิฉันรับสายแทนนะคะ ขอรบกวนทวนชื่อและยศเจ้าหน้าที่อีกครั้งได้ไหมคะ กำลังจดบันทึกไว้ค่ะ',
+          text: previewText,
+          directText: true,
         }),
       });
       if (res.ok) {
@@ -153,7 +161,7 @@ export const LiveSessionView = () => {
             previewPlayerRef.current = new AgentAudioPlayer();
           }
           await previewPlayerRef.current.enqueueAudioChunk(data.audioBase64, 16000);
-          showToast('กำลังเล่นเสียง AI Agent จาก ElevenLabs 🔊');
+          showToast(`กำลังเล่นเสียง AI Agent จาก ElevenLabs (${lang === 'en' ? 'EN' : 'TH'}) 🔊`);
         } else {
           showToast('ไม่พบข้อมูลเสียง (Fallback Mode)');
         }
@@ -188,7 +196,10 @@ export const LiveSessionView = () => {
           id: `ai-${Date.now()}`,
           speaker: 'ai',
           time: formatTimer(callDurationSec),
-          text: 'สวัสดีครับผู้หมวด พอดีเมื่อกี้สายสะดุด รบกวนแจ้งเลขที่คดีกับรหัสประจำตัวตำรวจใหม่อีกรอบได้ไหมครับ กำลังบันทึกเสียงรายงานผู้บังคับการกองปราบครับ...',
+          text:
+            spokenLanguage === 'en-US'
+              ? 'Hello Officer, the connection was interrupted. Could you please repeat your badge ID and docket reference number? I am reporting this to the fraud taskforce...'
+              : 'สวัสดีครับผู้หมวด พอดีเมื่อกี้สายสะดุด รบกวนแจ้งเลขที่คดีกับรหัสประจำตัวตำรวจใหม่อีกรอบได้ไหมครับ กำลังบันทึกเสียงรายงานผู้บังคับการกองปราบครับ...',
         },
       ]);
       showToast('AI Agent เข้าคุยสายแทนแล้ว • ปิดเสียงไมค์ผู้ใช้ชั่วคราว');
@@ -214,7 +225,7 @@ export const LiveSessionView = () => {
     showToast(isMuted ? 'เปิดไมโครโฟนแล้ว (Active)' : 'ปิดไมโครโฟนแล้ว (Muted)');
   };
 
-  const handleSimulate = async (type: 'police' | 'otp' | 'user') => {
+  const handleSimulate = async (type: 'police' | 'otp' | 'user' | 'en_police' | 'en_otp' | 'en_user') => {
     if (type === 'police') {
       const text =
         'ผมร้อยตำรวจเอก สมชาย จากสถานีตำรวจภูธรเมือง ตรวจพบว่าคุณเกี่ยวข้องกับคดีฟอกเงิน ให้รีบโอนเงินมาตรวจสอบทันทีและห้ามบอกใคร';
@@ -244,7 +255,7 @@ export const LiveSessionView = () => {
         },
       ]);
       showToast('จำลอง: มิจฉาชีพหลอกขอ OTP');
-    } else {
+    } else if (type === 'user') {
       const text = 'ขอโทษนะครับ ผมไม่สะดวกโอนเงิน และขอโทรกลับไปตรวจสอบที่สถานีตำรวจโดยตรงครับ';
       await simulateSpeech('user', text);
       setDemoUtteranceList((prev) => [
@@ -256,7 +267,50 @@ export const LiveSessionView = () => {
           text,
         },
       ]);
-      showToast('จำลอง: ผู้ใช้ปฏิเสธและจะตรวจสอบกลับ');
+      showToast('จำลอง: ผู้ใช้ปฏิเสธการโอนเงิน');
+    } else if (type === 'en_police') {
+      const text =
+        'This is Officer John Davis from Federal Fraud Taskforce. Your account is tied to an international money laundering ring. You must wire all funds to our verification vault immediately.';
+      await simulateSpeech('caller', text);
+      setDemoUtteranceList((prev) => [
+        ...prev,
+        {
+          id: `sim-${Date.now()}`,
+          speaker: 'caller',
+          time: formatTimer(callDurationSec),
+          text,
+          intent: ['AUTHORITY IMPERSONATION', 'URGENCY', 'MONEY ROUTING'],
+        },
+      ]);
+      showToast('Simulate: Impersonating Federal Police (Wire Transfer)');
+    } else if (type === 'en_otp') {
+      const text =
+        'We sent a 6-digit OTP passcode to your mobile device right now. Please disclose the code immediately to avoid permanent account termination.';
+      await simulateSpeech('caller', text);
+      setDemoUtteranceList((prev) => [
+        ...prev,
+        {
+          id: `sim-${Date.now()}`,
+          speaker: 'caller',
+          time: formatTimer(callDurationSec),
+          text,
+          intent: ['CREDENTIAL HARVESTING', 'URGENCY'],
+        },
+      ]);
+      showToast('Simulate: OTP Harvesting Scam');
+    } else if (type === 'en_user') {
+      const text =
+        'I will not share any OTP codes or transfer money over the phone. I am contacting my bank fraud prevention desk directly.';
+      await simulateSpeech('user', text);
+      setDemoUtteranceList((prev) => [
+        ...prev,
+        {
+          id: `sim-${Date.now()}`,
+          speaker: 'user',
+          time: formatTimer(callDurationSec),
+          text,
+        },
+      ]);
     }
   };
 
@@ -609,7 +663,7 @@ export const LiveSessionView = () => {
                   <button
                     type="button"
                     className="btn-action btn-action-ghost"
-                    onClick={handlePreviewVoice}
+                    onClick={() => handlePreviewVoice('th')}
                     disabled={isPlayingPreview}
                     style={{
                       height: 34,
@@ -619,7 +673,22 @@ export const LiveSessionView = () => {
                     }}
                     title="ทดสอบฟังเสียง Agent ภาษาไทยที่สังเคราะห์ผ่าน ElevenLabs"
                   >
-                    <span>{isPlayingPreview ? '🔊 กำลังเล่นเสียง...' : '🔊 ฟังตัวอย่างเสียง AI'}</span>
+                    <span>{isPlayingPreview ? '🔊 กำลังเล่น...' : '🔊 เสียงไทย (TH)'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-action btn-action-ghost"
+                    onClick={() => handlePreviewVoice('en')}
+                    disabled={isPlayingPreview}
+                    style={{
+                      height: 34,
+                      fontSize: 11.5,
+                      borderColor: 'rgba(96, 165, 250, 0.4)',
+                      color: isPlayingPreview ? 'var(--emerald)' : 'var(--fg)',
+                    }}
+                    title="Test ElevenLabs English Decoy Agent Voice"
+                  >
+                    <span>{isPlayingPreview ? '🔊 Playing...' : '🔊 English (EN)'}</span>
                   </button>
                   <button
                     type="button"
@@ -638,12 +707,40 @@ export const LiveSessionView = () => {
                 </div>
               </div>
 
-              {/* Hackathon Demo Simulation Triggers */}
+              {/* Language Selection & Hackathon Demo Simulation Triggers */}
               <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-muted)', display: 'block', marginBottom: 6 }}>
-                  Quick Hackathon Simulation Triggers:
-                </span>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-muted)' }}>
+                    🗣️ ภาษาที่รองรับ (Spoken Language):
+                  </span>
+                  <button
+                    type="button"
+                    className={`btn-action ${spokenLanguage === 'th-TH' ? 'btn-action-primary' : 'btn-action-ghost'}`}
+                    style={{ fontSize: 11, height: 24, padding: '0 10px' }}
+                    onClick={() => {
+                      setSpokenLanguage('th-TH');
+                      showToast('สลับไมโครโฟนเป็นภาษาไทย (th-TH)');
+                    }}
+                  >
+                    🇹🇭 ภาษาไทย
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn-action ${spokenLanguage === 'en-US' ? 'btn-action-primary' : 'btn-action-ghost'}`}
+                    style={{ fontSize: 11, height: 24, padding: '0 10px' }}
+                    onClick={() => {
+                      setSpokenLanguage('en-US');
+                      showToast('Switched microphone to English (en-US)');
+                    }}
+                  >
+                    🇬🇧 English
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
+                  <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--fg-muted)', width: '100%' }}>
+                    🇹🇭 จำลองบทสนทนาไทย:
+                  </span>
                   <button
                     type="button"
                     className="btn-action btn-action-ghost"
@@ -667,6 +764,36 @@ export const LiveSessionView = () => {
                     onClick={() => handleSimulate('user')}
                   >
                     💬 ผู้ใช้ปฏิเสธ
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--fg-muted)', width: '100%' }}>
+                    🇬🇧 English Scam Scenarios:
+                  </span>
+                  <button
+                    type="button"
+                    className="btn-action btn-action-ghost"
+                    style={{ fontSize: 11, height: 26 }}
+                    onClick={() => handleSimulate('en_police')}
+                  >
+                    🚨 Taskforce Wire Scam
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-action btn-action-ghost"
+                    style={{ fontSize: 11, height: 26 }}
+                    onClick={() => handleSimulate('en_otp')}
+                  >
+                    🔑 Phish OTP Passcode
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-action btn-action-ghost"
+                    style={{ fontSize: 11, height: 26 }}
+                    onClick={() => handleSimulate('en_user')}
+                  >
+                    💬 Citizen Refusal
                   </button>
                 </div>
               </div>

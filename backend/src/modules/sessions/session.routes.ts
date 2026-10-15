@@ -134,10 +134,24 @@ export const registerSessionRoutes = async (
     });
 
     app.post('/sessions/speak-preview', async (request, reply) => {
-      const body = z.object({ text: z.string().min(1) }).safeParse(request.body);
+      const body = z
+        .object({
+          text: z.string().min(1),
+          directText: z.boolean().optional(),
+        })
+        .safeParse(request.body);
       if (!body.success) return sendValidationError(reply, body.error);
 
       if (liveManager?.agentClient) {
+        if (body.data.directText && 'speakText' in liveManager.agentClient) {
+          const directSpeaker = liveManager.agentClient as { speakText: (t: string) => Promise<string> };
+          const audio = await directSpeaker.speakText(body.data.text);
+          return reply.send({
+            text: body.data.text,
+            audioBase64: audio,
+          });
+        }
+
         const dummyContext = {
           sessionId: 'preview',
           channel: 'voice' as const,
