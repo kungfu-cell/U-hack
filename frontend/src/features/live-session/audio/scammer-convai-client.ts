@@ -14,6 +14,8 @@ export interface ScammerConvAiCallbacks {
   onAgentResponse?: (text: string) => void;
   onUserTranscript?: (text: string) => void;
   onInterrupted?: () => void;
+  onAudioChunkReceived?: () => void;
+  onPlaybackFinished?: () => void;
 }
 
 export interface ScammerConvAiOptions {
@@ -35,6 +37,10 @@ export class ScammerConvAiClient {
 
   getStatus(): ScammerConvAiStatus {
     return this.status;
+  }
+
+  isSpeaking(): boolean {
+    return this.status === 'speaking' || (this.audioPlayer?.isPlaying() ?? false);
   }
 
   private setStatus(status: ScammerConvAiStatus, error?: string) {
@@ -92,6 +98,7 @@ export class ScammerConvAiClient {
             const audioChunk = data.audio_event?.audio_base_64;
             if (audioChunk) {
               this.setStatus('speaking');
+              this.callbacks.onAudioChunkReceived?.();
               void this.audioPlayer?.enqueueAudioChunk(audioChunk, 16000);
             }
           } else if (data.type === 'interruption') {

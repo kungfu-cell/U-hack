@@ -211,7 +211,7 @@ export const LiveSessionView = () => {
   const isUserActive = Boolean(
     !isMuted && !isAiActive &&
     (isUserSimSpeaking ||
-     (participantRole !== 'caller' && micLevel > 0.035) ||
+     (participantRole !== 'caller' && micLevel > 0.008) ||
      (activePartials.user && activePartials.user.text.trim().length > 0)),
   );
 

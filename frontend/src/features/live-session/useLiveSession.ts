@@ -81,6 +81,7 @@ export const useLiveSession = () => {
   const sessionIdRef = useRef<string | null>(null);
   const lastScammerSpokenTimeRef = useRef<number>(0);
   const lastScammerTextRef = useRef<string>('');
+  const scammerPhrasesHistoryRef = useRef<string[]>([]);
 
   const sendClientMessage = useCallback((msg: object) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -329,12 +330,25 @@ export const useLiveSession = () => {
       // Browser recognition provides immediate, reliable real-time transcript for the local speaker
       const recognizer = new BrowserSpeechRecognizer((text, isFinal) => {
         const trimmed = text.trim();
-        // Ignore mic echo if scammer is speaking or just spoke similar words
+        const normalizedInput = trimmed.replace(/[^\w\u0E00-\u0E7F]/g, '');
+
+        // 1. If Scammer AI is currently actively outputting audio through speaker, discard input as speaker echo
+        const isScammerCurrentlySpeaking = scammerClientRef.current?.isSpeaking() ?? false;
+
+        // 2. Check if text matches recent scammer speech (fuzzy overlap of 8+ characters)
+        const isEchoOfScammerPhrases = scammerPhrasesHistoryRef.current.some((phrase) => {
+          if (!phrase || phrase.length < 5) return false;
+          const sample = phrase.slice(0, 18);
+          const inputSample = normalizedInput.slice(0, 18);
+          return (
+            (sample.length >= 6 && normalizedInput.includes(sample)) ||
+            (inputSample.length >= 6 && phrase.includes(inputSample))
+          );
+        });
+
         const isRecentScammerEcho =
-          Date.now() - lastScammerSpokenTimeRef.current < 4000 &&
-          lastScammerTextRef.current &&
-          (trimmed.includes(lastScammerTextRef.current.slice(0, 15)) ||
-            lastScammerTextRef.current.includes(trimmed.slice(0, 15)));
+          isScammerCurrentlySpeaking ||
+          (Date.now() - lastScammerSpokenTimeRef.current < 9000 && isEchoOfScammerPhrases);
 
         if (isRecentScammerEcho) {
           return;
@@ -552,8 +566,15 @@ export const useLiveSession = () => {
           onAgentResponse: (text) => {
             const cleanText = text.trim();
             if (!cleanText) return;
+
+            // Strip emotion/roleplay tags like [concerned], [polite], [angry] for echo matching
+            const strippedForMatching = cleanText.replace(/\[.*?\]/g, '').replace(/[^\w\u0E00-\u0E7F]/g, '');
             lastScammerSpokenTimeRef.current = Date.now();
-            lastScammerTextRef.current = cleanText;
+            lastScammerTextRef.current = strippedForMatching;
+            scammerPhrasesHistoryRef.current.push(strippedForMatching);
+            if (scammerPhrasesHistoryRef.current.length > 5) {
+              scammerPhrasesHistoryRef.current.shift();
+            }
 
             // Immediately display scammer bubble on the left (CALLER - RED)
             const scammerUtterance: Utterance = {
@@ -578,6 +599,8 @@ export const useLiveSession = () => {
           onUserTranscript: (text) => {
             const cleanText = text.trim();
             if (!cleanText) return;
+            const normalizedInput = cleanText.replace(/[^\w\u0E00-\u0E7F]/g, '');
+
             // Ignore system trigger greeting
             if (
               cleanText.includes('ใครโทรมา') ||
@@ -586,12 +609,24 @@ export const useLiveSession = () => {
             ) {
               return;
             }
+
+            // Discard if scammer AI is currently talking through speaker
+            if (scammerClientRef.current?.isSpeaking()) {
+              return;
+            }
+
             // Ignore if user transcript is actually scammer audio leaking into mic
-            if (
-              lastScammerTextRef.current &&
-              (cleanText.includes(lastScammerTextRef.current.slice(0, 15)) ||
-                lastScammerTextRef.current.includes(cleanText.slice(0, 15)))
-            ) {
+            const isScammerEcho = scammerPhrasesHistoryRef.current.some((phrase) => {
+              if (!phrase || phrase.length < 5) return false;
+              const sample = phrase.slice(0, 18);
+              const inputSample = normalizedInput.slice(0, 18);
+              return (
+                (sample.length >= 6 && normalizedInput.includes(sample)) ||
+                (inputSample.length >= 6 && phrase.includes(inputSample))
+              );
+            });
+
+            if (isScammerEcho) {
               return;
             }
 
@@ -664,6 +699,25 @@ export const useLiveSession = () => {
         const localSpeaker: 'user' | 'caller' =
           participantRoleRef.current === 'owner' ? 'user' : 'caller';
         const recognizer = new BrowserSpeechRecognizer((text, isFinal) => {
+          const trimmed = text.trim();
+          const normalizedInput = trimmed.replace(/[^\w\u0E00-\u0E7F]/g, '');
+
+          // Discard if scammer AI is speaking or matching echo
+          const isScammerCurrentlySpeaking = scammerClientRef.current?.isSpeaking() ?? false;
+          const isEchoOfScammerPhrases = scammerPhrasesHistoryRef.current.some((phrase) => {
+            if (!phrase || phrase.length < 5) return false;
+            const sample = phrase.slice(0, 18);
+            const inputSample = normalizedInput.slice(0, 18);
+            return (
+              (sample.length >= 6 && normalizedInput.includes(sample)) ||
+              (inputSample.length >= 6 && phrase.includes(inputSample))
+            );
+          });
+
+          if (isScammerCurrentlySpeaking || (Date.now() - lastScammerSpokenTimeRef.current < 9000 && isEchoOfScammerPhrases)) {
+            return;
+          }
+
           sendClientMessage({
             type: 'transcript.client_speech',
             sessionId: targetSessionId,
@@ -697,6 +751,9 @@ export const useLiveSession = () => {
               endedAtMs: Date.now(),
               createdAt: new Date().toISOString(),
             };
+            if (localSpeaker === 'user' && scammerClientRef.current) {
+              scammerClientRef.current.sendUserMessage(text);
+            }
             setUtterances((prev) => {
               if (prev.some((u) => u.speaker === localSpeaker && u.text.trim() === text.trim() && Math.abs(u.endedAtMs - committedUtterance.endedAtMs) < 3000)) {
                 return prev;

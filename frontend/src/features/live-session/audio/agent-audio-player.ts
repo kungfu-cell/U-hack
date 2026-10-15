@@ -125,6 +125,14 @@ export class AgentAudioPlayer {
   }
 
   /**
+   * Returns true if audio chunks are currently playing through speaker.
+   */
+  isPlaying(): boolean {
+    if (!this.audioContext) return false;
+    return this.activeSources.length > 0 || this.audioContext.currentTime < this.nextPlayTime;
+  }
+
+  /**
    * Immediately aborts and flushes all queued/playing audio buffers (e.g. caller barge-in interruption).
    */
   stopAndFlush(): void {
