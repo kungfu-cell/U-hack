@@ -43,31 +43,65 @@ export class DemoAgentAdapter implements AgentClient {
 
 export class ElevenLabsAgentClient implements AgentClient {
   readonly name = 'elevenlabs-convai-v1';
+  private readonly voiceId: string = 'cjVigY5qzO86Huf0OWal'; // ScamTrap Assistant agent voice
 
   constructor(
     private readonly apiKey: string,
     private readonly agentId: string,
-  ) {}
+    voiceId?: string,
+  ) {
+    if (voiceId) this.voiceId = voiceId;
+  }
 
   async generateReply(
     context: AgentContextPacket,
     latestCallerUtterance: string,
   ): Promise<AgentReply> {
-    // If agentId or apiKey missing, fallback to demo
     if (!this.apiKey || !this.agentId) {
       return new DemoAgentAdapter().generateReply(context, latestCallerUtterance);
     }
 
     try {
-      // Connect or call ElevenLabs Agent API
-      const fallback = await new DemoAgentAdapter().generateReply(context, latestCallerUtterance);
-      const guardrail = AgentGuardrail.sanitize(fallback.text);
+      const demoReply = await new DemoAgentAdapter().generateReply(context, latestCallerUtterance);
+      const guardrail = AgentGuardrail.sanitize(demoReply.text);
+      const textToSpeak = guardrail.sanitizedText;
+
+      let audioBase64 = demoReply.audioBase64;
+      try {
+        const ttsRes = await fetch(
+          `https://api.elevenlabs.io/v1/text-to-speech/${this.voiceId}?output_format=pcm_16000`,
+          {
+            method: 'POST',
+            headers: {
+              'xi-api-key': this.apiKey,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              text: textToSpeak,
+              model_id: 'eleven_multilingual_v2',
+              voice_settings: {
+                stability: 0.5,
+                similarity_boost: 0.75,
+              },
+            }),
+            signal: AbortSignal.timeout(6000),
+          },
+        );
+        if (ttsRes.ok) {
+          const arrayBuffer = await ttsRes.arrayBuffer();
+          audioBase64 = Buffer.from(arrayBuffer).toString('base64');
+        }
+      } catch {
+        // Fallback to demo audio on network timeout
+      }
+
       return {
-        text: guardrail.sanitizedText,
-        audioBase64: fallback.audioBase64,
+        text: textToSpeak,
+        audioBase64,
       };
     } catch {
       return new DemoAgentAdapter().generateReply(context, latestCallerUtterance);
     }
   }
 }
+

@@ -28,10 +28,11 @@ const envSchema = z.object({
   USE_DEMO_ADAPTERS: z
     .enum(["true", "false"])
     .default("true")
-    .transform((value) => value === "true"),
+    .transform((value) => (process.env.NODE_ENV === "test" ? true : value === "true")),
   ELEVENLABS_API_KEY: z.string().optional(),
+  ELEVENLABS_AGENT_ID: z.string().optional(),
   OPENAI_API_KEY: z.string().default(""),
-  OPENAI_MODEL: z.string().default("gpt-5.6-terra"),
+  OPENAI_MODEL: z.string().default("gpt-4o-mini"),
   GOOGLE_SAFE_BROWSING_API_KEY: z.string().default(""),
 });
 

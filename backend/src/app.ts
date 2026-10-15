@@ -13,6 +13,7 @@ import { CaseService } from './modules/cases/case.service.js';
 import { LiveSessionManager } from './modules/sessions/live-session-manager.js';
 import { DemoScribeProvider } from './modules/sessions/pipeline/demo-scribe-adapter.js';
 import { ElevenLabsScribeProvider } from './modules/sessions/pipeline/scribe-client.js';
+import { DemoAgentAdapter, ElevenLabsAgentClient } from './modules/sessions/handoff/agent-client.js';
 import type { ScribeProvider } from './modules/sessions/pipeline/types.js';
 import { registerSessionRoutes } from './modules/sessions/session.routes.js';
 import { SessionService } from './modules/sessions/session.service.js';
@@ -56,10 +57,16 @@ export const buildApp = async (options?: { scribeProvider?: ScribeProvider }) =>
       ? new ElevenLabsScribeProvider(env.ELEVENLABS_API_KEY)
       : new DemoScribeProvider(true));
 
+  const agentClient =
+    !env.USE_DEMO_ADAPTERS && env.ELEVENLABS_API_KEY && env.ELEVENLABS_AGENT_ID
+      ? new ElevenLabsAgentClient(env.ELEVENLABS_API_KEY, env.ELEVENLABS_AGENT_ID)
+      : new DemoAgentAdapter();
+
   const liveSessionManager = new LiveSessionManager(
     scribeProvider,
     analysisProvider,
     sessionService,
+    agentClient,
   );
 
   await registerCaseRoutes(app, caseService);
