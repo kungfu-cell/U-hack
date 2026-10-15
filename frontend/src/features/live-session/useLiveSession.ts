@@ -79,6 +79,8 @@ export const useLiveSession = () => {
   const clientSpeechFallbackRef = useRef<boolean>(false);
   const scammerClientRef = useRef<ScammerConvAiClient | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  const lastScammerSpokenTimeRef = useRef<number>(0);
+  const lastScammerTextRef = useRef<string>('');
 
   const sendClientMessage = useCallback((msg: object) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -326,6 +328,18 @@ export const useLiveSession = () => {
 
       // Browser recognition provides immediate, reliable real-time transcript for the local speaker
       const recognizer = new BrowserSpeechRecognizer((text, isFinal) => {
+        const trimmed = text.trim();
+        // Ignore mic echo if scammer is speaking or just spoke similar words
+        const isRecentScammerEcho =
+          Date.now() - lastScammerSpokenTimeRef.current < 4000 &&
+          lastScammerTextRef.current &&
+          (trimmed.includes(lastScammerTextRef.current.slice(0, 15)) ||
+            lastScammerTextRef.current.includes(trimmed.slice(0, 15)));
+
+        if (isRecentScammerEcho) {
+          return;
+        }
+
         // Send to backend so server-side pipeline and subscribers receive it
         sendClientMessage({
           type: 'transcript.client_speech',
@@ -527,10 +541,70 @@ export const useLiveSession = () => {
             }
           },
           onAgentResponse: (text) => {
-            void simulateSpeech('caller', text);
+            const cleanText = text.trim();
+            if (!cleanText) return;
+            lastScammerSpokenTimeRef.current = Date.now();
+            lastScammerTextRef.current = cleanText;
+
+            // Immediately display scammer bubble on the left (CALLER - RED)
+            const scammerUtterance: Utterance = {
+              id: `scammer-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              sessionId: sessionIdRef.current ?? '',
+              speaker: 'caller',
+              text: cleanText,
+              transcriptState: 'committed',
+              startedAtMs: Date.now() - 1500,
+              endedAtMs: Date.now(),
+              createdAt: new Date().toISOString(),
+            };
+            setUtterances((prev) => {
+              if (prev.some((u) => u.speaker === 'caller' && u.text.trim() === cleanText)) {
+                return prev;
+              }
+              return [...prev, scammerUtterance];
+            });
+
+            void simulateSpeech('caller', cleanText);
           },
           onUserTranscript: (text) => {
-            void simulateSpeech('user', text);
+            const cleanText = text.trim();
+            if (!cleanText) return;
+            // Ignore system trigger greeting
+            if (
+              cleanText.includes('ใครโทรมา') ||
+              cleanText.includes('who is calling') ||
+              cleanText.includes('Who is calling')
+            ) {
+              return;
+            }
+            // Ignore if user transcript is actually scammer audio leaking into mic
+            if (
+              lastScammerTextRef.current &&
+              (cleanText.includes(lastScammerTextRef.current.slice(0, 15)) ||
+                lastScammerTextRef.current.includes(cleanText.slice(0, 15)))
+            ) {
+              return;
+            }
+
+            // Immediately display user bubble on the right (USER - GREEN)
+            const userUtterance: Utterance = {
+              id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              sessionId: sessionIdRef.current ?? '',
+              speaker: 'user',
+              text: cleanText,
+              transcriptState: 'committed',
+              startedAtMs: Date.now() - 1200,
+              endedAtMs: Date.now(),
+              createdAt: new Date().toISOString(),
+            };
+            setUtterances((prev) => {
+              if (prev.some((u) => u.speaker === 'user' && u.text.trim() === cleanText)) {
+                return prev;
+              }
+              return [...prev, userUtterance];
+            });
+
+            void simulateSpeech('user', cleanText);
           },
         },
         { language: chosenLang },
