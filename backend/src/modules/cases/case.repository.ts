@@ -37,3 +37,5 @@ export const appendInput = (record: StoredCase, input: CaseInput): StoredCase =>
 });
 
 export const toCaseRecord = ({ ownerId: _ownerId, ...record }: StoredCase): CaseRecord => record;
+
+export { PrismaCaseRepository } from './prisma-case.repository.js';
