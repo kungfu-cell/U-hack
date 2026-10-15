@@ -297,6 +297,22 @@ export const LiveSessionView = () => {
     }
   }, [utterances, activePartials, demoUtteranceList]);
 
+  // Automatically voice caller utterances through speaker when scammer speaks
+  const lastSpokenUtteranceIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (callStatus !== 'connected' || callEndedLocally) return;
+    const latestUtterance = utterances[utterances.length - 1];
+    if (
+      latestUtterance &&
+      latestUtterance.speaker === 'caller' &&
+      latestUtterance.id !== lastSpokenUtteranceIdRef.current
+    ) {
+      lastSpokenUtteranceIdRef.current = latestUtterance.id;
+      const isThai = /[\u0E00-\u0E7F]/.test(latestUtterance.text);
+      void playScammerSpeech(latestUtterance.text, isThai ? 'th' : 'en');
+    }
+  }, [utterances, callStatus, callEndedLocally]);
+
   // Reset page scroll to top on view mount
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
