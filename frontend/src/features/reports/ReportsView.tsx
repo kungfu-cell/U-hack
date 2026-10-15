@@ -637,6 +637,229 @@ export const ReportsView = ({ initialSubTab = 'dossier', initialLookupQuery }: R
             )}
           </div>
 
+          {/* High-Tech Visual Analytics & Threat Intelligence Metrics */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 16 }}>
+            {/* Chart 1: Real-Time Threat Attack Vectors & Wave Activity (SVG Area Chart) */}
+            <div
+              className="card"
+              style={{
+                background: 'linear-gradient(180deg, rgba(14, 20, 34, 0.95) 0%, rgba(9, 13, 22, 0.98) 100%)',
+                border: '1px solid var(--border)',
+                padding: '16px 18px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)', display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5">
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                    </svg>
+                    <span>สถิติคลื่นภัยคุกคามคอลเซ็นเตอร์ 24 ชม. (Threat Influx &amp; Interception Velocity)</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 2 }}>
+                    วิเคราะห์ข้อมูลดักสกัดจากเกตเวย์ VoIP ข้ามแดน และยอดแจ้งอายัดบัญชีม้าผ่าน AOC 1441
+                  </div>
+                </div>
+                <span className="badge-sev badge-critical" style={{ fontSize: 9.5 }}>
+                  PEAK: 14:00 - 16:30
+                </span>
+              </div>
+
+              {/* High-Tech Dynamic SVG Area Chart */}
+              <div style={{ position: 'relative', width: '100%', height: 130 }}>
+                <svg viewBox="0 0 500 130" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
+                  <defs>
+                    <linearGradient id="threatGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor="#ef4444" stopOpacity="0.38" />
+                      <stop offset="80%" stopColor="#ef4444" stopOpacity="0.04" />
+                      <stop offset="100%" stopColor="#ef4444" stopOpacity="0" />
+                    </linearGradient>
+                    <linearGradient id="shieldGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
+                      <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+
+                  {/* Horizontal Guide Lines */}
+                  <line x1="0" y1="20" x2="500" y2="20" stroke="rgba(255,255,255,0.05)" strokeDasharray="3 3" />
+                  <line x1="0" y1="60" x2="500" y2="60" stroke="rgba(255,255,255,0.05)" strokeDasharray="3 3" />
+                  <line x1="0" y1="100" x2="500" y2="100" stroke="rgba(255,255,255,0.05)" strokeDasharray="3 3" />
+
+                  {/* Threat Area & Line */}
+                  <path
+                    d="M 0 110 Q 60 95, 100 80 T 180 90 T 260 40 T 340 25 T 420 50 T 500 15 L 500 130 L 0 130 Z"
+                    fill="url(#threatGradient)"
+                  />
+                  <path
+                    d="M 0 110 Q 60 95, 100 80 T 180 90 T 260 40 T 340 25 T 420 50 T 500 15"
+                    fill="none"
+                    stroke="#ef4444"
+                    strokeWidth="2.5"
+                  />
+
+                  {/* Shield AI Interception Area & Line */}
+                  <path
+                    d="M 0 120 Q 60 110, 100 95 T 180 98 T 260 48 T 340 30 T 420 55 T 500 20 L 500 130 L 0 130 Z"
+                    fill="url(#shieldGradient)"
+                  />
+                  <path
+                    d="M 0 120 Q 60 110, 100 95 T 180 98 T 260 48 T 340 30 T 420 55 T 500 20"
+                    fill="none"
+                    stroke="#10b981"
+                    strokeWidth="2"
+                    strokeDasharray="4 2"
+                  />
+
+                  {/* Peak Marker Dot */}
+                  <circle cx="340" cy="25" r="4.5" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+                  <circle cx="500" cy="15" r="4.5" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+                  <circle cx="500" cy="20" r="4" fill="#10b981" stroke="#ffffff" strokeWidth="1.5" />
+                </svg>
+
+                {/* Timeline X-Labels */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: 9.5,
+                    color: 'var(--fg-muted)',
+                    marginTop: 4,
+                  }}
+                >
+                  <span>00:00</span>
+                  <span>04:00</span>
+                  <span>08:00</span>
+                  <span>12:00</span>
+                  <span>14:30 (Peak)</span>
+                  <span>18:00</span>
+                  <span>Now (Active)</span>
+                </div>
+              </div>
+
+              {/* Legend & Stats */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginTop: 10,
+                  paddingTop: 8,
+                  borderTop: '1px solid var(--border-subtle)',
+                }}
+              >
+                <div style={{ display: 'flex', gap: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+                    <span style={{ width: 10, height: 3, background: '#ef4444', borderRadius: 2 }} />
+                    <span style={{ color: 'var(--fg-secondary)' }}>คลื่นการโจมตี (Inbound Scam Calls)</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+                    <span style={{ width: 10, height: 3, background: '#10b981', borderRadius: 2 }} />
+                    <span style={{ color: 'var(--fg-secondary)' }}>สกัดกั้นสำเร็จ (ScamTrap Shield 97.4%)</span>
+                  </div>
+                </div>
+                <span className="code-tag" style={{ fontSize: 10.5, color: '#60a5fa' }}>
+                  Total Inbound: 2,419 สาย
+                </span>
+              </div>
+            </div>
+
+            {/* Chart 2: Threat Distribution by Category (Breakdown Progress Bars) */}
+            <div
+              className="card"
+              style={{
+                background: 'linear-gradient(180deg, rgba(14, 20, 34, 0.95) 0%, rgba(9, 13, 22, 0.98) 100%)',
+                border: '1px solid var(--border)',
+                padding: '16px 18px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)', display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.5">
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M12 2v10l8.5 5" />
+                    </svg>
+                    <span>สัดส่วนภัยคุกคามในระบบ (Threat Distribution)</span>
+                  </div>
+                  <span className="badge-sev badge-safe" style={{ fontSize: 9.5 }}>LIVE INTEL</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 6 }}>
+                  {/* Category 1 */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 4 }}>
+                      <span style={{ color: 'var(--fg)', fontWeight: 600 }}>💳 บัญชีม้าหลอกโอนเงิน (Bank Mules)</span>
+                      <span style={{ color: '#ef4444', fontWeight: 700 }}>48% (1,161 บัญชี)</span>
+                    </div>
+                    <div style={{ height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ width: '48%', height: '100%', background: 'linear-gradient(90deg, #dc2626, #ef4444)', borderRadius: 3 }} />
+                    </div>
+                  </div>
+
+                  {/* Category 2 */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 4 }}>
+                      <span style={{ color: 'var(--fg)', fontWeight: 600 }}>📞 เบอร์สวมรอยตำรวจ / VoIP ข้ามแดน</span>
+                      <span style={{ color: '#f59e0b', fontWeight: 700 }}>32% (774 เบอร์)</span>
+                    </div>
+                    <div style={{ height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ width: '32%', height: '100%', background: 'linear-gradient(90deg, #d97706, #f59e0b)', borderRadius: 3 }} />
+                    </div>
+                  </div>
+
+                  {/* Category 3 */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 4 }}>
+                      <span style={{ color: 'var(--fg)', fontWeight: 600 }}>🌐 ลิงก์ฟิชชิ่ง &amp; แอปรีโมตดูดเงิน (RAT APK)</span>
+                      <span style={{ color: '#3b82f6', fontWeight: 700 }}>15% (362 รายการ)</span>
+                    </div>
+                    <div style={{ height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ width: '15%', height: '100%', background: 'linear-gradient(90deg, #2563eb, #3b82f6)', borderRadius: 3 }} />
+                    </div>
+                  </div>
+
+                  {/* Category 4 */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 4 }}>
+                      <span style={{ color: 'var(--fg)', fontWeight: 600 }}>💻 เซิร์ฟเวอร์ C2 &amp; บัญชีคริปโตฟอกเงิน</span>
+                      <span style={{ color: '#a855f7', fontWeight: 700 }}>5% (122 รายการ)</span>
+                    </div>
+                    <div style={{ height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ width: '5%', height: '100%', background: 'linear-gradient(90deg, #7c3aed, #a855f7)', borderRadius: 3 }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Quick Metric Highlights */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: 8,
+                  marginTop: 12,
+                  paddingTop: 8,
+                  borderTop: '1px solid var(--border-subtle)',
+                }}
+              >
+                <div style={{ background: 'rgba(0,0,0,0.35)', padding: '6px 8px', borderRadius: 4 }}>
+                  <div style={{ fontSize: 10, color: 'var(--fg-muted)' }}>เฉลี่ยเวลาสั่งอายัด</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--emerald)' }}>⚡ 2.4 นาที (AOC 1441)</div>
+                </div>
+                <div style={{ background: 'rgba(0,0,0,0.35)', padding: '6px 8px', borderRadius: 4 }}>
+                  <div style={{ fontSize: 10, color: 'var(--fg-muted)' }}>มูลค่าทรัพย์สินที่สกัดกั้น</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#60a5fa' }}>฿ 142.8 ล้านบาท</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Blacklist Directory Table Card */}
           <div className="card">
             <div className="card-header">
