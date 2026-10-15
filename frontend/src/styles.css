@@ -969,36 +969,48 @@
     }
 
     .chat-bubble {
-      padding: 8px 12px;
+      padding: 10px 14px;
       border-radius: var(--radius-sm);
-      font-size: 12px;
-      max-width: 88%;
-      line-height: 1.45;
+      font-size: 12.5px;
+      max-width: 82%;
+      line-height: 1.5;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
     }
 
     .bubble-inbound {
-      background: #171b26;
-      border-left: 3px solid #f43f5e;
+      background: rgba(244, 63, 94, 0.12);
+      border: 1px solid rgba(244, 63, 94, 0.4);
+      border-left: 4px solid #f43f5e;
+      border-radius: 4px 12px 12px 4px;
       align-self: flex-start;
+      color: #fff1f2;
     }
 
     .bubble-citizen {
-      background: #0f1c1f;
-      border-left: 3px solid var(--emerald);
+      background: rgba(16, 185, 129, 0.14);
+      border: 1px solid rgba(16, 185, 129, 0.45);
+      border-right: 4px solid var(--emerald);
+      border-left: none;
+      border-radius: 12px 4px 4px 12px;
       align-self: flex-end;
+      color: #ecfdf5;
     }
 
     .bubble-agent {
-      background: #132238;
-      border-left: 3px solid #60a5fa;
+      background: rgba(59, 130, 246, 0.14);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      border-left: 4px solid #60a5fa;
+      border-radius: 4px 12px 12px 4px;
       align-self: flex-start;
+      color: #eff6ff;
     }
 
     .bubble-meta {
       font-size: 10px;
-      font-weight: 600;
+      font-weight: 700;
+      letter-spacing: 0.02em;
       color: var(--fg-muted);
-      margin-bottom: 3px;
+      margin-bottom: 5px;
       display: flex;
       align-items: center;
       gap: 6px;

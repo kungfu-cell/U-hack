@@ -1367,8 +1367,23 @@ export const LiveSessionView = () => {
                     className={`chat-bubble ${u.speaker === 'caller' ? 'bubble-inbound' : u.speaker === 'user' ? 'bubble-citizen' : 'bubble-agent'}`}
                   >
                     <div className="bubble-meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        {u.speaker.toUpperCase()} ({new Date(u.startedAtMs).toLocaleTimeString()})
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {u.speaker === 'caller' ? (
+                          <span style={{ color: '#f87171', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            🚨 CALLER (มิจฉาชีพ)
+                          </span>
+                        ) : u.speaker === 'user' ? (
+                          <span style={{ color: 'var(--emerald)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            🛡️ USER (คุณ)
+                          </span>
+                        ) : (
+                          <span style={{ color: '#60a5fa', fontWeight: 700 }}>
+                            🤖 SCAMTRAP AI DECOY
+                          </span>
+                        )}
+                        <span style={{ color: 'var(--fg-muted)', fontWeight: 400, fontSize: 10 }}>
+                          ({new Date(u.startedAtMs).toLocaleTimeString()})
+                        </span>
                       </div>
                       {u.speaker === 'caller' && (
                         <button
