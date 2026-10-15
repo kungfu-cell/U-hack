@@ -1,19 +1,22 @@
 services:
   postgres:
     image: postgres:17-alpine
+    container_name: scamtrap-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: scamtrap
-      POSTGRES_USER: scamtrap
-      POSTGRES_PASSWORD: scamtrap
+      POSTGRES_DB: ${POSTGRES_DB:-scamtrap}
+      POSTGRES_USER: ${POSTGRES_USER:-scamtrap}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-scamtrap}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - scamtrap-postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U scamtrap -d scamtrap"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-scamtrap} -d ${POSTGRES_DB:-scamtrap}"]
       interval: 5s
       timeout: 5s
       retries: 10
 
 volumes:
   scamtrap-postgres:
+    name: scamtrap-postgres-data

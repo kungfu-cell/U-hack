@@ -32,7 +32,7 @@ const envSchema = z.object({
   ELEVENLABS_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().default(""),
   OPENAI_MODEL: z.string().default("gpt-5.6-terra"),
-  GOOGLE_WEB_RISK_API_KEY: z.string().default(""),
+  GOOGLE_SAFE_BROWSING_API_KEY: z.string().default(""),
 });
 
 export const env = envSchema.parse(process.env);

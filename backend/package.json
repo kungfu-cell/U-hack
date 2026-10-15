@@ -15,6 +15,7 @@
     "@fastify/websocket": "^11.3.4",
     "@scamtrap/analysis-core": "workspace:*",
     "@scamtrap/contracts": "workspace:*",
+    "@scamtrap/database": "workspace:*",
     "dotenv": "^17.2.3",
     "fastify": "^5.6.1",
     "ws": "^8.22.0",

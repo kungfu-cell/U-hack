@@ -5,5 +5,5 @@ export * from "./rule-engine.js";
 export * from "./rules.js";
 export * from "./risk.js";
 export * from "./redaction.js";
-export * from "./google-web-risk.js";
+export * from "./google-safe-browsing.js";
 export * from "./openai-analyzer.js";

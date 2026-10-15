@@ -2,7 +2,7 @@ import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
 import {
   DemoAnalysisProvider,
-  GoogleWebRiskProvider,
+  GoogleSafeBrowsingProvider,
   OpenAIAnalysisProvider,
 } from '@scamtrap/analysis-core';
 import Fastify from 'fastify';
@@ -35,12 +35,15 @@ export const buildApp = async (options?: { scribeProvider?: ScribeProvider }) =>
       ? new OpenAIAnalysisProvider({
           apiKey: env.OPENAI_API_KEY,
           model: env.OPENAI_MODEL,
-          ...(env.GOOGLE_WEB_RISK_API_KEY
-            ? { threatIntelProvider: new GoogleWebRiskProvider(env.GOOGLE_WEB_RISK_API_KEY) }
+          ...(env.GOOGLE_SAFE_BROWSING_API_KEY
+            ? {
+                threatIntelProvider: new GoogleSafeBrowsingProvider(
+                  env.GOOGLE_SAFE_BROWSING_API_KEY,
+                ),
+              }
             : {}),
         })
       : new DemoAnalysisProvider();
-
   const caseService = new CaseService(
     new InMemoryCaseRepository(),
     analysisProvider,

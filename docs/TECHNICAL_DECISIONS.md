@@ -10,7 +10,7 @@
 4. รับผลด้วย strict Structured Outputs
 5. รับเฉพาะ evidence quote ที่ค้นพบตรงในต้นฉบับ
 6. คำนวณ Risk Score ในระบบ ไม่ใช้คะแนนที่โมเดลสร้างเอง
-7. ส่ง URL ไปตรวจ Google Web Risk Lookup API โดยไม่เปิด URL
+7. ส่ง URL ไปตรวจ Google Safe Browsing v5 โดยไม่เปิด URL
 
 หาก Semantic Classifier หรือ Threat Intelligence ใช้งานไม่ได้ ระบบต้องคืนผลจากกฎภายในพร้อมระบุข้อจำกัด ไม่ตีความว่าไม่พบข้อมูลเท่ากับปลอดภัย
 
@@ -42,7 +42,7 @@
 
 - `unverified`: ยังไม่มีหลักฐานอิสระยืนยัน
 - `corroborated`: Indicator ตรงกับรายงานอิสระมากกว่าหนึ่งรายการ
-- `technically_validated`: ตรวจพบจากแหล่งเทคนิค เช่น Google Web Risk
+- `technically_validated`: ตรวจพบจากแหล่งเทคนิค เช่น Google Safe Browsing
 - `partner_verified`: ยืนยันโดยหน่วยงานหรือ Partner ที่ได้รับอนุญาต
 - `rejected`: ข้อมูลผิด ไม่เพียงพอ หรือถูกปฏิเสธหลังตรวจทาน
 
@@ -60,7 +60,7 @@ Risk Score และ Verification Status เป็นคนละค่า ห�
 ## Providers and deployment
 
 - Text analysis: OpenAI Responses API, `gpt-5.6-terra`
-- URL threat intelligence: Google Web Risk Lookup API
+- URL threat intelligence: Google Safe Browsing v5 (ใช้เฉพาะงานที่ไม่ใช่เชิงพาณิชย์)
 - Realtime transcription: ElevenLabs Scribe v2 Realtime ผ่าน single-use token
 - Deployment: Railway project เดียว แยก frontend, backend และ PostgreSQL service
 - ระหว่าง Hackathon ให้ backend ทำงานหนึ่ง instance เพื่อไม่ต้อง sync WebSocket room state
@@ -72,7 +72,7 @@ Secret ทุกตัวอยู่ใน Railway sealed variables หรื�
 ```text
 OPENAI_API_KEY
 OPENAI_MODEL=gpt-5.6-terra
-GOOGLE_WEB_RISK_API_KEY
+GOOGLE_SAFE_BROWSING_API_KEY
 ELEVENLABS_API_KEY
 ELEVENLABS_AGENT_ID
 DATABASE_URL

@@ -29,6 +29,9 @@ importers:
       '@scamtrap/contracts':
         specifier: workspace:*
         version: link:../packages/contracts
+      '@scamtrap/database':
+        specifier: workspace:*
+        version: link:../packages/database
       dotenv:
         specifier: ^17.2.3
         version: 17.4.2
@@ -124,9 +127,15 @@ importers:
       prisma:
         specifier: ^6.19.0
         version: 6.19.3(typescript@5.9.3)
+      tsx:
+        specifier: ^4.20.6
+        version: 4.23.15
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@24.19.2)(jiti@2.7.0)(tsx@4.23.15)
 
 packages:
 
