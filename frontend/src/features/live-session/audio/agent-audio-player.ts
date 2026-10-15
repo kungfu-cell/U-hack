@@ -34,6 +34,13 @@ export class AgentAudioPlayer {
     return this.audioContext;
   }
 
+  async resume(): Promise<void> {
+    const ctx = this.getAudioContext();
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+    }
+  }
+
   /**
    * Returns the MediaStreamTrack transmitting the AI speech, suitable for WebRTC replaceTrack.
    */

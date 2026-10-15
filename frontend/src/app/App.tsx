@@ -38,6 +38,11 @@ export const App = () => {
     showToast('ส่งออกไฟล์คดีล่าสุด (.json) เรียบร้อย');
   };
 
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  };
+
   return (
     <div data-od-id="scamtrap-streamlined-root" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Streamlined App Header */}
@@ -57,7 +62,7 @@ export const App = () => {
           <button
             type="button"
             className={`nav-tab-btn ${activeTab === 'tab-verify' ? 'active' : ''}`}
-            onClick={() => setActiveTab('tab-verify')}
+            onClick={() => handleTabChange('tab-verify')}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -68,7 +73,7 @@ export const App = () => {
           <button
             type="button"
             className={`nav-tab-btn ${activeTab === 'tab-live-call' ? 'active' : ''}`}
-            onClick={() => setActiveTab('tab-live-call')}
+            onClick={() => handleTabChange('tab-live-call')}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
@@ -79,7 +84,7 @@ export const App = () => {
           <button
             type="button"
             className={`nav-tab-btn ${activeTab === 'tab-dossier' ? 'active' : ''}`}
-            onClick={() => setActiveTab('tab-dossier')}
+            onClick={() => handleTabChange('tab-dossier')}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -116,7 +121,9 @@ export const App = () => {
 
       {/* Main Workspace */}
       <main className="app-main">
-        {activeTab === 'tab-verify' && <QuickAnalysis />}
+        <div style={{ display: activeTab === 'tab-verify' ? 'contents' : 'none' }}>
+          <QuickAnalysis />
+        </div>
         {activeTab === 'tab-live-call' && <LiveSessionView />}
         {activeTab === 'tab-dossier' && <ReportsView />}
       </main>

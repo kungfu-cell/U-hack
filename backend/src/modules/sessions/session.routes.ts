@@ -7,6 +7,7 @@ import type { LiveSessionManager } from './live-session-manager.js';
 import type { SessionRecord, SessionService } from './session.service.js';
 import type { CaseService } from '../cases/case.service.js';
 import { ContextBuilder } from './handoff/context-builder.js';
+import { env } from '../../config/env.js';
 
 const createSchema = z.object({ caseId: z.string().uuid() });
 const joinSchema = z.object({ joinCode: z.string().min(6).max(12) });
@@ -16,6 +17,9 @@ const wsQuerySchema = z.object({ token: z.string().uuid() });
 const simulateSchema = z.object({
   speaker: z.enum(['user', 'caller']),
   text: z.string().min(1),
+});
+const scammerSignedUrlQuerySchema = z.object({
+  lang: z.string().optional(),
 });
 const getOwnerId = (request: FastifyRequest) => String(request.headers['x-user-id'] ?? 'demo-user');
 const toOwnerSession = (session: SessionRecord) => {
@@ -273,6 +277,52 @@ export const registerSessionRoutes = async (
       return reply.send({ status: 'ok', simulated: body.data });
     });
 
+    app.get('/sessions/:id/scammer-signed-url', async (request, reply) => {
+      const params = paramsSchema.safeParse(request.params);
+      if (!params.success) return sendValidationError(reply, params.error);
+      const session = service.get(params.data.id);
+      if (!session) return sendNotFound(reply, 'Session');
+
+      const apiKey = env.ELEVENLABS_API_KEY;
+      if (!apiKey) {
+        return reply.status(503).send({
+          error: { code: 'ELEVENLABS_NOT_CONFIGURED', message: 'ElevenLabs API key is not configured' },
+        });
+      }
+
+      const query = scammerSignedUrlQuerySchema.safeParse(request.query);
+      const isEnglish = (query.success && query.data.lang?.toLowerCase().startsWith('en')) ?? false;
+      const agentId = isEnglish
+        ? (env.ELEVENLABS_SCAMMER_EN_AGENT_ID || 'agent_1701m50fbxptfb19rdyds35gqstc')
+        : (env.ELEVENLABS_SCAMMER_AGENT_ID || 'agent_8401m506b9p0fnd88k4623jvfrqh');
+
+      try {
+        const upstream = await fetch(
+          `https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=${agentId}`,
+          {
+            headers: { 'xi-api-key': apiKey },
+          },
+        );
+
+        if (!upstream.ok) {
+          const detail = await upstream.text();
+          return reply.status(upstream.status).send({
+            error: { code: 'ELEVENLABS_UPSTREAM_ERROR', message: detail },
+          });
+        }
+
+        const data = (await upstream.json()) as { signed_url: string };
+        return reply.send({ signedUrl: data.signed_url, agentId, lang: isEnglish ? 'en' : 'th' });
+      } catch (err) {
+        return reply.status(500).send({
+          error: {
+            code: 'ELEVENLABS_FAILED',
+            message: err instanceof Error ? err.message : 'Failed to obtain signed URL',
+          },
+        });
+      }
+    });
+
     app.post('/sessions/speak-preview', async (request, reply) => {
       const requester = request.headers['x-user-id'];
       if (typeof requester !== 'string' || !requester.trim()) {
@@ -284,7 +334,7 @@ export const registerSessionRoutes = async (
       const recent = (previewRequests.get(requester) ?? []).filter(
         (timestamp) => now - timestamp < 60_000,
       );
-      if (recent.length >= 5) {
+      if (recent.length >= 60) {
         return reply.status(429).send({
           error: { code: 'RATE_LIMITED', message: 'Voice preview limit reached; retry in one minute' },
         });
@@ -296,17 +346,28 @@ export const registerSessionRoutes = async (
         .object({
           text: z.string().min(1),
           directText: z.boolean().optional(),
+          voiceRole: z.enum(['scammer', 'decoy']).optional(),
+          voiceId: z.string().optional(),
         })
         .safeParse(request.body);
       if (!body.success) return sendValidationError(reply, body.error);
 
+      // Scammer voice: George (JBFqnCBsd6RMkjVDRZzb - deep, stern, authoritative interrogator)
+      // Decoy voice: Eric (cjVigY5qzO86Huf0OWal - polite, reassuring assistant)
+      const targetVoice =
+        body.data.voiceId ??
+        (body.data.voiceRole === 'scammer' ? 'JBFqnCBsd6RMkjVDRZzb' : 'cjVigY5qzO86Huf0OWal');
+
       if (liveManager?.agentClient) {
         if (body.data.directText && 'speakText' in liveManager.agentClient) {
-          const directSpeaker = liveManager.agentClient as { speakText: (t: string) => Promise<string> };
-          const audio = await directSpeaker.speakText(body.data.text);
+          const directSpeaker = liveManager.agentClient as {
+            speakText: (t: string, v?: string) => Promise<string>;
+          };
+          const audio = await directSpeaker.speakText(body.data.text, targetVoice);
           return reply.send({
             text: body.data.text,
             audioBase64: audio,
+            voiceRole: body.data.voiceRole ?? 'decoy',
           });
         }
 
@@ -315,9 +376,10 @@ export const registerSessionRoutes = async (
         return reply.send({
           text: res.text,
           audioBase64: res.audioBase64,
+          voiceRole: body.data.voiceRole ?? 'decoy',
         });
       }
-      return reply.send({ text: body.data.text, audioBase64: '' });
+      return reply.send({ text: body.data.text, audioBase64: '', voiceRole: body.data.voiceRole ?? 'decoy' });
     });
   }
 };

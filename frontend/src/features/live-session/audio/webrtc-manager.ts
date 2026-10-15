@@ -18,14 +18,24 @@ export class WebRtcManager {
       return this.localStream;
     }
 
-    this.localStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-      video: false,
-    });
+    try {
+      this.localStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: false,
+      });
+    } catch {
+      // Fallback: create a silent dummy audio track so session and WebRTC can still function
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new AudioCtx();
+      const dest = ctx.createMediaStreamDestination();
+      this.localStream = dest.stream;
+    }
 
     if (this.peerConnection && this.peerConnection.getSenders().length === 0) {
       for (const track of this.localStream.getAudioTracks()) {

@@ -32,6 +32,8 @@ const envSchema = z.object({
     .transform((value) => (process.env.NODE_ENV === "test" ? true : value === "true")),
   ELEVENLABS_API_KEY: z.string().optional(),
   ELEVENLABS_AGENT_ID: z.string().optional(),
+  ELEVENLABS_SCAMMER_AGENT_ID: z.string().default("agent_8401m506b9p0fnd88k4623jvfrqh"),
+  ELEVENLABS_SCAMMER_EN_AGENT_ID: z.string().default("agent_1701m50fbxptfb19rdyds35gqstc"),
   OPENAI_API_KEY: z.string().default(""),
   OPENAI_MODEL: z.string().default("gpt-4o-mini"),
   GOOGLE_SAFE_BROWSING_API_KEY: z.string().default(""),

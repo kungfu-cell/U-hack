@@ -11,6 +11,8 @@ import { AgentAudioPlayer } from './audio/agent-audio-player';
 import { AudioProcessor } from './audio/audio-processor';
 import { BrowserSpeechRecognizer } from './audio/browser-speech-recognizer';
 import { WebRtcManager } from './audio/webrtc-manager';
+import { ScammerConvAiClient, type ScammerConvAiStatus } from './audio/scammer-convai-client';
+import { showToast } from '../../lib/toast';
 
 const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 const resolvedApiUrl = new URL(apiUrl, window.location.origin).toString().replace(/\/$/, '');
@@ -61,6 +63,9 @@ export const useLiveSession = () => {
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [spokenLanguage, setSpokenLanguageState] = useState<'th-TH' | 'en-US'>('th-TH');
   const spokenLanguageRef = useRef<'th-TH' | 'en-US'>('th-TH');
+  const [isScammerCalling, setIsScammerCalling] = useState<boolean>(false);
+  const [scammerStatus, setScammerStatus] = useState<ScammerConvAiStatus>('idle');
+  const [activeScammerLang, setActiveScammerLang] = useState<'th' | 'en'>('th');
 
   const wsRef = useRef<WebSocket | null>(null);
   const webrtcRef = useRef<WebRtcManager | null>(null);
@@ -72,6 +77,8 @@ export const useLiveSession = () => {
   const startingRef = useRef<boolean>(false);
   const participantRoleRef = useRef<'owner' | 'caller'>('owner');
   const clientSpeechFallbackRef = useRef<boolean>(false);
+  const scammerClientRef = useRef<ScammerConvAiClient | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
 
   const sendClientMessage = useCallback((msg: object) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -274,6 +281,7 @@ export const useLiveSession = () => {
       participantRoleRef.current = localRole;
       setParticipantRole(localRole);
       setSessionId(targetSessionId);
+      sessionIdRef.current = targetSessionId;
       setCaseId(targetCaseId);
       window.localStorage.setItem('scamtrap:lastCaseId', targetCaseId);
       window.localStorage.setItem('scamtrap:lastSessionId', targetSessionId);
@@ -305,6 +313,9 @@ export const useLiveSession = () => {
             sampleRate: 16000,
             timestampMs: Date.now(),
           });
+          if (scammerClientRef.current) {
+            scammerClientRef.current.sendUserAudioChunk(audioBase64);
+          }
         },
         (rms) => {
           setMicLevel(rms);
@@ -313,19 +324,18 @@ export const useLiveSession = () => {
       localProcessor.start();
       userAudioProcessorRef.current = localProcessor;
 
-      // Browser recognition provides a readable fallback transcript for the local speaker.
+      // Browser recognition provides immediate, reliable real-time transcript for the local speaker
       const recognizer = new BrowserSpeechRecognizer((text, isFinal) => {
-        if (clientSpeechFallbackRef.current) {
-          sendClientMessage({
-            type: 'transcript.client_speech',
-            sessionId: targetSessionId,
-            speaker: localSpeaker,
-            text,
-            isFinal,
-          });
-        }
+        // Send to backend so server-side pipeline and subscribers receive it
+        sendClientMessage({
+          type: 'transcript.client_speech',
+          sessionId: targetSessionId,
+          speaker: localSpeaker,
+          text,
+          isFinal,
+        });
 
-        // Optimistically show transcript locally in UI
+        // Optimistically update transcript in local UI
         if (!isFinal) {
           setActivePartials((prev) => ({
             ...prev,
@@ -341,6 +351,24 @@ export const useLiveSession = () => {
             },
           }));
         } else {
+          // Commit finalized speech segment into the permanent transcript feed
+          const committedUtterance: Utterance = {
+            id: `local-commit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            sessionId: targetSessionId,
+            speaker: localSpeaker,
+            text,
+            transcriptState: 'committed',
+            startedAtMs: Date.now() - 1500,
+            endedAtMs: Date.now(),
+            createdAt: new Date().toISOString(),
+          };
+          setUtterances((prev) => {
+            // Avoid duplicate text if backend already broadcasted it
+            if (prev.some((u) => u.speaker === localSpeaker && u.text.trim() === text.trim() && Math.abs(u.endedAtMs - committedUtterance.endedAtMs) < 3000)) {
+              return prev;
+            }
+            return [...prev, committedUtterance];
+          });
           setActivePartials((prev) => ({
             ...prev,
             [localSpeaker]: null,
@@ -382,6 +410,12 @@ export const useLiveSession = () => {
     agentPlayerRef.current = null;
     webrtcRef.current?.stop();
     wsRef.current?.close();
+
+    scammerClientRef.current?.disconnect();
+    scammerClientRef.current = null;
+    setIsScammerCalling(false);
+    setScammerStatus('idle');
+    sessionIdRef.current = null;
 
     setIsMicActive(false);
     setMicLevel(0);
@@ -428,9 +462,10 @@ export const useLiveSession = () => {
   };
 
   const simulateSpeech = async (speaker: 'user' | 'caller', text: string) => {
-    if (!sessionId) return;
+    const targetSessionId = sessionIdRef.current ?? sessionId;
+    if (!targetSessionId) return;
     try {
-      await fetch(`${apiUrl}/sessions/${sessionId}/simulate-speech`, {
+      await fetch(`${apiUrl}/sessions/${targetSessionId}/simulate-speech`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-user-id': 'demo-user' },
         body: JSON.stringify({ speaker, text }),
@@ -440,12 +475,92 @@ export const useLiveSession = () => {
     }
   };
 
+  const startScammerCall = useCallback(async (langOverride?: 'th' | 'en') => {
+    let targetId = sessionIdRef.current ?? sessionId;
+    if (!targetId) {
+      await startCall();
+      targetId = sessionIdRef.current;
+    }
+    if (!targetId) return;
+
+    const chosenLang: 'th' | 'en' =
+      langOverride ?? (spokenLanguageRef.current?.startsWith('en') ? 'en' : 'th');
+    setActiveScammerLang(chosenLang);
+
+    try {
+      setScammerStatus('connecting');
+      setIsScammerCalling(true);
+      const res = await fetch(
+        `${resolvedApiUrl}/sessions/${targetId}/scammer-signed-url?lang=${chosenLang}`,
+        {
+          headers: { 'x-user-id': 'demo-user' },
+        },
+      );
+      if (!res.ok) {
+        const errJson = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+        throw new Error(errJson?.error?.message ?? 'Failed to get ElevenLabs signed URL');
+      }
+      const data = (await res.json()) as { signedUrl: string; lang?: string };
+      const client = new ScammerConvAiClient(
+        data.signedUrl,
+        {
+          onStatusChange: (status, err) => {
+            setScammerStatus(status);
+            if (status === 'connected') {
+              showToast(
+                chosenLang === 'en'
+                  ? '✅ Connected to English Scammer AI (Fraud Taskforce)'
+                  : '✅ เชื่อมต่อสายมิจฉาชีพ AI สำเร็จ (ตำรวจไซเบอร์)',
+              );
+            } else if (status === 'speaking') {
+              showToast(
+                chosenLang === 'en'
+                  ? '🗣️ English Scammer AI is speaking...'
+                  : '🗣️ ตำรวจไซเบอร์ AI กำลังพูด...',
+              );
+            } else if (status === 'closed' || status === 'error') {
+              setIsScammerCalling(false);
+              if (err) {
+                setDegradedMessage(err);
+                showToast('⚠️ ' + err);
+              }
+            }
+          },
+          onAgentResponse: (text) => {
+            void simulateSpeech('caller', text);
+          },
+          onUserTranscript: (text) => {
+            void simulateSpeech('user', text);
+          },
+        },
+        { language: chosenLang },
+      );
+      scammerClientRef.current = client;
+      client.connect();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Cannot start scammer simulation';
+      setIsScammerCalling(false);
+      setScammerStatus('error');
+      setDegradedMessage(msg);
+      showToast('⚠️ ' + msg);
+    }
+  }, [sessionId, startCall, simulateSpeech]);
+
+  const stopScammerCall = useCallback(() => {
+    scammerClientRef.current?.disconnect();
+    scammerClientRef.current = null;
+    setIsScammerCalling(false);
+    setScammerStatus('idle');
+  }, []);
+
   useEffect(() => {
     return () => {
       isManuallyEndedRef.current = true;
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
+      scammerClientRef.current?.disconnect();
+      scammerClientRef.current = null;
       speechRecognizerRef.current?.stop();
       speechRecognizerRef.current = null;
       userAudioProcessorRef.current?.stop();
@@ -466,15 +581,14 @@ export const useLiveSession = () => {
         const localSpeaker: 'user' | 'caller' =
           participantRoleRef.current === 'owner' ? 'user' : 'caller';
         const recognizer = new BrowserSpeechRecognizer((text, isFinal) => {
-          if (clientSpeechFallbackRef.current) {
-            sendClientMessage({
-              type: 'transcript.client_speech',
-              sessionId: targetSessionId,
-              speaker: localSpeaker,
-              text,
-              isFinal,
-            });
-          }
+          sendClientMessage({
+            type: 'transcript.client_speech',
+            sessionId: targetSessionId,
+            speaker: localSpeaker,
+            text,
+            isFinal,
+          });
+
           if (!isFinal) {
             setActivePartials((prev) => ({
               ...prev,
@@ -490,6 +604,22 @@ export const useLiveSession = () => {
               },
             }));
           } else {
+            const committedUtterance: Utterance = {
+              id: `local-commit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+              sessionId: targetSessionId,
+              speaker: localSpeaker,
+              text,
+              transcriptState: 'committed',
+              startedAtMs: Date.now() - 1500,
+              endedAtMs: Date.now(),
+              createdAt: new Date().toISOString(),
+            };
+            setUtterances((prev) => {
+              if (prev.some((u) => u.speaker === localSpeaker && u.text.trim() === text.trim() && Math.abs(u.endedAtMs - committedUtterance.endedAtMs) < 3000)) {
+                return prev;
+              }
+              return [...prev, committedUtterance];
+            });
             setActivePartials((prev) => ({
               ...prev,
               [localSpeaker]: null,
@@ -535,5 +665,10 @@ export const useLiveSession = () => {
     requestHandoff,
     resumeHuman,
     simulateSpeech,
+    isScammerCalling,
+    scammerStatus,
+    activeScammerLang,
+    startScammerCall,
+    stopScammerCall,
   };
 };
