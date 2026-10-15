@@ -47,6 +47,39 @@ const DEFAULT_DEMO_UTTERANCES: DemoUtterance[] = [
   },
 ];
 
+function generateWaveformBars(
+  isActive: boolean,
+  intensity: number = 0.6,
+  phase: number = 0,
+  isMuted: boolean = false,
+): number[] {
+  if (isMuted) {
+    return Array.from({ length: 44 }, () => 3);
+  }
+  if (!isActive) {
+    // Resting state: calm, subtle baseline with gentle breathing ripple
+    return Array.from({ length: 44 }, (_, i) => {
+      const ripple = Math.sin(i * 0.25 + phase * 0.4) * 1.2;
+      return Math.max(3, Math.floor(4 + ripple));
+    });
+  }
+
+  // Active voice speech: human speech frequency envelope (center frequencies higher)
+  return Array.from({ length: 44 }, (_, i) => {
+    const centerDist = Math.abs(i - 22) / 22; // 0 at center, 1 at edges
+    const bellEnvelope = Math.cos(centerDist * Math.PI * 0.5); // 1 at center, 0 at edges
+
+    const wave1 = Math.sin(i * 0.45 + phase);
+    const wave2 = Math.cos(i * 0.85 - phase * 1.4);
+    const wave3 = Math.sin(i * 1.3 + phase * 0.7);
+    const combined = wave1 * 0.45 + wave2 * 0.35 + wave3 * 0.2 + 1; // 0 to 2
+
+    const jitter = Math.random() * 0.35 + 0.65;
+    const height = Math.floor(4 + bellEnvelope * combined * jitter * (intensity * 24 + 8));
+    return Math.min(34, Math.max(4, height));
+  });
+}
+
 export const LiveSessionView = () => {
   const {
     sessionId,
@@ -74,12 +107,19 @@ export const LiveSessionView = () => {
   const [callEndedLocally, setCallEndedLocally] = useState(false);
   const [demoUtteranceList, setDemoUtteranceList] = useState<DemoUtterance[]>(DEFAULT_DEMO_UTTERANCES);
 
-  // Waveform heights state
+  // Speech simulation and audio animation state
+  const [isCallerSimSpeaking, setIsCallerSimSpeaking] = useState<boolean>(false);
+  const [isUserSimSpeaking, setIsUserSimSpeaking] = useState<boolean>(false);
+  const phaseRef = useRef<number>(0);
+  const previewPlayerRef = useRef<AgentAudioPlayer | null>(null);
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+
+  // Waveform heights state (defaults to resting baseline 4px)
   const [callerWaveBars, setCallerWaveBars] = useState<number[]>(() =>
-    Array.from({ length: 44 }, () => Math.floor(Math.random() * 26 + 4)),
+    Array.from({ length: 44 }, () => 4),
   );
   const [userWaveBars, setUserWaveBars] = useState<number[]>(() =>
-    Array.from({ length: 44 }, () => Math.floor(Math.random() * 14 + 4)),
+    Array.from({ length: 44 }, () => 4),
   );
 
   const feedEndRef = useRef<HTMLDivElement | null>(null);
@@ -90,23 +130,64 @@ export const LiveSessionView = () => {
 
   const isAiActive = handoffState === 'ai_active';
 
-  // Waveform animation
+  // Dynamic speaking detection
+  const isCallerActive = Boolean(
+    isCallerSimSpeaking ||
+    (activePartials.caller && activePartials.caller.text.trim().length > 0),
+  );
+
+  const isUserActive = Boolean(
+    !isMuted && !isAiActive &&
+    (isUserSimSpeaking ||
+     micLevel > 0.035 ||
+     (activePartials.user && activePartials.user.text.trim().length > 0)),
+  );
+
+  const isAiSpeaking = Boolean(
+    isPlayingPreview ||
+    (isAiActive && (
+      (activePartials.ai && activePartials.ai.text.trim().length > 0) ||
+      (!isCallerActive && !isUserActive)
+    )),
+  );
+
+  // Natural Waveform animation synchronized with speech activity
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     if (isCallActive) {
       interval = setInterval(() => {
-        setCallerWaveBars(Array.from({ length: 44 }, () => Math.floor(Math.random() * 28 + 4)));
-        setUserWaveBars(
-          Array.from({ length: 44 }, () =>
-            isMuted ? 4 : Math.floor(Math.random() * (micLevel > 0.01 ? 26 : 12) + 4),
-          ),
+        phaseRef.current += 0.28;
+        const currentPhase = phaseRef.current;
+
+        // Caller wave animation
+        const callerBars = generateWaveformBars(
+          isCallerActive,
+          isCallerActive ? 0.75 : 0,
+          currentPhase,
+          false,
         );
-      }, 180);
+        setCallerWaveBars(callerBars);
+
+        // User / AI wave animation
+        const userIntensity = isAiSpeaking
+          ? 0.78
+          : isUserActive
+            ? Math.min(1, Math.max(0.4, micLevel * 6 + 0.3))
+            : 0;
+
+        const userBars = generateWaveformBars(
+          isUserActive || isAiSpeaking,
+          userIntensity,
+          currentPhase * 1.1,
+          isMuted && !isAiSpeaking,
+        );
+        setUserWaveBars(userBars);
+      }, 70);
     }
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isCallActive, isMuted, micLevel]);
+  }, [isCallActive, isCallerActive, isUserActive, isAiSpeaking, isMuted, micLevel]);
 
   // Call duration timer
   useEffect(() => {
@@ -121,13 +202,18 @@ export const LiveSessionView = () => {
     };
   }, [isCallActive, callEndedLocally]);
 
-  // Scroll feed to bottom
+  // Scroll transcript feed container to bottom without scrolling parent window
   useEffect(() => {
-    feedEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = document.getElementById('transcript-feed');
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
   }, [utterances, activePartials, demoUtteranceList]);
 
-  const previewPlayerRef = useRef<AgentAudioPlayer | null>(null);
-  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+  // Reset page scroll to top on view mount
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, []);
 
   // Auto-initiate live session if not started
   useEffect(() => {
@@ -229,6 +315,8 @@ export const LiveSessionView = () => {
     if (type === 'police') {
       const text =
         'ผมร้อยตำรวจเอก สมชาย จากสถานีตำรวจภูธรเมือง ตรวจพบว่าคุณเกี่ยวข้องกับคดีฟอกเงิน ให้รีบโอนเงินมาตรวจสอบทันทีและห้ามบอกใคร';
+      setIsCallerSimSpeaking(true);
+      setTimeout(() => setIsCallerSimSpeaking(false), 4500);
       await simulateSpeech('caller', text);
       setDemoUtteranceList((prev) => [
         ...prev,
@@ -243,6 +331,8 @@ export const LiveSessionView = () => {
       showToast('จำลอง: ตำรวจปลอมโทรข่มขู่โอนเงิน');
     } else if (type === 'otp') {
       const text = 'ทางธนาคารส่ง SMS รหัส OTP 6 หลักไปให้แล้ว รบกวนแจ้งรหัสเพื่อยืนยันสิทธิ์เดี๋ยวนี้';
+      setIsCallerSimSpeaking(true);
+      setTimeout(() => setIsCallerSimSpeaking(false), 3800);
       await simulateSpeech('caller', text);
       setDemoUtteranceList((prev) => [
         ...prev,
@@ -257,6 +347,8 @@ export const LiveSessionView = () => {
       showToast('จำลอง: มิจฉาชีพหลอกขอ OTP');
     } else if (type === 'user') {
       const text = 'ขอโทษนะครับ ผมไม่สะดวกโอนเงิน และขอโทรกลับไปตรวจสอบที่สถานีตำรวจโดยตรงครับ';
+      setIsUserSimSpeaking(true);
+      setTimeout(() => setIsUserSimSpeaking(false), 3500);
       await simulateSpeech('user', text);
       setDemoUtteranceList((prev) => [
         ...prev,
@@ -271,6 +363,8 @@ export const LiveSessionView = () => {
     } else if (type === 'en_police') {
       const text =
         'This is Officer John Davis from Federal Fraud Taskforce. Your account is tied to an international money laundering ring. You must wire all funds to our verification vault immediately.';
+      setIsCallerSimSpeaking(true);
+      setTimeout(() => setIsCallerSimSpeaking(false), 5200);
       await simulateSpeech('caller', text);
       setDemoUtteranceList((prev) => [
         ...prev,
@@ -286,6 +380,8 @@ export const LiveSessionView = () => {
     } else if (type === 'en_otp') {
       const text =
         'We sent a 6-digit OTP passcode to your mobile device right now. Please disclose the code immediately to avoid permanent account termination.';
+      setIsCallerSimSpeaking(true);
+      setTimeout(() => setIsCallerSimSpeaking(false), 4200);
       await simulateSpeech('caller', text);
       setDemoUtteranceList((prev) => [
         ...prev,
@@ -301,6 +397,8 @@ export const LiveSessionView = () => {
     } else if (type === 'en_user') {
       const text =
         'I will not share any OTP codes or transfer money over the phone. I am contacting my bank fraud prevention desk directly.';
+      setIsUserSimSpeaking(true);
+      setTimeout(() => setIsUserSimSpeaking(false), 4000);
       await simulateSpeech('user', text);
       setDemoUtteranceList((prev) => [
         ...prev,
@@ -311,6 +409,7 @@ export const LiveSessionView = () => {
           text,
         },
       ]);
+      showToast('Simulate: Citizen Refuses & Mentions Fraud Desk');
     }
   };
 
@@ -608,10 +707,19 @@ export const LiveSessionView = () => {
 
             <div className="card-body">
               {/* Channel A: Caller */}
-              <div className="waveform-box caller-channel">
+              <div className={`waveform-box caller-channel ${isCallerActive ? 'active-channel' : 'idle-channel'}`}>
                 <div className="waveform-header">
                   <span>CHANNEL A: Inbound Caller (+66 82-419-8921)</span>
-                  <span style={{ color: '#f43f5e', fontWeight: 600 }}>Active Speech</span>
+                  {isCallerActive ? (
+                    <span style={{ color: '#f43f5e', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span className="pulse-dot-red" style={{ width: 6, height: 6 }} />
+                      Active Speech (กำลังพูด...)
+                    </span>
+                  ) : (
+                    <span style={{ color: 'var(--fg-muted)', fontWeight: 500 }}>
+                      Listening (รอฟังสาย)
+                    </span>
+                  )}
                 </div>
                 <div className="waveform-bars">
                   {callerWaveBars.map((h, i) => (
@@ -620,18 +728,41 @@ export const LiveSessionView = () => {
                 </div>
               </div>
 
-              {/* Channel B: User */}
-              <div className="waveform-box user-channel">
+              {/* Channel B: User / AI */}
+              <div
+                className={`waveform-box user-channel ${
+                  isMuted
+                    ? 'muted-channel'
+                    : isAiSpeaking
+                      ? 'ai-channel'
+                      : isUserActive
+                        ? 'active-channel'
+                        : 'idle-channel'
+                }`}
+              >
                 <div className="waveform-header">
-                  <span>CHANNEL B: Protected Citizen (End-User)</span>
-                  <span
-                    style={{
-                      color: isMuted ? '#ff6b6b' : 'var(--emerald)',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {isMuted ? 'Muted (Local)' : 'Listening'}
+                  <span>
+                    {isAiActive
+                      ? 'CHANNEL B: ScamTrap AI Agent (Decoy Takeover)'
+                      : 'CHANNEL B: Protected Citizen (End-User)'}
                   </span>
+                  {isMuted ? (
+                    <span style={{ color: '#ff6b6b', fontWeight: 600 }}>🔇 Muted (ปิดเสียงไมค์)</span>
+                  ) : isAiSpeaking ? (
+                    <span style={{ color: '#60a5fa', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span className="pulse-dot-green" style={{ width: 6, height: 6, background: '#60a5fa' }} />
+                      AI Agent Speaking (ElevenLabs 16kHz)
+                    </span>
+                  ) : isUserActive ? (
+                    <span style={{ color: 'var(--emerald)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span className="pulse-dot-green" style={{ width: 6, height: 6 }} />
+                      🎙️ Active Speech (กำลังพูด...)
+                    </span>
+                  ) : (
+                    <span style={{ color: 'var(--fg-muted)', fontWeight: 500 }}>
+                      Listening (พร้อมตรวจจับเสียง)
+                    </span>
+                  )}
                 </div>
                 <div className="waveform-bars">
                   {userWaveBars.map((h, i) => (

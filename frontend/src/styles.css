@@ -898,11 +898,34 @@
       background: var(--border-strong);
       border-radius: 1px;
       min-height: 4px;
-      transition: height 0.1s ease;
+      transition: height 0.08s ease, background 0.15s ease, box-shadow 0.15s ease;
     }
 
-    .caller-channel .wave-line { background: #f43f5e; }
-    .user-channel .wave-line { background: var(--emerald); }
+    .caller-channel.active-channel .wave-line {
+      background: #f43f5e;
+      box-shadow: 0 0 6px rgba(244, 63, 94, 0.6);
+    }
+    .caller-channel.idle-channel .wave-line {
+      background: rgba(244, 63, 94, 0.22);
+      box-shadow: none;
+    }
+
+    .user-channel.active-channel .wave-line {
+      background: var(--emerald);
+      box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+    }
+    .user-channel.ai-channel .wave-line {
+      background: #60a5fa;
+      box-shadow: 0 0 8px rgba(96, 165, 250, 0.7);
+    }
+    .user-channel.idle-channel .wave-line {
+      background: rgba(16, 185, 129, 0.22);
+      box-shadow: none;
+    }
+    .user-channel.muted-channel .wave-line {
+      background: rgba(239, 68, 68, 0.2);
+      box-shadow: none;
+    }
 
     /* AI Takeover Command Box */
     .takeover-panel {
