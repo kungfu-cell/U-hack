@@ -1437,6 +1437,22 @@ export const ReportsView = ({ initialSubTab = 'dossier', initialLookupQuery }: R
                 <button
                   type="button"
                   className="btn-action btn-action-ghost"
+                  onClick={() => {
+                    const targetIoc = selectedCase.muleAccount || selectedCase.ioc;
+                    setLookupQuery(targetIoc);
+                    setActiveSubTab('blacklist');
+                    handleRunLookup(targetIoc);
+                    setSelectedCase(null);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
+                  title="ตรวจสอบตัวบ่งชี้ของคดีนี้ในฐานข้อมูล Blacklist & OSINT"
+                >
+                  🔍 ตรวจ Blacklist
+                </button>
+                <button
+                  type="button"
+                  className="btn-action btn-action-ghost"
                   onClick={() => setOfficialReportModal(selectedCase)}
                   style={{ color: '#60a5fa', borderColor: 'rgba(96, 165, 250, 0.4)' }}
                   title="พิมพ์สำนวนหลักฐานราชการเพื่อส่ง AOC 1441 และ บช.สอท."
