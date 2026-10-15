@@ -145,6 +145,75 @@ interface AttachmentItem {
   badge: string;
 }
 
+type IocItem = PresetData['iocs'][number];
+
+const getVerdictPresentation = (level: AnalysisResult['level']) => {
+  if (level === 'critical') return { label: 'Critical Severity', className: 'badge-critical' };
+  if (level === 'high') return { label: 'High Risk', className: 'badge-warning' };
+  if (level === 'medium') return { label: 'Medium Risk', className: 'badge-warning' };
+  return { label: 'Low / Cleared', className: 'badge-safe' };
+};
+
+const buildAnalysisBars = (result: AnalysisResult): [number, number, number] => {
+  const linguisticConfidence = result.evidence.length > 0
+    ? Math.round(Math.max(...result.evidence.map((item) => item.confidence)) * 100)
+    : 0;
+  const checkedThreats = result.threatChecks.filter((check) => check.status !== 'not_checked');
+  const matchedThreats = checkedThreats.filter((check) => check.status === 'match');
+  const urlThreats = checkedThreats.filter((check) => /^https?:\/\//i.test(check.indicator));
+  const matchedUrls = urlThreats.filter((check) => check.status === 'match');
+
+  return [
+    Math.max(result.score, linguisticConfidence),
+    checkedThreats.length > 0 ? Math.round((matchedThreats.length / checkedThreats.length) * 100) : 0,
+    urlThreats.length > 0 ? Math.round((matchedUrls.length / urlThreats.length) * 100) : 0,
+  ];
+};
+
+const buildAnalysisIocs = (result: AnalysisResult, url: string, phone: string): IocItem[] => {
+  const items: IocItem[] = [];
+  const normalizedUrl = url.trim();
+  const normalizedPhone = phone.trim();
+
+  if (normalizedUrl && !normalizedUrl.toLowerCase().startsWith('none detected')) {
+    const check = result.threatChecks.find((item) => item.indicator === normalizedUrl);
+    const presentation = check?.status === 'match'
+      ? { status: check.threatType ?? 'Threat match', statusClass: 'badge-critical' }
+      : check?.status === 'unavailable'
+        ? { status: 'Threat check unavailable', statusClass: 'badge-warning' }
+        : check?.status === 'not_found'
+          ? { status: 'Not found in threat source', statusClass: 'badge-info' }
+          : { status: 'Provided input', statusClass: 'badge-info' };
+    items.push({
+      type: 'Domain',
+      val: normalizedUrl.replace(/^https?:\/\//, '').split('/')[0] ?? normalizedUrl,
+      ...presentation,
+    });
+  }
+
+  if (normalizedPhone && normalizedPhone.toLowerCase() !== 'none') {
+    items.push({
+      type: 'Caller ID',
+      val: normalizedPhone,
+      status: 'Provided input',
+      statusClass: 'badge-info',
+    });
+  }
+
+  for (const entity of result.entities) {
+    if (entity.type === 'url' && normalizedUrl) continue;
+    if (entity.type === 'phone' && normalizedPhone) continue;
+    items.push({
+      type: entity.type.replaceAll('_', ' ').toUpperCase(),
+      val: entity.value,
+      status: entity.verified ? 'Verified risk' : 'Detected entity',
+      statusClass: entity.verified ? 'badge-critical' : 'badge-warning',
+    });
+  }
+
+  return items;
+};
+
 const readFileAsBase64 = (file: File) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -173,6 +242,8 @@ export const QuickAnalysis = () => {
   const [confidence, setConfidence] = useState(PRESETS.police.confidence);
   const [bars, setBars] = useState<[number, number, number]>(PRESETS.police.bars);
   const [iocs, setIocs] = useState(PRESETS.police.iocs);
+  const [riskScoreValue, setRiskScoreValue] = useState(96.8);
+  const [analysisReference, setAnalysisReference] = useState('Demo preset');
   const [analyzing, setAnalyzing] = useState(false);
   const [aiRecommendation, setAiRecommendation] = useState<string | null>(null);
   const [aiEvidence, setAiEvidence] = useState<
@@ -220,6 +291,21 @@ export const QuickAnalysis = () => {
     };
   }, [isPlayingAudio]);
 
+  const invalidateAnalysis = () => {
+    setActivePreset('');
+    setScore('—');
+    setRiskScoreValue(0);
+    setSummary('ข้อมูลมีการเปลี่ยนแปลง กด Execute Risk Analysis เพื่อวิเคราะห์ใหม่');
+    setVerdict('Awaiting Analysis');
+    setVerdictClass('badge-info');
+    setConfidence('NOT ANALYZED');
+    setBars([0, 0, 0]);
+    setIocs([]);
+    setAiRecommendation(null);
+    setAiEvidence([]);
+    setAnalysisReference('No analysis yet');
+  };
+
   const loadPreset = (key: PresetKey) => {
     const data = PRESETS[key];
     if (!data) return;
@@ -235,6 +321,8 @@ export const QuickAnalysis = () => {
     setConfidence(data.confidence);
     setBars(data.bars);
     setIocs(data.iocs);
+    setRiskScoreValue(Number.parseFloat(data.score));
+    setAnalysisReference('Demo preset');
     setInputMode(data.mode);
     setAiRecommendation(null);
     setAiEvidence([]);
@@ -339,44 +427,26 @@ export const QuickAnalysis = () => {
         const result: AnalysisResult | null = analyzed.latestAnalysis;
 
         if (result) {
+          const verdictPresentation = getVerdictPresentation(result.level);
           setScore(`${result.score}%`);
+          setRiskScoreValue(result.score);
           setSummary(result.summary);
-          setVerdict(result.level === 'critical' ? 'Critical Severity' : result.level === 'high' ? 'High Risk' : 'Low / Cleared');
-          setVerdictClass(result.level === 'critical' ? 'badge-critical' : result.level === 'high' ? 'badge-warning' : 'badge-safe');
+          setVerdict(verdictPresentation.label);
+          setVerdictClass(verdictPresentation.className);
           setConfidence(result.verificationStatus.toUpperCase());
-          if (result.recommendation) {
-            setAiRecommendation(result.recommendation);
-          }
-          if (result.evidence && result.evidence.length > 0) {
-            setAiEvidence(result.evidence);
-          }
-
-          // Construct IOC table from backend entities and threatChecks
-          const newIocs: Array<{ type: string; val: string; status: string; statusClass: string }> = [];
-          if (url && url !== 'None detected') {
-            newIocs.push({ type: 'Domain', val: url.replace(/^https?:\/\//, '').split('/')[0] ?? url, status: 'Scanned Target', statusClass: 'badge-warning' });
-          }
-          if (phone && phone !== 'None') {
-            newIocs.push({ type: 'Caller ID', val: phone, status: 'Inbound Line', statusClass: 'badge-critical' });
-          }
-          result.entities.forEach((entity) => {
-            newIocs.push({
-              type: entity.type.replace('_', ' ').toUpperCase(),
-              val: entity.value,
-              status: entity.verified ? 'Verified Risk' : 'Detected Entity',
-              statusClass: entity.verified ? 'badge-critical' : 'badge-warning',
-            });
-          });
-
-          if (newIocs.length > 0) {
-            setIocs(newIocs);
-          }
+          setBars(buildAnalysisBars(result));
+          setIocs(buildAnalysisIocs(result, url, phone));
+          setAiRecommendation(result.recommendation || null);
+          setAiEvidence(result.evidence);
+          setAnalysisReference(`${result.isDemo ? 'Demo analysis' : 'Analysis'}: ${result.id.slice(0, 8)}`);
+          setActivePreset('');
         }
       }
       showToast('การวิเคราะห์เสร็จสิ้น • โปรดตรวจสถานะแหล่งข้อมูลในผลลัพธ์');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'เชื่อมต่อระบบวิเคราะห์ไม่ได้';
       setScore('—');
+      setRiskScoreValue(0);
       setSummary(`ไม่สามารถยืนยันผลวิเคราะห์ได้: ${message}`);
       setVerdict('Analysis Unavailable');
       setVerdictClass('badge-warning');
@@ -384,6 +454,8 @@ export const QuickAnalysis = () => {
       setAiRecommendation('กรุณาลองใหม่เมื่อระบบพร้อม อย่าใช้ผลตัวอย่างเดิมเพื่อตัดสินข้อมูลนี้');
       setAiEvidence([]);
       setIocs([]);
+      setBars([0, 0, 0]);
+      setAnalysisReference('Analysis unavailable');
       showToast(`วิเคราะห์ไม่สำเร็จ: ${message}`);
     } finally {
       setAnalyzing(false);
@@ -399,6 +471,10 @@ export const QuickAnalysis = () => {
     setAudioName(null);
     setAudioFile(null);
     setAudioConsentConfirmed(false);
+    setImageName('');
+    setImageSize('');
+    setImageOcrText('');
+    invalidateAnalysis();
     showToast('ล้างข้อมูลฟอร์มเรียบร้อย');
   };
 
@@ -547,7 +623,10 @@ export const QuickAnalysis = () => {
                   className="textarea-box"
                   placeholder="วางข้อความ SMS, แชต LINE หรือบทสนทนาที่ต้องการวิเคราะห์..."
                   value={payloadText}
-                  onChange={(e) => setPayloadText(e.target.value)}
+                  onChange={(e) => {
+                    setPayloadText(e.target.value);
+                    invalidateAnalysis();
+                  }}
                 />
                 <div className="textarea-attachment-bar">
                   <div className="attach-btn-group">
@@ -844,8 +923,11 @@ export const QuickAnalysis = () => {
                   id="txt-url"
                   className="input-control"
                   value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://royalthaipolice-verify-case.cc"
+                  onChange={(e) => {
+                    setUrl(e.target.value);
+                    invalidateAnalysis();
+                  }}
+                  placeholder="เว้นว่างได้ หากไม่มี URL"
                 />
               </div>
               <div>
@@ -857,8 +939,11 @@ export const QuickAnalysis = () => {
                   id="txt-phone"
                   className="input-control"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+66 82-419-8921"
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    invalidateAnalysis();
+                  }}
+                  placeholder="เว้นว่างได้ หากไม่มีเบอร์หรือ Sender ID"
                 />
               </div>
             </div>
@@ -872,7 +957,10 @@ export const QuickAnalysis = () => {
                 id="select-source"
                 className="input-control"
                 value={sourceChannel}
-                onChange={(e) => setSourceChannel(e.target.value)}
+                onChange={(e) => {
+                  setSourceChannel(e.target.value);
+                  invalidateAnalysis();
+                }}
               >
                 <option value="phone">Inbound Phone Call (สายโทรศัพท์เข้า)</option>
                 <option value="sms">SMS Text Message</option>
@@ -940,7 +1028,7 @@ export const QuickAnalysis = () => {
               </div>
               <div style={{ textAlign: 'right' }}>
                 <span className={`badge-sev ${verdictClass}`}>{confidence}</span>
-                <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 4 }}>AOC Ref: TH-9042-EXT</div>
+                <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 4 }}>{analysisReference}</div>
               </div>
             </div>
 
@@ -1018,7 +1106,7 @@ export const QuickAnalysis = () => {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                   </svg>
-                  <span>คำแนะนำจาก OpenAI (gpt-4o-mini Semantic Guard):</span>
+                  <span>คำแนะนำจากระบบวิเคราะห์:</span>
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--fg)', lineHeight: 1.5 }}>
                   {aiRecommendation}
@@ -1072,28 +1160,36 @@ export const QuickAnalysis = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {iocs.map((ioc, idx) => (
-                    <tr key={idx}>
-                      <td>{ioc.type}</td>
-                      <td>
-                        <span className="code-tag">{ioc.val}</span>
-                      </td>
-                      <td>
-                        <span className={`badge-sev ${ioc.statusClass}`}>{ioc.status}</span>
-                      </td>
-                      <td>
-                        <button type="button" className="btn-copy" onClick={() => copyToClipboard(ioc.val)}>
-                          Copy
-                        </button>
+                  {iocs.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} style={{ color: 'var(--fg-muted)', textAlign: 'center' }}>
+                        ไม่พบ URL, เบอร์โทร หรือข้อมูลบ่งชี้จากผลวิเคราะห์นี้
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    iocs.map((ioc, idx) => (
+                      <tr key={`${ioc.type}-${ioc.val}-${idx}`}>
+                        <td>{ioc.type}</td>
+                        <td>
+                          <span className="code-tag">{ioc.val}</span>
+                        </td>
+                        <td>
+                          <span className={`badge-sev ${ioc.statusClass}`}>{ioc.status}</span>
+                        </td>
+                        <td>
+                          <button type="button" className="btn-copy" onClick={() => copyToClipboard(ioc.val)}>
+                            Copy
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
 
             {/* Immediate Countermeasure Checklist */}
-            <div
+            {riskScoreValue >= 25 && <div
               style={{
                 background: '#090d16',
                 border: '1px solid var(--border)',
@@ -1121,11 +1217,11 @@ export const QuickAnalysis = () => {
                 Immediate Countermeasure Checklist:
               </div>
               <ul style={{ fontSize: 11, color: 'var(--fg-secondary)', paddingLeft: 18, lineHeight: 1.6 }}>
-                <li>ห้ามโอนเงินทุกกรณี หน่วยงานรัฐไม่มีนโยบายให้โอนเงินเข้าบัญชีบุคคลธรรมดา</li>
-                <li>ตัดสายทันที หรือเปิดใช้งานระบบ AI Honeypot ในแท็บ "Live Call &amp; Takeover"</li>
-                <li>ส่งข้อมูลหลักฐานให้ศูนย์ AOC 1441 ทันทีผ่านแท็บ Incident Dossier</li>
+                <li>หยุดการสนทนาหรือธุรกรรมไว้ก่อน แล้วตรวจสอบผ่านช่องทางทางการที่ค้นหาเอง</li>
+                <li>อย่าเปิดเผย OTP, PIN หรือโอนเงินตามคำขอในข้อความหรือสายที่ยังยืนยันไม่ได้</li>
+                <li>เก็บหลักฐานและตรวจทานรายงานใน Incident Dossier ก่อนตัดสินใจแชร์ข้อมูล</li>
               </ul>
-            </div>
+            </div>}
           </div>
         </div>
       </div>

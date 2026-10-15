@@ -121,7 +121,9 @@ export const App = () => {
 
       {/* Main Workspace */}
       <main className="app-main">
-        {activeTab === 'tab-verify' && <QuickAnalysis />}
+        <div style={{ display: activeTab === 'tab-verify' ? 'contents' : 'none' }}>
+          <QuickAnalysis />
+        </div>
         {activeTab === 'tab-live-call' && <LiveSessionView />}
         {activeTab === 'tab-dossier' && <ReportsView />}
       </main>
