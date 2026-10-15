@@ -1,6 +1,10 @@
 import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
-import { DemoAnalysisProvider } from '@scamtrap/analysis-core';
+import {
+  DemoAnalysisProvider,
+  GoogleWebRiskProvider,
+  OpenAIAnalysisProvider,
+} from '@scamtrap/analysis-core';
 import Fastify from 'fastify';
 import { env } from './config/env.js';
 import { InMemoryCaseRepository } from './modules/cases/case.repository.js';
@@ -20,14 +24,22 @@ export const buildApp = async (options?: { scribeProvider?: ScribeProvider }) =>
   });
   await app.register(websocket);
 
-
   app.get('/health', async () => ({
     status: 'ok',
     mode: env.USE_DEMO_ADAPTERS ? 'demo' : 'provider',
     timestamp: new Date().toISOString(),
   }));
 
-  const analysisProvider = new DemoAnalysisProvider();
+  const analysisProvider = env.USE_DEMO_ADAPTERS
+    ? new DemoAnalysisProvider()
+    : new OpenAIAnalysisProvider({
+        apiKey: env.OPENAI_API_KEY,
+        model: env.OPENAI_MODEL,
+        threatIntelProvider: new GoogleWebRiskProvider(
+          env.GOOGLE_WEB_RISK_API_KEY,
+        ),
+      });
+
   const caseService = new CaseService(
     new InMemoryCaseRepository(),
     analysisProvider,
@@ -51,4 +63,3 @@ export const buildApp = async (options?: { scribeProvider?: ScribeProvider }) =>
 
   return app;
 };
-
