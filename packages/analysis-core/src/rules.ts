@@ -41,7 +41,7 @@ export const scamRules: readonly ScamRule[] = [
     weight: tacticWeights.money_transfer_request,
     explanation: "มีคำขอให้โอนหรือชำระเงิน",
     ignoredWhen:
-      /(?:(?:อย่า|ห้าม|ไม่ควร|never|do not).{0,24}|(?:ไม่มีนโยบาย|ระวัง|เตือน).{0,16})(?:โอน|transfer|wire|ชำระ)/iu,
+      /(?:(?:อย่า|ห้าม|ไม่ควร|never|do not).{0,6}|(?:ไม่มีนโยบาย|ระวัง|เตือน).{0,16})(?:โอน|transfer|wire|ชำระ)/iu,
   },
   {
     tactic: "secret_request",
@@ -50,7 +50,7 @@ export const scamRules: readonly ScamRule[] = [
     weight: tacticWeights.secret_request,
     explanation: "มีคำขอข้อมูลลับที่ไม่ควรเปิดเผย",
     ignoredWhen:
-      /(?:(?:อย่า|ห้าม|ไม่ควร|never|do not).{0,24}|(?:ไม่มีนโยบาย|ระวัง|เตือน).{0,16})(?:บอก|ส่ง|อ่าน|แจ้ง|ขอ|กรอก|ใส่|ยืนยัน|otp|pin|รหัส|tell|disclose)/iu,
+      /(?:(?:อย่า|ห้าม|ไม่ควร|never|do not).{0,6}|(?:ไม่มีนโยบาย|ระวัง|เตือน).{0,16})(?:บอก|ส่ง|อ่าน|แจ้ง|ขอ|กรอก|ใส่|ยืนยัน|otp|pin|รหัส|tell|disclose)/iu,
   },
   {
     tactic: "isolation",
