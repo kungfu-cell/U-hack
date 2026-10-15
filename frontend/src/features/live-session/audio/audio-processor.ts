@@ -13,7 +13,7 @@ export class AudioProcessor {
     private readonly onAudioChunk: (base64Data: string) => void,
     private readonly onVolume?: (rms: number) => void,
     private readonly targetSampleRate = 16000,
-    private readonly bufferSize = 4096,
+    private readonly bufferSize = 2048,
   ) {}
 
   start(): void {

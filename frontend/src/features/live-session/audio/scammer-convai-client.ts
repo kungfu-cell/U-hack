@@ -158,6 +158,20 @@ export class ScammerConvAiClient {
     }
   }
 
+  /**
+   * Injects transcribed speech text directly into ElevenLabs ConvAI for guaranteed understanding and immediate response.
+   */
+  sendUserMessage(text: string): void {
+    if (this.ws?.readyState === WebSocket.OPEN && !this.isDisposed) {
+      this.ws.send(
+        JSON.stringify({
+          type: 'user_message',
+          text: text.trim(),
+        }),
+      );
+    }
+  }
+
   private cleanUpResources() {
     if (this.pingInterval) {
       clearInterval(this.pingInterval);

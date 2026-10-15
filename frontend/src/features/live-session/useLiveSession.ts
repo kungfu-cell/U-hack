@@ -376,6 +376,11 @@ export const useLiveSession = () => {
             endedAtMs: Date.now(),
             createdAt: new Date().toISOString(),
           };
+          // Forward recognized user speech directly to ElevenLabs ConvAI so AI agent immediately receives and responds
+          if (localSpeaker === 'user' && scammerClientRef.current) {
+            scammerClientRef.current.sendUserMessage(text);
+          }
+
           setUtterances((prev) => {
             // Avoid duplicate text if backend already broadcasted it
             if (prev.some((u) => u.speaker === localSpeaker && u.text.trim() === text.trim() && Math.abs(u.endedAtMs - committedUtterance.endedAtMs) < 3000)) {
