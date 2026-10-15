@@ -43,6 +43,17 @@ export const App = () => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   };
 
+  const [dossierSubTab, setDossierSubTab] = useState<'dossier' | 'blacklist' | 'live-report'>('dossier');
+  const [targetLookupQuery, setTargetLookupQuery] = useState<string | undefined>(undefined);
+
+  const handleNavigateToBlacklist = (query: string) => {
+    setDossierSubTab('blacklist');
+    setTargetLookupQuery(query);
+    setActiveTab('tab-dossier');
+    window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+    showToast(`กำลังส่ง "${query}" ไปตรวจฐานข้อมูล Blacklist & OSINT`);
+  };
+
   return (
     <div data-od-id="scamtrap-streamlined-root" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Streamlined App Header */}
@@ -122,10 +133,15 @@ export const App = () => {
       {/* Main Workspace */}
       <main className="app-main">
         <div style={{ display: activeTab === 'tab-verify' ? 'contents' : 'none' }}>
-          <QuickAnalysis />
+          <QuickAnalysis onNavigateToBlacklist={handleNavigateToBlacklist} />
         </div>
         {activeTab === 'tab-live-call' && <LiveSessionView />}
-        {activeTab === 'tab-dossier' && <ReportsView />}
+        {activeTab === 'tab-dossier' && (
+          <ReportsView
+            initialSubTab={dossierSubTab}
+            initialLookupQuery={targetLookupQuery}
+          />
+        )}
       </main>
 
       {/* Global Toast Notification */}

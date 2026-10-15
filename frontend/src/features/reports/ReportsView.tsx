@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { showToast } from '../../lib/toast';
 import { ReportPlaceholder } from './ReportPlaceholder';
 import {
@@ -110,8 +110,13 @@ const INITIAL_CASES: IncidentCase[] = [
   },
 ];
 
-export const ReportsView = () => {
-  const [activeSubTab, setActiveSubTab] = useState<'dossier' | 'blacklist' | 'live-report'>('dossier');
+interface ReportsViewProps {
+  initialSubTab?: ('dossier' | 'blacklist' | 'live-report') | undefined;
+  initialLookupQuery?: string | undefined;
+}
+
+export const ReportsView = ({ initialSubTab = 'dossier', initialLookupQuery }: ReportsViewProps = {}) => {
+  const [activeSubTab, setActiveSubTab] = useState<'dossier' | 'blacklist' | 'live-report'>(initialSubTab);
   const [cases, setCases] = useState<IncidentCase[]>(INITIAL_CASES);
   const [search, setSearch] = useState('');
   const [selectedCase, setSelectedCase] = useState<IncidentCase | null>(null);
@@ -121,7 +126,7 @@ export const ReportsView = () => {
   const [blacklist, setBlacklist] = useState<BlacklistItem[]>(INITIAL_BLACKLIST);
   const [blacklistFilter, setBlacklistFilter] = useState<'ALL' | 'bank_account' | 'phone' | 'url'>('ALL');
   const [blacklistSearch, setBlacklistSearch] = useState('');
-  const [lookupQuery, setLookupQuery] = useState('');
+  const [lookupQuery, setLookupQuery] = useState(initialLookupQuery ?? '');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<ThreatAnalysisResult | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -173,6 +178,14 @@ export const ReportsView = () => {
       showToast(`ตรวจวิเคราะห์ "${q}" เสร็จสิ้น`);
     }, 400);
   };
+
+  useEffect(() => {
+    if (initialLookupQuery) {
+      setLookupQuery(initialLookupQuery);
+      setActiveSubTab('blacklist');
+      handleRunLookup(initialLookupQuery);
+    }
+  }, [initialLookupQuery]);
 
   const handleAddIoc = (e: React.FormEvent) => {
     e.preventDefault();
