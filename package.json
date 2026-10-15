@@ -1,0 +1,20 @@
+{
+  "name": "scamtrap-ai",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @scamtrap/api --filter @scamtrap/web dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r --if-present test",
+    "format": "prettier --write .",
+    "db:generate": "pnpm --filter @scamtrap/database db:generate",
+    "db:migrate": "pnpm --filter @scamtrap/database db:migrate",
+    "db:studio": "pnpm --filter @scamtrap/database db:studio"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3"
+  }
+}

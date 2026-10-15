@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: scamtrap
+      POSTGRES_USER: scamtrap
+      POSTGRES_PASSWORD: scamtrap
+    ports:
+      - "5432:5432"
+    volumes:
+      - scamtrap-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scamtrap -d scamtrap"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  scamtrap-postgres:

@@ -1,0 +1,243 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CaseStatus {
+  DRAFT
+  READY
+  ANALYZING
+  COMPLETED
+  FAILED
+  DELETED
+}
+
+enum InputType {
+  TEXT
+  URL
+  AUDIO
+}
+
+enum SessionState {
+  HUMAN_ACTIVE
+  PREPARING_AI
+  AI_ACTIVE
+  STOPPING_AI
+  WAITING_FOR_USER
+  ENDED
+}
+
+enum TranscriptState {
+  PARTIAL
+  COMMITTED
+  CORRECTED
+}
+
+enum ReviewStatus {
+  PRIVATE
+  PENDING
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+model Case {
+  id             String          @id @default(cuid())
+  ownerId        String
+  title          String
+  status         CaseStatus      @default(DRAFT)
+  isDemo         Boolean         @default(true)
+  deletedAt      DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  inputs         CaseInput[]
+  consents       Consent[]
+  sessions       Session[]
+  assessments    Assessment[]
+  reports        Report[]
+  sharedItems    SharedIndicator[]
+  auditEvents    AuditEvent[]
+
+  @@index([ownerId, createdAt])
+}
+
+model CaseInput {
+  id        String          @id @default(cuid())
+  caseId    String
+  type      InputType
+  content   String
+  source    String
+  createdAt DateTime        @default(now())
+  case      Case            @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  utterances Utterance[]
+
+  @@index([caseId, createdAt])
+}
+
+model Consent {
+  id              String    @id @default(cuid())
+  caseId          String
+  subjectId       String
+  scope           String
+  noticeVersion   String
+  grantedAt       DateTime
+  withdrawnAt     DateTime?
+  case            Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId, scope])
+}
+
+model Session {
+  id          String        @id @default(cuid())
+  caseId      String
+  state       SessionState  @default(HUMAN_ACTIVE)
+  startedAt   DateTime      @default(now())
+  endedAt     DateTime?
+  case        Case          @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  utterances  Utterance[]
+
+  @@index([caseId, startedAt])
+}
+
+model Utterance {
+  id              String          @id @default(cuid())
+  sessionId       String
+  inputId         String?
+  speaker         String
+  text            String
+  transcriptState TranscriptState
+  startedAtMs     Int
+  endedAtMs       Int
+  version         Int             @default(1)
+  createdAt       DateTime        @default(now())
+  session         Session         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  input           CaseInput?      @relation(fields: [inputId], references: [id], onDelete: SetNull)
+  entityMentions  EntityMention[]
+
+  @@index([sessionId, createdAt])
+}
+
+model Assessment {
+  id             String          @id @default(cuid())
+  caseId         String
+  score          Int
+  level          String
+  summary        String
+  recommendation String
+  modelVersion   String
+  inputSnapshot  Json
+  isDemo         Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  case           Case            @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  evidence       Evidence[]
+  entityMentions EntityMention[]
+  intelChecks    IntelCheck[]
+
+  @@index([caseId, createdAt])
+}
+
+model Evidence {
+  id            String      @id @default(cuid())
+  assessmentId  String
+  sourceId      String
+  quote         String
+  startOffset   Int
+  endOffset     Int
+  tactic        String
+  explanation   String
+  assessment    Assessment  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@index([assessmentId])
+}
+
+model EntityMention {
+  id              String      @id @default(cuid())
+  assessmentId    String
+  utteranceId     String?
+  type            String
+  encryptedValue  String
+  lookupDigest    String?
+  sourceId        String
+  speaker         String
+  confidence      Float
+  verified        Boolean     @default(false)
+  assessment      Assessment  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  utterance       Utterance?  @relation(fields: [utteranceId], references: [id], onDelete: SetNull)
+  intelChecks     IntelCheck[]
+
+  @@index([assessmentId, type])
+  @@index([lookupDigest])
+}
+
+model IntelCheck {
+  id              String         @id @default(cuid())
+  assessmentId    String
+  entityMentionId String?
+  provider        String
+  status          String
+  threatType      String?
+  responseSummary Json?
+  checkedAt       DateTime       @default(now())
+  isDemo          Boolean        @default(false)
+  assessment      Assessment     @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  entityMention   EntityMention? @relation(fields: [entityMentionId], references: [id], onDelete: SetNull)
+
+  @@index([assessmentId, checkedAt])
+}
+
+model Report {
+  id         String    @id @default(cuid())
+  caseId     String
+  version    Int       @default(1)
+  status     String
+  content    Json
+  createdAt  DateTime  @default(now())
+  case       Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@unique([caseId, version])
+}
+
+model SharedIndicator {
+  id              String        @id @default(cuid())
+  caseId          String
+  type            String
+  encryptedValue  String
+  lookupDigest    String
+  reviewStatus    ReviewStatus  @default(PRIVATE)
+  approvedAt      DateTime?
+  withdrawnAt     DateTime?
+  createdAt       DateTime      @default(now())
+  case            Case          @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([lookupDigest, reviewStatus])
+}
+
+model AuditEvent {
+  id         String    @id @default(cuid())
+  caseId     String?
+  actorId    String
+  action     String
+  metadata   Json?
+  occurredAt DateTime  @default(now())
+  case       Case?     @relation(fields: [caseId], references: [id], onDelete: SetNull)
+
+  @@index([caseId, occurredAt])
+}
+
+model VoiceProfile {
+  id              String    @id @default(cuid())
+  ownerId         String
+  providerRef     String
+  consentScope    String
+  noticeVersion   String
+  consentedAt     DateTime
+  revokedAt       DateTime?
+  expiresAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([ownerId])
+}
