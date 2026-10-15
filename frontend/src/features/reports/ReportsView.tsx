@@ -532,7 +532,52 @@ export const ReportsView = ({ initialSubTab = 'dossier', initialLookupQuery }: R
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {analysisResult.riskScore >= 70 && (
+                      <button
+                        type="button"
+                        className="btn-action btn-action-primary"
+                        onClick={() => {
+                          showToast(`🚨 ส่งคำขออายัดด่วนสำหรับ ${analysisResult.query} ไปยังศูนย์ AOC 1441 และระบบธนาคารเรียบร้อย`);
+                        }}
+                        style={{
+                          fontSize: 11,
+                          height: 28,
+                          padding: '0 12px',
+                          background: 'linear-gradient(90deg, #dc2626, #ef4444)',
+                          borderColor: '#ef4444',
+                          fontWeight: 700,
+                        }}
+                      >
+                        ⚡ สั่งอายัดด่วน (AOC 1441 Freeze)
+                      </button>
+                    )}
+                    {!analysisResult.matchedBlacklist && (
+                      <button
+                        type="button"
+                        className="btn-action btn-action-ghost"
+                        onClick={() => {
+                          const newItem: BlacklistItem = {
+                            id: `BL-TH-${Math.floor(1000 + Math.random() * 9000)}`,
+                            type: analysisResult.type === 'unknown' ? 'bank_account' : analysisResult.type,
+                            value: analysisResult.query,
+                            source: 'AOC 1441 Feed',
+                            riskScore: analysisResult.riskScore,
+                            riskLevel: analysisResult.riskLevel,
+                            reportCount: 1,
+                            lastReported: 'เพิ่งรายงานเมื่อสักครู่',
+                            tags: ['รายงานด่วน', 'ผู้เสียหายแจ้งระงับ'],
+                            status: 'INVESTIGATING',
+                            description: 'บันทึกผ่านระบบตรวจสอบด่วนของประชาชน',
+                          };
+                          setBlacklist([newItem, ...blacklist]);
+                          showToast(`เพิ่ม ${analysisResult.query} เข้าสู่ฐานข้อมูล Blacklist เรียบร้อย`);
+                        }}
+                        style={{ fontSize: 11, height: 28, color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.4)' }}
+                      >
+                        + เพิ่มเข้า Blacklist
+                      </button>
+                    )}
                     {analysisResult.matchedBlacklist && (
                       <button
                         type="button"
@@ -551,7 +596,7 @@ export const ReportsView = ({ initialSubTab = 'dossier', initialLookupQuery }: R
                             setActiveSubTab('dossier');
                           }
                         }}
-                        style={{ fontSize: 11, color: '#60a5fa', borderColor: 'rgba(96, 165, 250, 0.4)' }}
+                        style={{ fontSize: 11, height: 28, color: '#60a5fa', borderColor: 'rgba(96, 165, 250, 0.4)' }}
                       >
                         🔗 ดูสำนวนคดีที่เชื่อมโยง
                       </button>
@@ -560,7 +605,7 @@ export const ReportsView = ({ initialSubTab = 'dossier', initialLookupQuery }: R
                       type="button"
                       className="btn-action btn-action-ghost"
                       onClick={() => setAnalysisResult(null)}
-                      style={{ fontSize: 11 }}
+                      style={{ fontSize: 11, height: 28 }}
                     >
                       ปิดผลตรวจ
                     </button>
