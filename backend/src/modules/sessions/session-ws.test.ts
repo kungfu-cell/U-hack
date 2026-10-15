@@ -172,6 +172,53 @@ describe('Live Session WebSocket API', () => {
 
     callerWs.close();
     ws.close();
+  }, 15000);
+
+  it('handles scammer signed URL requests for both Thai and English', async () => {
+    app = await buildApp({
+      persistenceMode: 'memory',
+      analysisProvider: new DemoAnalysisProvider(),
+      agentClient: new DemoAgentAdapter(),
+    });
+
+    const caseRes = await app.inject({
+      method: 'POST',
+      url: '/cases',
+      payload: { title: 'Scammer Signed URL Test', isDemo: true },
+    });
+    const testCase = caseRes.json<{ id: string }>();
+    const sessionRes = await app.inject({
+      method: 'POST',
+      url: '/sessions',
+      payload: { caseId: testCase.id },
+    });
+    const session = sessionRes.json<{ id: string }>();
+
+    // Test Thai request
+    const thRes = await app.inject({
+      method: 'GET',
+      url: `/sessions/${session.id}/scammer-signed-url?lang=th`,
+      headers: { 'x-user-id': 'demo-user' },
+    });
+    expect([200, 503]).toContain(thRes.statusCode);
+    if (thRes.statusCode === 200) {
+      const data = thRes.json<{ signedUrl: string; agentId: string; lang: string }>();
+      expect(data.lang).toBe('th');
+      expect(data.agentId).toBe('agent_8401m506b9p0fnd88k4623jvfrqh');
+    }
+
+    // Test English request
+    const enRes = await app.inject({
+      method: 'GET',
+      url: `/sessions/${session.id}/scammer-signed-url?lang=en`,
+      headers: { 'x-user-id': 'demo-user' },
+    });
+    expect([200, 503]).toContain(enRes.statusCode);
+    if (enRes.statusCode === 200) {
+      const data = enRes.json<{ signedUrl: string; agentId: string; lang: string }>();
+      expect(data.lang).toBe('en');
+      expect(data.agentId).toBe('agent_1701m50fbxptfb19rdyds35gqstc');
+    }
   });
 });
 

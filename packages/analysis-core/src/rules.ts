@@ -12,43 +12,43 @@ export interface ScamRule {
 export const scamRules: readonly ScamRule[] = [
   {
     tactic: "authority_impersonation",
-    pattern: /(ตำรวจ|ธนาคาร|กรมสอบสวน|เจ้าหน้าที่|ศาล|police|bank officer)/iu,
+    pattern: /(ตำรวจ|ธนาคาร|กรมสอบสวน|เจ้าหน้าที่|ศาล|police|bank|investigation|officer|taskforce|federal|fbi|irs|detective)/iu,
     weight: tacticWeights.authority_impersonation,
     explanation:
       "มีการอ้างถึงหน่วยงานหรือผู้มีอำนาจ ควรตรวจสอบผ่านช่องทางทางการ",
   },
   {
     tactic: "threat_or_fear",
-    pattern: /(ฟอกเงิน|หมายจับ|ดำเนินคดี|อายัดบัญชี|ถูกจับ|arrest|lawsuit)/iu,
+    pattern: /(ฟอกเงิน|หมายจับ|ดำเนินคดี|อายัดบัญชี|ถูกจับ|arrest|lawsuit|laundering|prosecution|warrant|frozen|freeze|confiscate)/iu,
     weight: tacticWeights.threat_or_fear,
     explanation: "มีข้อความสร้างความกลัวหรือข่มขู่ให้รีบทำตาม",
   },
   {
     tactic: "urgency",
-    pattern: /(ทันที|เดี๋ยวนี้|ภายในวันนี้|ห้ามวางสาย|urgent|immediately)/iu,
+    pattern: /(ทันที|เดี๋ยวนี้|ภายในวันนี้|ห้ามวางสาย|urgent|immediately|right now|do not hang up)/iu,
     weight: tacticWeights.urgency,
     explanation: "มีการเร่งรัดหรือลดเวลาที่ผู้ใช้จะตรวจสอบข้อมูล",
   },
   {
     tactic: "money_transfer_request",
     pattern:
-      /(โอน(?:เงิน)?(?:มา|ให้|เข้า|ไป)|ชำระเงินเข้าบัญชี|transfer (?:the )?money)/iu,
+      /(โอน(?:เงิน)?(?:มา|ให้|เข้า|ไป)|ชำระเงินเข้าบัญชี|transfer (?:the )?money|wire (?:all )?funds|wire transfer|send money|deposit)/iu,
     weight: tacticWeights.money_transfer_request,
     explanation: "มีคำขอให้โอนหรือชำระเงิน",
-    ignoredWhen: /(อย่า|ห้าม|ไม่ควร|never|do not).{0,24}(โอน|transfer)/iu,
+    ignoredWhen: /(อย่า|ห้าม|ไม่ควร|never|do not).{0,24}(โอน|transfer|wire)/iu,
   },
   {
     tactic: "secret_request",
     pattern:
-      /((?:บอก|ส่ง|อ่าน|แจ้ง).{0,18}(?:otp|รหัสผ่าน|pin)|(?:otp|pin).{0,18}(?:บอก|ส่ง|อ่าน|แจ้ง))/iu,
+      /((?:บอก|ส่ง|อ่าน|แจ้ง|tell|send|read|give|provide|disclose).{0,24}(?:otp|รหัสผ่าน|pin|passcode)|(?:otp|pin|passcode).{0,24}(?:บอก|ส่ง|อ่าน|แจ้ง|tell|send|read|give|provide|disclose))/iu,
     weight: tacticWeights.secret_request,
     explanation: "มีคำขอข้อมูลลับที่ไม่ควรเปิดเผย",
     ignoredWhen:
-      /(อย่า|ห้าม|ไม่ควร|never|do not).{0,24}(บอก|ส่ง|อ่าน|แจ้ง|otp|pin)/iu,
+      /(อย่า|ห้าม|ไม่ควร|never|do not).{0,24}(บอก|ส่ง|อ่าน|แจ้ง|otp|pin|tell|disclose)/iu,
   },
   {
     tactic: "isolation",
-    pattern: /(ห้ามบอกใคร|อย่าคุยกับใคร|เก็บเป็นความลับ|do not tell anyone)/iu,
+    pattern: /(ห้ามบอกใคร|อย่าคุยกับใคร|เก็บเป็นความลับ|do not tell anyone|keep (?:this )?confidential|stay in a safe place)/iu,
     weight: tacticWeights.isolation,
     explanation: "พยายามแยกผู้ใช้ออกจากคนที่ช่วยตรวจสอบได้",
   },

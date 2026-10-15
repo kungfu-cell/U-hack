@@ -161,6 +161,11 @@ export const LiveSessionView = () => {
     requestHandoff,
     resumeHuman,
     simulateSpeech,
+    isScammerCalling,
+    scammerStatus,
+    activeScammerLang,
+    startScammerCall,
+    stopScammerCall,
   } = useLiveSession();
 
   const [isSpeaker, setIsSpeaker] = useState(false);
@@ -198,6 +203,7 @@ export const LiveSessionView = () => {
   // Dynamic speaking detection
   const isCallerActive = Boolean(
     isCallerSimSpeaking ||
+    scammerStatus === 'speaking' ||
     (participantRole === 'caller' && !isMuted && micLevel > 0.035) ||
     (activePartials.caller && activePartials.caller.text.trim().length > 0),
   );
@@ -373,12 +379,15 @@ export const LiveSessionView = () => {
       showToast('ไม่สามารถรับช่วงสายได้: การโทรสิ้นสุดแล้ว');
       return;
     }
+    if (!sessionId) {
+      await startCall();
+    }
     if (isAiActive) {
       await resumeHuman();
       showToast('ส่งคำขอคืนสายให้ผู้ใช้แล้ว');
     } else {
       await requestHandoff();
-      showToast('กำลังเตรียม AI Agent รับช่วงสาย');
+      showToast('กำลังเตรียม AI Decoy รับช่วงสายล่อ');
     }
   };
 
@@ -878,13 +887,21 @@ export const LiveSessionView = () => {
                   {/* Call Info Header */}
                   <div className="ios-call-header">
                     <div className="ios-call-timer">
-                      {callEndedLocally ? '00:00' : formatTimer(callDurationSec)}
+                      {callEndedLocally
+                        ? '00:00'
+                        : isScammerCalling
+                          ? `AI Call • ${formatTimer(callDurationSec)}`
+                          : formatTimer(callDurationSec)}
                     </div>
                     <div
                       className="ios-call-number"
-                      style={{ color: callEndedLocally ? '#ef4444' : '#ffffff', fontSize: callEndedLocally ? 22 : 30 }}
+                      style={{ color: callEndedLocally ? '#ef4444' : '#ffffff', fontSize: callEndedLocally ? 22 : isScammerCalling ? 22 : 30 }}
                     >
-                      {callEndedLocally ? 'สายถูกตัดแล้ว' : '08-2419-8921'}
+                      {callEndedLocally
+                        ? 'สายถูกตัดแล้ว'
+                        : isScammerCalling
+                          ? (activeScammerLang === 'en' ? '08-2419-8921 (Fraud Taskforce AI)' : '08-2419-8921 (ตำรวจไซเบอร์ AI)')
+                          : '08-2419-8921'}
                     </div>
                   </div>
 
@@ -907,7 +924,7 @@ export const LiveSessionView = () => {
                             ? 'AI กำลังคุยแทน... (แตะเพื่อคุยเอง)'
                             : handoffState === 'preparing_ai'
                               ? 'กำลังเตรียม AI...'
-                              : 'AI รับสาย'}
+                              : '🤖 ให้ AI รับช่วงสาย (Handoff)'}
                       </span>
                     </button>
                   </div>
@@ -1218,6 +1235,83 @@ export const LiveSessionView = () => {
                   >
                     🇬🇧 English
                   </button>
+                </div>
+
+                {/* ElevenLabs Dynamic Scammer Simulator */}
+                <div
+                  style={{
+                    background: isScammerCalling ? 'rgba(239, 68, 68, 0.12)' : 'rgba(255, 255, 255, 0.04)',
+                    border: isScammerCalling ? '1px solid rgba(239, 68, 68, 0.45)' : '1px solid var(--border)',
+                    borderRadius: 8,
+                    padding: '10px 12px',
+                    marginBottom: 12,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span className="badge-sev badge-critical" style={{ fontSize: 9.5, padding: '1px 6px' }}>
+                        ELEVENLABS CONV-AI
+                      </span>
+                      <strong style={{ fontSize: 12, color: isScammerCalling ? '#f87171' : 'var(--fg)' }}>
+                        🚨 โทรจำลองสด ElevenLabs (Bilingual Scammer Call)
+                      </strong>
+                    </div>
+                    {isScammerCalling && (
+                      <span style={{ fontSize: 11, color: '#f87171', fontWeight: 600 }}>
+                        {scammerStatus === 'speaking'
+                          ? (activeScammerLang === 'en' ? '🗣️ Scammer AI is speaking...' : '🗣️ AI กำลังพูด...')
+                          : scammerStatus === 'listening'
+                            ? (activeScammerLang === 'en' ? '👂 AI is listening to your mic...' : '👂 AI กำลังฟังไมค์คุณ...')
+                            : (activeScammerLang === 'en' ? '◌ Connecting to ElevenLabs EN...' : '◌ กำลังเชื่อมต่อ...')}
+                      </span>
+                    )}
+                  </div>
+                  <p style={{ margin: 0, fontSize: 11, color: 'var(--fg-secondary)', lineHeight: 1.4 }}>
+                    จำลองให้ ElevenLabs โทรเข้ามาสวมบทเป็นมิจฉาชีพสด (รองรับทั้งภาษาไทยและอังกฤษ) คุณสามารถพูดโต้ตอบสดผ่านไมค์ได้ทันที
+                  </p>
+                  <div>
+                    {!isScammerCalling ? (
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          className="btn-action btn-action-primary"
+                          style={{ fontSize: 11, height: 28, background: '#ef4444', borderColor: '#ef4444', flex: '1 1 180px' }}
+                          onClick={async () => {
+                            showToast('กำลังต่อสาย ElevenLabs ตำรวจไซเบอร์ (ไทย)...');
+                            await startScammerCall('th');
+                          }}
+                        >
+                          📞 รับสายจำลอง (ไทย - ตำรวจไซเบอร์)
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-action btn-action-primary"
+                          style={{ fontSize: 11, height: 28, background: '#4f46e5', borderColor: '#4f46e5', flex: '1 1 180px' }}
+                          onClick={async () => {
+                            showToast('Connecting to ElevenLabs Fraud Taskforce (English)...');
+                            await startScammerCall('en');
+                          }}
+                        >
+                          📞 Simulate Call (English - Fraud Taskforce)
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn-action btn-action-danger"
+                        style={{ fontSize: 11.5, height: 28, width: '100%' }}
+                        onClick={() => {
+                          stopScammerCall();
+                          showToast(activeScammerLang === 'en' ? 'Call ended with English Scammer AI' : 'วางสายมิจฉาชีพ AI แล้ว');
+                        }}
+                      >
+                        ⏹️ วางสายมิจฉาชีพ AI ({activeScammerLang === 'en' ? 'English Call' : 'สายภาษาไทย'})
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
