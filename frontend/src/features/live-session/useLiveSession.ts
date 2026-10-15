@@ -41,6 +41,7 @@ export const useLiveSession = () => {
   const [degradedMessage, setDegradedMessage] = useState<string | null>(null);
   const [isMicActive, setIsMicActive] = useState<boolean>(false);
   const [micLevel, setMicLevel] = useState<number>(0);
+  const [isMuted, setIsMuted] = useState<boolean>(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const webrtcRef = useRef<WebRtcManager | null>(null);
@@ -359,6 +360,14 @@ export const useLiveSession = () => {
     };
   }, []);
 
+  const toggleMute = () => {
+    setIsMuted((prev) => {
+      const next = !prev;
+      webrtcRef.current?.setLocalMicMuted(next);
+      return next;
+    });
+  };
+
   return {
     sessionId,
     caseId,
@@ -372,6 +381,8 @@ export const useLiveSession = () => {
     degradedMessage,
     isMicActive,
     micLevel,
+    isMuted,
+    toggleMute,
     startCall,
     endCall,
     requestHandoff,

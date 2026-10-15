@@ -1,45 +1,128 @@
 import { useState } from 'react';
-import { LiveSessionView } from '../features/live-session/LiveSessionView';
 import { QuickAnalysis } from '../features/quick-analysis/QuickAnalysis';
-import { ReportPlaceholder } from '../features/reports/ReportPlaceholder';
+import { LiveSessionView } from '../features/live-session/LiveSessionView';
+import { ReportsView } from '../features/reports/ReportsView';
+import { Toast } from '../components/Toast';
+import { showToast } from '../lib/toast';
 
-
-type Page = 'analyze' | 'live' | 'report';
-
-const navItems: { id: Page; label: string }[] = [
-  { id: 'analyze', label: 'ตรวจสอบข้อมูล' },
-  { id: 'live', label: 'สนทนาสด' },
-  { id: 'report', label: 'รายงาน' },
-];
+type TabType = 'tab-verify' | 'tab-live-call' | 'tab-dossier';
 
 export const App = () => {
-  const [page, setPage] = useState<Page>('analyze');
+  const [activeTab, setActiveTab] = useState<TabType>('tab-verify');
+
+  const handleQuickExport = () => {
+    const sampleIncident = {
+      incidentId: 'INC-2026-9042',
+      timestamp: new Date().toISOString(),
+      classification: 'Telephony Coercion & Impersonation',
+      riskScore: 96.8,
+      inboundCaller: '+66 82-419-8921',
+      muleAccount: {
+        bank: 'Krungthai Bank (KTB)',
+        name: 'นายวิชัย ภักดี',
+        account: '984-2-90184-1',
+        status: 'Flagged AOC 1441',
+      },
+      scribeTranscriptEntries: 5,
+      isDemo: true,
+      aocDispatchStatus: 'Dispatched to Police Taskforce',
+    };
+
+    const blob = new Blob([JSON.stringify(sampleIncident, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ScamTrap-Latest-Incident.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('ส่งออกไฟล์คดีล่าสุด (.json) เรียบร้อย');
+  };
 
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <button className="brand" onClick={() => setPage('analyze')} aria-label="ScamTrap AI home">
-          <span className="brand-mark">S</span>
-          <span>ScamTrap <b>AI</b></span>
-        </button>
-        <nav aria-label="เมนูหลัก">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              className={page === item.id ? 'active' : ''}
-              onClick={() => setPage(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
+    <div data-od-id="scamtrap-streamlined-root" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Streamlined App Header */}
+      <header className="app-header">
+        <div className="brand-section">
+          <div className="brand-shield" title="ScamTrap AI Defense Core">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+          </div>
+          <span className="brand-name">ScamTrap AI</span>
+          <span className="brand-pill">DEFENSE HUB</span>
+        </div>
+
+        {/* 3 Core Navigation Tabs */}
+        <nav className="nav-tabs">
+          <button
+            type="button"
+            className={`nav-tab-btn ${activeTab === 'tab-verify' ? 'active' : ''}`}
+            onClick={() => setActiveTab('tab-verify')}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            <span>Verification Hub</span>
+          </button>
+
+          <button
+            type="button"
+            className={`nav-tab-btn ${activeTab === 'tab-live-call' ? 'active' : ''}`}
+            onClick={() => setActiveTab('tab-live-call')}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+            </svg>
+            <span>Live Call &amp; Takeover</span>
+          </button>
+
+          <button
+            type="button"
+            className={`nav-tab-btn ${activeTab === 'tab-dossier' ? 'active' : ''}`}
+            onClick={() => setActiveTab('tab-dossier')}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+            <span>Incident Dossier</span>
+          </button>
         </nav>
-        <span className="prototype-badge">HACKATHON PROTOTYPE</span>
+
+        {/* Header Tools */}
+        <div className="header-controls">
+          <div className="ws-status-badge" title="Realtime WebRTC Audio Telemetry">
+            <span className="pulse-dot-green" />
+            <span>LIVE WS: ONLINE</span>
+          </div>
+          <button
+            type="button"
+            className="btn-action btn-action-ghost"
+            id="btn-quick-export"
+            title="Export incident report as JSON"
+            onClick={handleQuickExport}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>Export Case</span>
+          </button>
+        </div>
       </header>
 
-      {page === 'analyze' && <QuickAnalysis />}
-      {page === 'live' && <LiveSessionView />}
-      {page === 'report' && <ReportPlaceholder />}
+      {/* Main Workspace */}
+      <main className="app-main">
+        {activeTab === 'tab-verify' && <QuickAnalysis />}
+        {activeTab === 'tab-live-call' && <LiveSessionView />}
+        {activeTab === 'tab-dossier' && <ReportsView />}
+      </main>
+
+      {/* Global Toast Notification */}
+      <Toast />
     </div>
   );
 };
-
