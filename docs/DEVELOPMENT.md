@@ -6,7 +6,7 @@
 
 ```bash
 pnpm install
-docker compose up -d postgres
+docker compose -f infra/docker-compose.yml up -d postgres
 copy .env.example .env
 pnpm db:generate
 pnpm db:migrate

@@ -4,11 +4,11 @@
 
 | งาน | พื้นที่หลัก | ผลส่งมอบรอบแรก |
 |---|---|---|
-| Frontend | `apps/web` | หน้า Quick Analysis, Live Session, Report และสถานะ error/loading |
-| Backend/API | `apps/api` | Case API, Session API, auth/ownership guard และ WebSocket events |
+| Frontend | `frontend` | หน้า Quick Analysis, Live Session, Report และสถานะ error/loading |
+| Backend/API | `backend` | Case API, Session API, auth/ownership guard และ WebSocket events |
 | AI/Analysis | `packages/analysis-core` | extraction, risk assessment, evidence span และ provider adapter |
-| Data/Infra | `packages/database`, `docker-compose.yml` | Prisma schema, migration, seed และ storage adapter |
-| Voice/WebRTC | `apps/web/src/features/live-session`, `apps/api/src/modules/sessions` | ห้องทดสอบสองคน, transcript และ handoff state machine |
+| Data/Infra | `packages/database`, `infra` | Prisma schema, migration, seed และ storage adapter |
+| Voice/WebRTC | `frontend/src/features/live-session`, `backend/src/modules/sessions` | ห้องทดสอบสองคน, transcript และ handoff state machine |
 
 ไฟล์ใน `packages/contracts` เป็นข้อตกลงร่วมกัน ควร review กันก่อน merge เพราะกระทบทั้ง frontend และ backend
 
