@@ -1,4 +1,17 @@
 import { PrismaClient } from '@prisma/client';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const databaseModuleDir = path.dirname(fileURLToPath(import.meta.url));
+try {
+  process.loadEnvFile(path.resolve(databaseModuleDir, '../../../.env'));
+} catch {
+  try {
+    process.loadEnvFile(path.resolve(process.cwd(), '.env'));
+  } catch {
+    // Environment variables may be provided by the process/container instead.
+  }
+}
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 

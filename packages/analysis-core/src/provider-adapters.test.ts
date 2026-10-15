@@ -43,6 +43,22 @@ describe("GoogleSafeBrowsingProvider", () => {
     expect(result.status).toBe("not_found");
     expect(result.message).toContain("ไม่ได้ยืนยัน");
   });
+
+  it("decodes the protobuf response used by Safe Browsing v5", async () => {
+    const urlBytes = new TextEncoder().encode("https://example.test/login");
+    const threat = Uint8Array.from([10, urlBytes.length, ...urlBytes, 18, 2, 1, 2]);
+    const fetchImpl: typeof fetch = async () =>
+      new Response(Uint8Array.from([10, threat.length, ...threat]), {
+        status: 200,
+        headers: { "content-type": "application/x-protobuf" },
+      });
+    const provider = new GoogleSafeBrowsingProvider("test-key", fetchImpl);
+
+    const result = await provider.checkIndicator("https://example.test/login");
+
+    expect(result.status).toBe("match");
+    expect(result.threatType).toBe("MALWARE,SOCIAL_ENGINEERING");
+  });
 });
 
 describe("OpenAIAnalysisProvider", () => {
