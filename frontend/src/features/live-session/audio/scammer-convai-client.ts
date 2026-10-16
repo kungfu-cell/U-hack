@@ -42,7 +42,28 @@ export class ScammerConvAiClient {
   }
 
   isSpeaking(): boolean {
-    return this.status === 'speaking' || (this.audioPlayer?.isPlaying() ?? false);
+    const isActuallyPlaying = this.audioPlayer?.isPlaying() ?? false;
+    if (!isActuallyPlaying) {
+      this.finishPlaybackIfIdle();
+    }
+    return isActuallyPlaying;
+  }
+
+  private finishPlaybackIfIdle(): void {
+    if (
+      this.isDisposed ||
+      this.status !== 'speaking' ||
+      (this.audioPlayer?.isPlaying() ?? false)
+    ) {
+      return;
+    }
+
+    // Audio can finish between provider chunks without the final chunk's promise
+    // winning the race below. Do not leave the conversation permanently stuck in
+    // `speaking`, otherwise every subsequent microphone chunk is discarded.
+    this.setStatus('listening');
+    this.callbacks.onPlaybackFinished?.();
+    this.flushSyntheticTextQueue();
   }
 
   private setStatus(status: ScammerConvAiStatus, error?: string) {
@@ -106,15 +127,7 @@ export class ScammerConvAiClient {
               const playback = this.audioPlayer?.enqueueAudioChunk(audioChunk, this.outputSampleRate);
               if (playback) {
                 void playback.then(() => {
-                  if (
-                    !this.isDisposed &&
-                    this.status === 'speaking' &&
-                    !this.audioPlayer?.isPlaying()
-                  ) {
-                  this.setStatus('listening');
-                    this.callbacks.onPlaybackFinished?.();
-                  this.flushSyntheticTextQueue();
-                }
+                  this.finishPlaybackIfIdle();
                 });
               }
             }
