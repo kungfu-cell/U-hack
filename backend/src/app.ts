@@ -55,7 +55,10 @@ export const buildApp = async (options?: {
     }
   });
   await app.register(cors, {
-    origin: env.NODE_ENV === 'development' ? true : [env.WEB_ORIGIN, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin:
+      env.NODE_ENV === 'development' || env.WEB_ORIGIN === '*'
+        ? true
+        : [env.WEB_ORIGIN, 'http://localhost:5173', 'http://127.0.0.1:5173'],
   });
   await app.register(websocket);
 
