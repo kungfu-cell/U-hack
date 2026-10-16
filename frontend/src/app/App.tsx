@@ -133,20 +133,20 @@ export const App = () => {
               className={`lang-btn ${language === 'th' ? 'active' : ''}`}
               onClick={() => {
                 setLanguage('th');
-                showToast('สลับโหมดภาษาเป็น: 🇹🇭 ภาษาไทย');
+                showToast('สลับโหมดภาษาเป็น: ภาษาไทย (TH)');
               }}
             >
-              🇹🇭 TH
+              TH
             </button>
             <button
               type="button"
               className={`lang-btn ${language === 'en' ? 'active' : ''}`}
               onClick={() => {
                 setLanguage('en');
-                showToast('Switched language to: 🇬🇧 English');
+                showToast('Switched language to: English (EN)');
               }}
             >
-              🇬🇧 EN
+              EN
             </button>
           </div>
 
