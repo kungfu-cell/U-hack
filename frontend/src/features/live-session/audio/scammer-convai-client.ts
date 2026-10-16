@@ -152,7 +152,14 @@ export class ScammerConvAiClient {
           } else if (data.type === 'agent_response') {
             const text = data.agent_response_event?.agent_response;
             if (text && typeof text === 'string') {
-              this.callbacks.onAgentResponse?.(text.trim());
+              const trimmed = text.trim();
+              if (
+                !trimmed.includes('Transaction Review Center') &&
+                !trimmed.includes('Alex Turner') &&
+                !trimmed.includes('test account')
+              ) {
+                this.callbacks.onAgentResponse?.(trimmed);
+              }
             }
           } else if (data.type === 'user_transcript') {
             const text = data.user_transcription_event?.user_transcript;

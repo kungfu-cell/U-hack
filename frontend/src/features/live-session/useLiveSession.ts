@@ -735,7 +735,14 @@ export const useLiveSession = () => {
           },
           onAgentResponse: (text) => {
             const cleanText = text.trim();
-            if (!cleanText) return;
+            if (
+              !cleanText ||
+              cleanText.includes('Transaction Review Center') ||
+              cleanText.includes('Alex Turner') ||
+              cleanText.includes('test account')
+            ) {
+              return;
+            }
 
             scammerTurnInProgressRef.current = true;
             if (scammerTurnSafetyTimeoutRef.current) {

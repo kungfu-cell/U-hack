@@ -418,8 +418,7 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
       
       void playScammerSpeech(scammerText, targetLang);
       await simulateSpeech('caller', scammerText);
-      setDemoUtteranceList((prev) => [
-        ...prev,
+      setDemoUtteranceList([
         {
           id: `sim-scam-${Date.now()}`,
           speaker: 'caller',
@@ -429,8 +428,6 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
         },
       ]);
     }, 600);
-
-    await startScammerCall(targetLang);
   };
 
   const handleDeclineCall = async () => {
@@ -1052,19 +1049,17 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                     <div className="ios-call-timer">
                       {callEndedLocally
                         ? '00:00'
-                        : isScammerCalling
-                          ? `AI Call • ${formatTimer(callDurationSec)}`
-                          : formatTimer(callDurationSec)}
+                        : `AI Call • ${formatTimer(callDurationSec)}`}
                     </div>
                     <div
                       className="ios-call-number"
-                      style={{ color: callEndedLocally ? '#ef4444' : '#ffffff', fontSize: callEndedLocally ? 22 : isScammerCalling ? 22 : 30 }}
+                      style={{ color: callEndedLocally ? '#ef4444' : '#ffffff', fontSize: 22 }}
                     >
                       {callEndedLocally
                         ? (language === 'en' ? 'Call Ended' : 'สายถูกตัดแล้ว')
-                        : isScammerCalling
-                          ? (activeScammerLang === 'en' ? '08-2419-8921 (Fraud Taskforce AI)' : (language === 'en' ? '08-2419-8921 (Cyber Police AI)' : '08-2419-8921 (ตำรวจไซเบอร์ AI)'))
-                          : '08-2419-8921'}
+                        : (spokenLanguage === 'en-US'
+                          ? '08-2419-8921 (Fraud Taskforce AI)'
+                          : (language === 'en' ? '08-2419-8921 (Cyber Police AI)' : '08-2419-8921 (ตำรวจไซเบอร์ AI)'))}
                     </div>
                   </div>
 
@@ -1513,7 +1508,14 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                 ))}
 
                 {/* Real-time backend utterances if connected */}
-                {utterances.map((u) => (
+                {utterances
+                  .filter(
+                    (u) =>
+                      !u.text.includes('Transaction Review Center') &&
+                      !u.text.includes('Alex Turner') &&
+                      !u.text.includes('suspicious activity on your test account'),
+                  )
+                  .map((u) => (
                   <div
                     key={u.id}
                     className={`chat-bubble ${u.speaker === 'caller' ? 'bubble-inbound' : u.speaker === 'user' ? 'bubble-citizen' : 'bubble-agent'}`}
