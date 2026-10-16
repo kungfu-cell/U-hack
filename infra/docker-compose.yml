@@ -23,7 +23,8 @@ services:
       dockerfile: backend/Dockerfile
     restart: unless-stopped
     env_file:
-      - ../.env
+      - path: ../.env
+        required: false
     environment:
       NODE_ENV: production
       API_HOST: 0.0.0.0
