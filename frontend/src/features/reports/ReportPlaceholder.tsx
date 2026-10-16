@@ -53,7 +53,6 @@ export const ReportPlaceholder = ({
         }
       }
 
-      // If we have utterances from the live session, push them as case input first
       if (capturedUtterances.length > 0) {
         const transcriptText = capturedUtterances
           .map((u) => `[${u.speaker.toUpperCase()}] ${u.text}`)
@@ -66,19 +65,16 @@ export const ReportPlaceholder = ({
             source: effectiveSessionId ? `live_session:${effectiveSessionId}` : 'live_call_transcript',
           });
         } catch {
-          // might already have inputs, proceed to analyze
+          // input may already be registered
         }
       }
 
-      // Trigger AI analysis on the case
       await analyzeCase(id);
-
-      // Fetch fresh report
       const updatedReport = await getCaseReport(id);
       setReport(updatedReport);
       setStatus('ready');
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'วิเคราะห์สำนวนคดีไม่สำเร็จ');
+      setMessage(err instanceof Error ? err.message : 'Unable to complete case analysis.');
       setStatus('error');
     }
   }, [effectiveCaseId, effectiveSessionId, timeline]);
@@ -101,12 +97,11 @@ export const ReportPlaceholder = ({
         }
       }
     } catch (error: unknown) {
-      const errMsg = error instanceof Error ? error.message : 'โหลดรายงานไม่สำเร็จ';
+      const errMsg = error instanceof Error ? error.message : 'Failed to retrieve incident dossier.';
       if (
         autoAnalyzeOnMissing &&
-        (errMsg.includes('CASE_HAS_NO_ANALYSIS') || errMsg.includes('Analyze the case') || /วิเคราะห์/iu.test(errMsg))
+        (errMsg.includes('CASE_HAS_NO_ANALYSIS') || errMsg.includes('Analyze the case') || /วิเคราะห์|analysis/iu.test(errMsg))
       ) {
-        // Attempt automatic analysis recovery using session utterances if present
         await handleTriggerAnalysis(id);
       } else {
         setMessage(errMsg);
@@ -139,14 +134,14 @@ export const ReportPlaceholder = ({
       const created = await createShareProposal(report.caseId, selectedIds);
       setProposal(created);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'ส่งข้อมูลแบ่งปันไม่สำเร็จ');
+      alert(err instanceof Error ? err.message : 'Failed to submit share proposal.');
     }
   };
 
   const removeCase = async () => {
-    if (!report || !window.confirm('ลบเหตุการณ์และถอนข้อเสนอแบ่งปันทั้งหมดหรือไม่?')) return;
+    if (!report || !window.confirm('Are you sure you want to delete this incident dossier and withdraw all indicator proposals?')) return;
     try {
-      await withdrawCase(report.caseId, 'ผู้ใช้ถอนข้อมูลจากหน้ารายงาน');
+      await withdrawCase(report.caseId, 'User withdrew incident report from dossier console.');
       if (window.localStorage.getItem('scamtrap:lastCaseId') === report.caseId) {
         window.localStorage.removeItem('scamtrap:lastCaseId');
         window.localStorage.removeItem('scamtrap:lastSessionId');
@@ -154,19 +149,19 @@ export const ReportPlaceholder = ({
       setReport(null);
       setStatus('empty');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'ลบเหตุการณ์ไม่สำเร็จ');
+      alert(err instanceof Error ? err.message : 'Failed to withdraw incident record.');
     }
   };
 
   const correctUtterance = async (utterance: Utterance) => {
     if (!effectiveSessionId) return;
-    const correctedText = window.prompt('แก้ไขข้อความถอดเสียง', utterance.text)?.trim();
+    const correctedText = window.prompt('Update transcript segment', utterance.text)?.trim();
     if (!correctedText || correctedText === utterance.text) return;
     try {
       const corrected = await correctSessionUtterance(effectiveSessionId, utterance.id, correctedText);
       setTimeline((current) => current.map((item) => item.id === corrected.id ? corrected : item));
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'แก้ไขข้อความไม่สำเร็จ');
+      alert(err instanceof Error ? err.message : 'Unable to update transcript segment.');
     }
   };
 
@@ -184,9 +179,9 @@ export const ReportPlaceholder = ({
               animation: 'spin 0.8s linear infinite',
             }}
           />
-          <h3 style={{ fontSize: 16, margin: 0, color: 'var(--fg)' }}>กำลังประกอบรายงานเหตุการณ์สด…</h3>
+          <h3 style={{ fontSize: 16, margin: 0, color: 'var(--fg)' }}>Assembling Incident Dossier...</h3>
           <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0 }}>
-            ดึงข้อมูลหลักฐาน ถอดเทปคำสนทนา และจัดเตรียมสำนวนเพื่อส่งต่อ
+            Compiling evidentiary records, dialogue transcripts, and risk scoring telemetry.
           </p>
         </div>
       </div>
@@ -209,10 +204,10 @@ export const ReportPlaceholder = ({
           />
           <div>
             <h3 style={{ fontSize: 16, margin: '0 0 6px 0', color: '#10b981' }}>
-              กำลังวิเคราะห์สำนวนคดีและตรวจสอบภัยคุกคามด้วย AI…
+              Conducting Incident Analysis &amp; Threat Attribution...
             </h3>
             <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0 }}>
-              ตรวจจับพฤติกรรมหลอกลวง ดึงตัวบ่งชี้บัญชีม้า และประเมินความเสี่ยงอัตโนมัติ
+              Parsing conversational extortion cues, extracting financial indicators, and cross-referencing national registries.
             </p>
           </div>
         </div>
@@ -250,9 +245,9 @@ export const ReportPlaceholder = ({
             </svg>
           </div>
           <span className="code-tag" style={{ fontSize: 11 }}>NO ACTIVE LIVE CASE</span>
-          <h2 style={{ fontSize: 18, margin: 0 }}>ยังไม่มีรายงานเคสสด</h2>
+          <h2 style={{ fontSize: 18, margin: 0 }}>No Live Session Dossier Available</h2>
           <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0, lineHeight: 1.6 }}>
-            เริ่มการโทรทดสอบหรือโทรจริงในแท็บ <strong>&quot;ดักสกัดสายสด (Live Call Shield)&quot;</strong> เมื่อมีการบันทึกเสียง ระบบจะสร้างสำนวนคดีและรายงานสรุปที่นี่โดยอัตโนมัติ
+            Initiate a live test call or simulated conversation from the <strong>Live Call Shield</strong> tab. When an audio session concludes, the case dossier will be populated automatically here.
           </p>
         </div>
       </div>
@@ -283,15 +278,15 @@ export const ReportPlaceholder = ({
                 fontWeight: 700,
               }}
             >
-              {status === 'pending' ? 'รอการวิเคราะห์สำนวน' : 'คดียังไม่ได้รับการวิเคราะห์สรุปผล'}
+              {status === 'pending' ? 'ANALYSIS PENDING' : 'ANALYSIS REQUIRED'}
             </span>
           </div>
 
           <h2 style={{ fontSize: 18, margin: 0, color: 'var(--fg)' }}>
-            เคสสดนี้ยังไม่มีการประมวลผลสรุปสำนวน
+            Dossier Summary Pending Generation
           </h2>
           <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0, lineHeight: 1.6 }}>
-            เกิดจากเซสชันโทรศัพท์ล่าสุดเพิ่งเริ่มสร้าง หรือยังไม่ได้รวบรวมข้อความถอดเสียงส่งให้ระบบ AI วิเคราะห์สรุปผล ({message || 'กดปุ่มด้านล่างเพื่อประมวลผลทันที'})
+            The active telephony session has either just concluded or has not yet processed its dialogue transcript through the analysis provider ({message || 'Click below to compile immediately'}).
           </p>
 
           <div style={{ display: 'flex', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
@@ -301,14 +296,14 @@ export const ReportPlaceholder = ({
               onClick={() => void handleTriggerAnalysis()}
               style={{ background: '#10b981', borderColor: '#10b981', color: '#000', fontWeight: 700 }}
             >
-              ⚡ รวบรวมข้อมูลและวิเคราะห์สำนวนคดีด้วย AI ทันที
+              Generate Incident Analysis Now
             </button>
             <button
               type="button"
               className="btn-action btn-action-ghost"
               onClick={() => setManualRefreshKey((k) => k + 1)}
             >
-              🔄 ลองโหลดใหม่อีกครั้ง
+              Reload Dossier
             </button>
           </div>
         </div>
@@ -348,10 +343,10 @@ export const ReportPlaceholder = ({
               )}
             </div>
             <h1 style={{ fontSize: 20, margin: '6px 0 2px 0', fontWeight: 700 }}>
-              รายงานสำนวนเหตุการณ์สด (Incident Dossier)
+              Live Incident Dossier &amp; Intercept Summary
             </h1>
             <span style={{ fontSize: 12, color: 'var(--fg-muted)' }}>
-              บันทึกเมื่อ: {new Date(report.generatedAt).toLocaleString('th-TH')}
+              Recorded on: {new Date(report.generatedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
             </span>
           </div>
 
@@ -360,10 +355,10 @@ export const ReportPlaceholder = ({
               type="button"
               className="btn-action btn-action-ghost"
               onClick={() => void handleTriggerAnalysis()}
-              title="วิเคราะห์ซ้ำด้วยข้อมูลบทสนทนาล่าสุด"
+              title="Re-run analysis with latest dialogue logs"
               style={{ fontSize: 12 }}
             >
-              ⚡ วิเคราะห์ซ้ำ (Re-Analyze)
+              Re-Analyze
             </button>
             <button
               type="button"
@@ -371,7 +366,7 @@ export const ReportPlaceholder = ({
               onClick={() => window.print()}
               style={{ fontSize: 12 }}
             >
-              🖨️ พิมพ์ / PDF
+              Print / Save PDF
             </button>
             <button
               type="button"
@@ -379,7 +374,7 @@ export const ReportPlaceholder = ({
               onClick={removeCase}
               style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)', fontSize: 12 }}
             >
-              🗑️ ลบสำนวน
+              Withdraw Dossier
             </button>
           </div>
         </div>
@@ -391,12 +386,12 @@ export const ReportPlaceholder = ({
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--emerald)" strokeWidth="2">
             <polyline points="20 6 9 17 4 12" />
           </svg>
-          <span>บทสรุปการประเมินภัยคุกคาม (Executive Threat Summary)</span>
+          <span>Executive Threat Summary</span>
         </h3>
         <p style={{ color: 'var(--fg-muted)', fontSize: 11.5, margin: '0 0 10px 0' }}>
           {isLiveSessionReport
-            ? `สรุปโดยระบบวิเคราะห์จาก transcript ที่บันทึกหลังจบสาย ${committedUtteranceCount} ช่วง โดยแยกผู้โทร (caller) ออกจากผู้รับสายและ AI Decoy`
-            : `สรุปโดยระบบวิเคราะห์จากข้อมูลที่แนบกับเคสนี้ ${report.inputs.length} รายการ`}
+            ? `Synthesized from ${committedUtteranceCount} verified dialogue segments, distinguishing between caller extortion vectors and decoy responses.`
+            : `Synthesized from ${report.inputs.length} submitted evidentiary records.`}
         </p>
         <p style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--fg)', margin: '0 0 14px 0' }}>
           {report.summary}
@@ -409,7 +404,7 @@ export const ReportPlaceholder = ({
             borderLeft: '4px solid var(--emerald)',
           }}
         >
-          <strong style={{ fontSize: 12.5, color: 'var(--emerald)' }}>คำแนะนำการปฏิบัติการ:</strong>
+          <strong style={{ fontSize: 12.5, color: 'var(--emerald)' }}>Operational Advisory:</strong>
           <p style={{ fontSize: 12.5, color: 'var(--fg-muted)', margin: '4px 0 0 0', lineHeight: 1.5 }}>
             {report.recommendation}
           </p>
@@ -424,14 +419,14 @@ export const ReportPlaceholder = ({
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 16 14" />
             </svg>
-            <span>ลำดับถอดเทปเสียงสนทนา (Voice Intercept Timeline)</span>
-            <span className="code-tag" style={{ fontSize: 10 }}>{timeline.length} รายการ</span>
+            <span>Voice Intercept Dialogue Timeline</span>
+            <span className="code-tag" style={{ fontSize: 10 }}>{timeline.length} segments</span>
           </h3>
         </div>
 
         {timeline.length === 0 ? (
           <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0 }}>
-            ไม่มีบทสนทนาสดที่บันทึกไว้ในเซสชันนี้
+            No live dialogue recordings captured in this session.
           </p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -462,10 +457,10 @@ export const ReportPlaceholder = ({
                           color: isUser ? '#10b981' : '#ef4444',
                         }}
                       >
-                        {isUser ? 'CITIZEN (เหยื่อ/ผู้ใช้)' : 'CALLER / SCAMMER (สายมิจฉาชีพ)'}
+                        {isUser ? 'CITIZEN (RECIPIENT)' : 'CALLER (SUSPECT)'}
                       </span>
                       <span style={{ fontSize: 11, color: 'var(--fg-muted)' }}>
-                        {new Date(u.startedAtMs).toLocaleTimeString('th-TH')}
+                        {new Date(u.startedAtMs).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                       </span>
                     </div>
                     <p style={{ margin: 0, fontSize: 13, color: 'var(--fg)', lineHeight: 1.5 }}>
@@ -479,7 +474,7 @@ export const ReportPlaceholder = ({
                       onClick={() => void correctUtterance(u)}
                       style={{ fontSize: 11, padding: '3px 8px', flexShrink: 0 }}
                     >
-                      ✏️ แก้ไข
+                      Edit
                     </button>
                   )}
                 </div>
@@ -489,16 +484,16 @@ export const ReportPlaceholder = ({
         )}
       </div>
 
-      {/* EVIDENCE & MENTIONS */}
+      {/* EVIDENCE & THREAT CHECKS */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
         {/* EVIDENCE */}
         <div className="card" style={{ padding: 20 }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, margin: '0 0 12px 0' }}>
-            🚩 ประเด็นข้อความที่เข้าข่ายหลอกลวง (Extracted Evidence)
+            Extracted Fraudulent Evidence
           </h3>
           {report.evidence.length === 0 ? (
             <p style={{ fontSize: 12.5, color: 'var(--fg-muted)', margin: 0 }}>
-              ยังไม่พบข้อความที่บ่งชี้การหลอกลวงเด่นชัด
+              No overt deceptive coercion statements detected.
             </p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -525,11 +520,11 @@ export const ReportPlaceholder = ({
         {/* EXTERNAL THREAT CHECKS */}
         <div className="card" style={{ padding: 20 }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, margin: '0 0 12px 0' }}>
-            🌐 ผลตรวจค้นฐานข้อมูลภายนอก (Threat Intel Checks)
+            External Threat Intelligence Feeds
           </h3>
           {report.threatChecks.length === 0 ? (
             <p style={{ fontSize: 12.5, color: 'var(--fg-muted)', margin: 0 }}>
-              ไม่มีตัวบ่งชี้ภายนอกที่ต้องส่งตรวจค้น
+              No external indicators required registry lookups.
             </p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -548,7 +543,7 @@ export const ReportPlaceholder = ({
                 >
                   <div>
                     <strong style={{ color: 'var(--fg)' }}>{check.provider}</strong>
-                    <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{check.message ?? 'ไม่มีรายละเอียดเพิ่มเติม'}</div>
+                    <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>{check.message ?? 'No additional details on file'}</div>
                   </div>
                   <span
                     className={`badge-sev ${
@@ -572,15 +567,15 @@ export const ReportPlaceholder = ({
       {/* SHARE / REPORT PANEL */}
       <div className="card" style={{ padding: 20, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
         <h3 style={{ fontSize: 14, fontWeight: 700, margin: '0 0 4px 0' }}>
-          📤 เสนอข้อมูลเพื่อแบ่งปันเข้าสู่ฐานข้อมูลประชาคม (Community Threat Sharing)
+          Community Threat Intelligence Sharing
         </h3>
         <p style={{ fontSize: 12, color: 'var(--fg-muted)', margin: '0 0 14px 0' }}>
-          เลือกเฉพาะตัวบ่งชี้ (IOCs) ที่ต้องการส่งเข้าคิวตรวจสอบของ AOC / ศูนย์ต่อต้านภัยไซเบอร์ ไม่มีการแบ่งปันข้อมูลส่วนบุคคลของผู้เสียหาย
+          Designate extracted indicators of compromise (IOCs) for submission to national cybersecurity clearinghouses. Personal complainant identities are redacted by default.
         </p>
 
         {report.entities.length === 0 ? (
           <p style={{ fontSize: 12.5, color: 'var(--fg-muted)', margin: '0 0 12px 0' }}>
-            รายงานนี้ยังไม่มีตัวบ่งชี้ (เบอร์โทร / เลขบัญชี) ที่สามารถเสนอแบ่งปันได้
+            This dossier contains no extractable identifiers suitable for community dissemination.
           </p>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 8, marginBottom: 16 }}>
@@ -619,7 +614,7 @@ export const ReportPlaceholder = ({
               checked={consentConfirmed}
               onChange={(e) => setConsentConfirmed(e.target.checked)}
             />
-            <span>ฉันยืนยันให้ส่งเฉพาะตัวบ่งชี้ที่เลือกเข้าสู่คิวตรวจทาน และรับทราบข้อกำหนดความเป็นส่วนตัว</span>
+            <span>I authorize the dispatch of selected indicators to the national threat intelligence queue under standard privacy provisions.</span>
           </label>
 
           <div>
@@ -630,7 +625,7 @@ export const ReportPlaceholder = ({
               onClick={submitShare}
               style={{ fontSize: 12, padding: '7px 16px' }}
             >
-              {proposal ? `✓ ส่งเรียบร้อย · สถานะ: ${proposal.status}` : '📤 ยืนยันเสนอข้อมูลเข้าสู่เครือข่าย'}
+              {proposal ? `Submitted: ${proposal.status}` : 'Submit Selected Indicators'}
             </button>
           </div>
         </div>

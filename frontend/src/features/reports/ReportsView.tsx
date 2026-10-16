@@ -37,17 +37,17 @@ const INITIAL_CASES: IncidentCase[] = [
     timestamp: 'Today, 14:28:10',
     status: 'Active Takeover',
     statusClass: 'badge-critical',
-    title: 'Organized Call Center Extortion: Police Impersonation',
+    title: 'Transnational Syndicate Extortion: Police Official Impersonation',
     auditLog: [
       '[14:28:10] Inbound call initiated from +66 82-419-8921 via Poipet VoIP Gateway.',
-      '[14:28:18] Caller falsely claimed to be Pol.Capt. Thanakorn from Chiang Mai Police Station.',
-      '[14:28:35] ScamTrap Scribe NLP detected coercion triggers ("ออกหมายจับ", "อายัดทรัพย์", "ปปง.").',
-      '[14:29:10] Criminal instructed victim to wire money to mule account: นายวิชัย ภักดี.',
-      '[14:29:40] ScamTrap Honeypot AI Agent intercepted call to protect citizen.',
-      '[14:30:00] Automated IOC alert queued for Central Police & AOC 1441.',
+      '[14:28:18] Caller falsely claimed to be Pol. Capt. Thanakorn from Chiang Mai Police Station.',
+      '[14:28:35] ScamTrap Scribe NLP detected coercion triggers ("arrest warrant", "asset freeze", "AMLO audit").',
+      '[14:29:10] Suspect instructed recipient to transfer capital to mule account held under Wichai Phakdee.',
+      '[14:29:40] ScamTrap Honeypot Decoy intercepted the live audio stream.',
+      '[14:30:00] Automated IOC alert queued for Central Investigation Bureau and AOC 1441.',
     ],
     muleBank: 'Krungthai Bank (KTB)',
-    muleName: 'นายวิชัย ภักดี (Flagged Mule)',
+    muleName: 'Wichai Phakdee (Flagged Mule)',
     muleAccount: '984-2-90184-1',
     muleOrigin: 'Gateway Cell-04 Border Range (Poipet)',
   },
@@ -55,29 +55,29 @@ const INITIAL_CASES: IncidentCase[] = [
     id: 'INC-2026-8819',
     severity: 'High',
     severityClass: 'badge-warning',
-    category: 'Bank Phishing SMS (Krungthai Spoofed)',
+    category: 'Banking Phishing SMS (Krungthai Spoof)',
     ioc: 'ktb-online-claim.vip',
     channel: 'SMS Text',
     timestamp: 'Today, 13:12:45',
     status: 'Reported 1441',
     statusClass: 'badge-safe',
-    title: 'Bank Credential Harvester • Spoofed SMS Header',
+    title: 'Banking Credential Harvester With Spoofed SMS Header',
     auditLog: [
-      '[13:12:45] SMS received with forged sender "KTB-Privilege".',
-      '[13:13:02] Link pointed to credential harvester domain ktb-online-claim.vip.',
-      '[13:13:20] Domain matched Threat Intel blocklist (Google Safe Browsing & URLhaus).',
-      '[13:14:00] Citizen warned not to submit OTP. Incident report shared with Thai AOC 1441.',
+      '[13:12:45] Inbound SMS received with spoofed sender ID "KTB-Privilege".',
+      '[13:13:02] Redirected target to credential harvesting domain ktb-online-claim.vip.',
+      '[13:13:20] Domain matched threat intelligence blocklist (Google Safe Browsing & URLhaus).',
+      '[13:14:00] Recipient alerted against credential disclosure; incident docket filed with AOC 1441.',
     ],
     muleBank: 'Krungthai Bank (KTB)',
-    muleName: 'บัญชีม้าออนไลน์ ปปง. (ตรวจพบใน Blacklistseller)',
+    muleName: 'AMLO Watchlist Target (Blacklistseller Confirmed)',
     muleAccount: '710-0-84192-3',
-    muleOrigin: 'Bangkok SMS Gateway Trunk',
+    muleOrigin: 'Bangkok Telecommunications SMS Trunk',
   },
   {
     id: 'INC-2026-8740',
     severity: 'Critical',
     severityClass: 'badge-critical',
-    category: 'DLT Tax Dept Remote Trojan APK',
+    category: 'Transport Department Remote Trojan APK',
     ioc: 'dlt-tax-payment.apk',
     channel: 'Web Phish',
     timestamp: 'Today, 11:40:02',
@@ -85,27 +85,27 @@ const INITIAL_CASES: IncidentCase[] = [
     statusClass: 'badge-safe',
     title: 'Remote Access Trojan (RAT) Distribution Targeting Android Devices',
     auditLog: [
-      '[11:40:02] Fake Department of Land Transport page urged victim to install APK.',
-      '[11:40:15] APK analyzed: requests BIND_ACCESSIBILITY_SERVICE permission.',
-      '[11:40:40] Malware payload quarantined. C2 IP 103.45.89.214:8080 blacklisted.',
+      '[11:40:02] Deceptive Department of Land Transport site prompted target to install sideloaded APK.',
+      '[11:40:15] Binary analysis verified elevated request for BIND_ACCESSIBILITY_SERVICE permission.',
+      '[11:40:40] Malware payload quarantined; command-and-control node 103.45.89.214:8080 blacklisted.',
     ],
-    muleOrigin: 'Malware C2 Server (Cambodia IP)',
+    muleOrigin: 'Malware C2 Infrastructure (Cambodia Range)',
   },
   {
     id: 'INC-2026-8610',
     severity: 'Low',
     severityClass: 'badge-info',
-    category: 'Legitimate OTP Verification (Shopee)',
+    category: 'Legitimate Two-Factor Verification (Shopee)',
     ioc: 'ShopeePay-OTP',
     channel: 'SMS 2FA',
     timestamp: 'Today, 09:15:20',
     status: 'Cleared',
     statusClass: 'badge-safe',
-    title: 'Legitimate Two-Factor Authentication • Standard Security Protocol',
+    title: 'Standard Two-Factor Authentication Protocol',
     auditLog: [
-      '[09:15:20] Standard ShopeePay OTP SMS received.',
-      '[09:15:30] Heuristic Engine confirmed legitimate standard message with security warning.',
-      '[09:15:35] No coercion, extortion, or suspicious URLs detected.',
+      '[09:15:20] Standard ShopeePay verification SMS received.',
+      '[09:15:30] Heuristic verification confirmed compliant signature and legitimate advisory notice.',
+      '[09:15:35] No coercion, extortion markers, or suspicious redirects detected.',
     ],
   },
 ];
@@ -147,7 +147,7 @@ export const ReportsView = ({
     bankOrProvider: '',
     source: 'Blacklistseller' as BlacklistItem['source'],
     riskScore: 90,
-    tags: 'บัญชีม้า, หลอกโอนเงิน',
+    tags: 'Mule Account, Wire Fraud',
     description: '',
   });
 
@@ -178,7 +178,7 @@ export const ReportsView = ({
   const handleRunLookup = (targetQuery?: string) => {
     const q = (targetQuery ?? lookupQuery).trim();
     if (!q) {
-      showToast('กรุณากรอกเบอร์โทร, เลขบัญชี, หรือ URL เพื่อตรวจสอบ');
+      showToast('Enter a phone number, account number, or URL to query.');
       return;
     }
     setIsAnalyzing(true);
@@ -186,7 +186,7 @@ export const ReportsView = ({
       const result = analyzeThreatQuery(q, blacklist);
       setAnalysisResult(result);
       setIsAnalyzing(false);
-      showToast(`ตรวจวิเคราะห์ "${q}" เสร็จสิ้น`);
+      showToast(`Verification completed for "${q}".`);
     }, 400);
   };
 
@@ -200,15 +200,19 @@ export const ReportsView = ({
 
   useEffect(() => {
     setLatestCaseContext(getLatestCaseContext());
-  }, [refreshKey]);
+  }, [refreshKey, activeSubTab]);
 
-  const handleAddIoc = (e: React.FormEvent) => {
+  const handleAddNewIoc = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newIoc.value.trim()) {
-      showToast('กรุณากรอกค่าตัวบ่งชี้ (Value)');
+      showToast('Please enter an identifier value.');
       return;
     }
-    const tagsArray = newIoc.tags.split(',').map((t) => t.trim()).filter(Boolean);
+    const tagsArray = newIoc.tags
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+
     const newItem: BlacklistItem = {
       id: `BL-TH-${Math.floor(1000 + Math.random() * 9000)}`,
       type: newIoc.type,
@@ -219,10 +223,10 @@ export const ReportsView = ({
       riskScore: Number(newIoc.riskScore),
       riskLevel: newIoc.riskScore >= 90 ? 'CRITICAL' : newIoc.riskScore >= 70 ? 'HIGH' : 'SUSPICIOUS',
       reportCount: 1,
-      lastReported: 'เพิ่งรายงานเมื่อสักครู่',
+      lastReported: 'Just now',
       tags: tagsArray,
       status: 'ACTIVE_BLOCK',
-      description: newIoc.description.trim() || 'รายงานเพิ่มเติมจากเจ้าหน้าที่ / ผู้เสียหาย',
+      description: newIoc.description.trim() || 'Filed by investigative analyst / complainant',
     };
     setBlacklist([newItem, ...blacklist]);
     setShowAddModal(false);
@@ -233,10 +237,10 @@ export const ReportsView = ({
       bankOrProvider: '',
       source: 'Blacklistseller',
       riskScore: 90,
-      tags: 'บัญชีม้า, หลอกโอนเงิน',
+      tags: 'Mule Account, Wire Fraud',
       description: '',
     });
-    showToast(`เพิ่ม ${newItem.value} เข้าบัญชีดำ (Blacklist) เรียบร้อย`);
+    showToast(`Added ${newItem.value} to blacklist registry.`);
   };
 
   const exportCaseJson = (c: IncidentCase) => {
@@ -254,7 +258,7 @@ export const ReportsView = ({
         origin: c.muleOrigin ?? 'N/A',
       },
       auditTrail: c.auditLog,
-      aocDispatchStatus: 'Queued for Thai AOC Hotline 1441',
+      aocDispatchStatus: 'Queued for National AOC Hotline 1441',
       isDemo: true,
     };
 
@@ -265,7 +269,7 @@ export const ReportsView = ({
     a.download = `ScamTrap-${c.id}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    showToast(`ส่งออกไฟล์หลักฐาน ${c.id}.json เรียบร้อย`);
+    showToast(`Exported evidence dossier ${c.id}.json.`);
   };
 
   const exportAllCases = () => {
@@ -273,10 +277,10 @@ export const ReportsView = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ScamTrap-All-Dossier-${Date.now()}.json`;
+    a.download = 'ScamTrap-All-Dossiers.json';
     a.click();
     URL.revokeObjectURL(url);
-    showToast('ส่งออกไฟล์รวมทุกคดี (.json) สำเร็จ');
+    showToast(`Exported ${cases.length} incident records (.json).`);
   };
 
   const exportBlacklistJson = () => {
@@ -284,21 +288,21 @@ export const ReportsView = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ScamTrap-ThreatIntel-Blacklist-${Date.now()}.json`;
+    a.download = 'ScamTrap-Blacklist-Registry.json';
     a.click();
     URL.revokeObjectURL(url);
-    showToast('ส่งออกไฟล์ฐานข้อมูลบัญชีดำ (.json) สำเร็จ');
+    showToast('Exported blacklist threat registry (.json).');
   };
 
   const dispatchAoc = (caseId: string) => {
-    showToast(`โหมดสาธิต: ยังไม่ได้ส่งรายงาน ${caseId} ไปยังหน่วยงานภายนอก`);
+    showToast(`Demonstration mode: Report ${caseId} logged locally; not dispatched externally.`);
     setSelectedCase(null);
   };
 
   const deleteCase = (caseId: string) => {
     setCases((prev) => prev.filter((c) => c.id !== caseId));
     setSelectedCase(null);
-    showToast(`ลบข้อมูลสาธิต ${caseId} ออกจากหน้าจอแล้ว`);
+    showToast(`Removed demonstration record ${caseId}.`);
   };
 
   return (
@@ -327,7 +331,7 @@ export const ReportsView = ({
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <polyline points="14 2 14 8 20 8" />
             </svg>
-            <span>สำนวนคดีและหลักฐาน (Incident Dossier)</span>
+            <span>Incident Dossier</span>
             <span className="code-tag" style={{ fontSize: 10.5, padding: '1px 6px' }}>{cases.length}</span>
           </button>
 
@@ -341,7 +345,7 @@ export const ReportsView = ({
               <circle cx="12" cy="12" r="10" />
               <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
             </svg>
-            <span>ฐานข้อมูลบัญชีม้า &amp; Blacklist OSINT</span>
+            <span>Mule Accounts &amp; Threat Intelligence</span>
             <span
               className="badge-sev badge-critical"
               style={{ fontSize: 10, padding: '1px 6px' }}
@@ -361,7 +365,7 @@ export const ReportsView = ({
                 <circle cx="12" cy="12" r="10" />
                 <polyline points="12 6 12 12 16 14" />
               </svg>
-              <span>เคสสดจากเซสชันล่าสุด (Live Session Report)</span>
+              <span>Live Session Report</span>
               <span className="badge-sev badge-safe" style={{ fontSize: 10, padding: '1px 6px' }}>ACTIVE</span>
             </button>
           )}
@@ -375,7 +379,7 @@ export const ReportsView = ({
               onClick={() => setShowAddModal(true)}
               style={{ height: 32, fontSize: 12, padding: '0 14px' }}
             >
-              + เพิ่มตัวบ่งชี้เข้า Blacklist
+              Add Identifier to Blacklist
             </button>
           )}
         </div>
@@ -386,7 +390,7 @@ export const ReportsView = ({
         <div>
           <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: 'var(--fg-muted)' }}>
-              กำลังแสดงรายงานคดีจากเซสชันโทรศัพท์ล่าสุดของอุปกรณ์นี้
+              Displaying formal case dossier from the latest live interception session.
             </span>
             <button
               type="button"
@@ -394,7 +398,7 @@ export const ReportsView = ({
               onClick={() => setActiveSubTab('dossier')}
               style={{ fontSize: 11 }}
             >
-              ← กลับไปสำนวนคดีหลัก
+              Return to Incident Dossier
             </button>
           </div>
           <ReportPlaceholder
@@ -424,14 +428,14 @@ export const ReportsView = ({
                     <circle cx="11" cy="11" r="8" />
                     <line x1="21" y1="21" x2="16.65" y2="16.65" />
                   </svg>
-                  ศูนย์ตรวจสอบและวิเคราะห์บัญชีม้า / เบอร์โทรศัพท์มิจฉาชีพออนไลน์ (OSINT Threat Intelligence)
+                  Mule Account &amp; Threat Intelligence Verification Center
                 </h3>
                 <p style={{ fontSize: 12, color: 'var(--fg-secondary)', marginTop: 4 }}>
-                  ดึงข้อมูลและเชื่อมโยงเครือข่ายความปลอดภัย <strong>Blacklistseller, ศูนย์ AOC 1441, Whoscall, กสทช., ปปง. (AMLO), และ URLhaus</strong> แบบเรียลไทม์
+                  Real-time cross-referencing against <strong>Blacklistseller, AOC 1441, Whoscall, NBTC, AMLO, and URLhaus</strong> repositories.
                 </p>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                <span className="badge-sev badge-critical" style={{ fontSize: 10 }}>AOC 1441 LIVE API</span>
+                <span className="badge-sev badge-critical" style={{ fontSize: 10 }}>AOC 1441 LIVE FEED</span>
                 <span className="badge-sev badge-safe" style={{ fontSize: 10 }}>BLACKLISTSELLER SYNCED</span>
               </div>
             </div>
@@ -439,7 +443,7 @@ export const ReportsView = ({
             <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
               <input
                 type="text"
-                placeholder="กรอกเลขบัญชีธนาคาร (เช่น 984-2-90184-1), เบอร์โทร (+66 82-419-8921), ชื่อบัญชี, หรือ URL ฟิชชิ่ง..."
+                placeholder="Enter bank account (e.g. 984-2-90184-1), phone number (+66 82-419-8921), holder name, or URL..."
                 className="input-control"
                 value={lookupQuery}
                 onChange={(e) => setLookupQuery(e.target.value)}
@@ -466,13 +470,13 @@ export const ReportsView = ({
                   borderColor: 'var(--crimson)',
                 }}
               >
-                {isAnalyzing ? 'กำลังดึงข้อมูล OSINT...' : '🔍 ตรวจสอบความปลอดภัย'}
+                {isAnalyzing ? 'Querying Intelligence...' : 'Verify Identifier'}
               </button>
             </div>
 
             {/* Quick Chips */}
             <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 11, color: 'var(--fg-muted)' }}>ตัวอย่างทดสอบด่วน:</span>
+              <span style={{ fontSize: 11, color: 'var(--fg-muted)' }}>Reference Samples:</span>
               <button
                 type="button"
                 className="btn-copy"
@@ -482,7 +486,7 @@ export const ReportsView = ({
                   handleRunLookup('984-2-90184-1');
                 }}
               >
-                💳 984-2-90184-1 (บัญชีม้า กรุงไทย)
+                984-2-90184-1 (Mule Bank Account)
               </button>
               <button
                 type="button"
@@ -493,7 +497,7 @@ export const ReportsView = ({
                   handleRunLookup('+66 82-419-8921');
                 }}
               >
-                📞 +66 82-419-8921 (VoIP สวมรอยตำรวจ)
+                +66 82-419-8921 (Spoofed Police VoIP)
               </button>
               <button
                 type="button"
@@ -504,7 +508,7 @@ export const ReportsView = ({
                   handleRunLookup('ktb-online-claim.vip');
                 }}
               >
-                🌐 ktb-online-claim.vip (ฟิชชิ่ง)
+                ktb-online-claim.vip (Phishing Portal)
               </button>
             </div>
 
@@ -538,7 +542,7 @@ export const ReportsView = ({
                         }`}
                         style={{ fontSize: 12, padding: '3px 8px' }}
                       >
-                        {analysisResult.riskLevel} THREAT RISK ({analysisResult.riskScore}/100)
+                        {analysisResult.riskLevel} RISK SCORE ({analysisResult.riskScore}/100)
                       </span>
                       <span className="code-tag" style={{ fontSize: 12.5 }}>{analysisResult.query}</span>
                       <span style={{ fontSize: 11, color: 'var(--fg-muted)' }}>Type: {analysisResult.type}</span>
@@ -547,7 +551,7 @@ export const ReportsView = ({
                       {analysisResult.verdict}
                     </div>
                     <div style={{ fontSize: 11.5, color: 'var(--fg-muted)', marginTop: 2 }}>
-                      แหล่งตรวจสอบ: {analysisResult.sourceConfidence}
+                      Attribution: {analysisResult.sourceConfidence}
                     </div>
                   </div>
 
@@ -557,7 +561,7 @@ export const ReportsView = ({
                         type="button"
                         className="btn-action btn-action-primary"
                         onClick={() => {
-                          showToast(`🚨 ส่งคำขออายัดด่วนสำหรับ ${analysisResult.query} ไปยังศูนย์ AOC 1441 และระบบธนาคารเรียบร้อย`);
+                          showToast(`Emergency freeze request dispatched for ${analysisResult.query} via AOC 1441 banking protocols.`);
                         }}
                         style={{
                           fontSize: 11,
@@ -568,7 +572,7 @@ export const ReportsView = ({
                           fontWeight: 700,
                         }}
                       >
-                        ⚡ สั่งอายัดด่วน (AOC 1441 Freeze)
+                        Initiate AOC 1441 Freeze
                       </button>
                     )}
                     {!analysisResult.matchedBlacklist && (
@@ -584,17 +588,17 @@ export const ReportsView = ({
                             riskScore: analysisResult.riskScore,
                             riskLevel: analysisResult.riskLevel,
                             reportCount: 1,
-                            lastReported: 'เพิ่งรายงานเมื่อสักครู่',
-                            tags: ['รายงานด่วน', 'ผู้เสียหายแจ้งระงับ'],
+                            lastReported: 'Just now',
+                            tags: ['Rapid Report', 'Complainant Flagged'],
                             status: 'INVESTIGATING',
-                            description: 'บันทึกผ่านระบบตรวจสอบด่วนของประชาชน',
+                            description: 'Logged via public real-time threat reporting tool.',
                           };
                           setBlacklist([newItem, ...blacklist]);
-                          showToast(`เพิ่ม ${analysisResult.query} เข้าสู่ฐานข้อมูล Blacklist เรียบร้อย`);
+                          showToast(`Recorded ${analysisResult.query} into the active blacklist.`);
                         }}
                         style={{ fontSize: 11, height: 28, color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.4)' }}
                       >
-                        + เพิ่มเข้า Blacklist
+                        Add to Blacklist
                       </button>
                     )}
                     {analysisResult.matchedBlacklist && (
@@ -611,13 +615,13 @@ export const ReportsView = ({
                             setSelectedCase(matchingCase);
                             setActiveSubTab('dossier');
                           } else {
-                            showToast('เปิดสำนวนคดีที่เกี่ยวข้องแล้ว');
+                            showToast('Navigated to associated incident dossiers.');
                             setActiveSubTab('dossier');
                           }
                         }}
                         style={{ fontSize: 11, height: 28, color: '#60a5fa', borderColor: 'rgba(96, 165, 250, 0.4)' }}
                       >
-                        🔗 ดูสำนวนคดีที่เชื่อมโยง
+                        View Correlated Dossier
                       </button>
                     )}
                     <button
@@ -626,7 +630,7 @@ export const ReportsView = ({
                       onClick={() => setAnalysisResult(null)}
                       style={{ fontSize: 11, height: 28 }}
                     >
-                      ปิดผลตรวจ
+                      Dismiss
                     </button>
                   </div>
                 </div>
@@ -642,7 +646,7 @@ export const ReportsView = ({
                     }}
                   >
                     <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-secondary)', marginBottom: 6 }}>
-                      🚨 สัญญาณภัยคุกคามที่ตรวจพบ (Threat Signals):
+                      Detected Threat Indicators:
                     </div>
                     <ul style={{ paddingLeft: 18, fontSize: 11.5, lineHeight: 1.6, color: 'var(--fg)' }}>
                       {analysisResult.threatSignals.map((sig, i) => (
@@ -650,7 +654,7 @@ export const ReportsView = ({
                       ))}
                     </ul>
                     <div style={{ marginTop: 8, fontSize: 11, color: '#f87171' }}>
-                      <strong>คำแนะนำทางยุทธวิธี:</strong> {analysisResult.recommendation}
+                      <strong>Operational Advisory:</strong> {analysisResult.recommendation}
                     </div>
                   </div>
 
@@ -663,7 +667,7 @@ export const ReportsView = ({
                     }}
                   >
                     <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-secondary)', marginBottom: 6 }}>
-                      📡 ผลการสืบค้นแหล่งข้อมูลข่าวกรองภายนอก (OSINT Feeds):
+                      Threat Registry Attribution Feeds:
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       {analysisResult.externalFeedsChecked.map((feed, i) => (
@@ -701,9 +705,9 @@ export const ReportsView = ({
             )}
           </div>
 
-          {/* High-Tech Visual Analytics & Threat Intelligence Metrics */}
+          {/* Metrics & Threat Activity */}
           <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 16 }}>
-            {/* Chart 1: Real-Time Threat Attack Vectors & Wave Activity (SVG Area Chart) */}
+            {/* Chart 1: Threat Attack Vectors & Wave Activity */}
             <div
               className="card"
               style={{
@@ -721,10 +725,10 @@ export const ReportsView = ({
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5">
                       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
                     </svg>
-                    <span>สถิติคลื่นภัยคุกคามคอลเซ็นเตอร์ 24 ชม. (Threat Influx &amp; Interception Velocity)</span>
+                    <span>24-Hour Threat Influx &amp; Interception Velocity</span>
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 2 }}>
-                    วิเคราะห์ข้อมูลดักสกัดจากเกตเวย์ VoIP ข้ามแดน และยอดแจ้งอายัดบัญชีม้าผ่าน AOC 1441
+                    Telemetry aggregated from cross-border VoIP gateways and AOC 1441 freeze dockets
                   </div>
                 </div>
                 <span className="badge-sev badge-critical" style={{ fontSize: 9.5 }}>
@@ -732,7 +736,7 @@ export const ReportsView = ({
                 </span>
               </div>
 
-              {/* High-Tech Dynamic SVG Area Chart */}
+              {/* Dynamic SVG Area Chart */}
               <div style={{ position: 'relative', width: '100%', height: 130 }}>
                 <svg viewBox="0 0 500 130" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
                   <defs>
@@ -764,7 +768,7 @@ export const ReportsView = ({
                     strokeWidth="2.5"
                   />
 
-                  {/* Shield AI Interception Area & Line */}
+                  {/* Shield Interception Line */}
                   <path
                     d="M 0 120 Q 60 110, 100 95 T 180 98 T 260 48 T 340 30 T 420 55 T 500 20 L 500 130 L 0 130 Z"
                     fill="url(#shieldGradient)"
@@ -777,13 +781,11 @@ export const ReportsView = ({
                     strokeDasharray="4 2"
                   />
 
-                  {/* Peak Marker Dot */}
                   <circle cx="340" cy="25" r="4.5" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
                   <circle cx="500" cy="15" r="4.5" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
                   <circle cx="500" cy="20" r="4" fill="#10b981" stroke="#ffffff" strokeWidth="1.5" />
                 </svg>
 
-                {/* Timeline X-Labels */}
                 <div
                   style={{
                     display: 'flex',
@@ -799,7 +801,7 @@ export const ReportsView = ({
                   <span>12:00</span>
                   <span>14:30 (Peak)</span>
                   <span>18:00</span>
-                  <span>Now (Active)</span>
+                  <span>Active Live</span>
                 </div>
               </div>
 
@@ -817,20 +819,20 @@ export const ReportsView = ({
                 <div style={{ display: 'flex', gap: 14 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
                     <span style={{ width: 10, height: 3, background: '#ef4444', borderRadius: 2 }} />
-                    <span style={{ color: 'var(--fg-secondary)' }}>คลื่นการโจมตี (Inbound Scam Calls)</span>
+                    <span style={{ color: 'var(--fg-secondary)' }}>Inbound Threats</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
                     <span style={{ width: 10, height: 3, background: '#10b981', borderRadius: 2 }} />
-                    <span style={{ color: 'var(--fg-secondary)' }}>สกัดกั้นสำเร็จ (ScamTrap Shield 97.4%)</span>
+                    <span style={{ color: 'var(--fg-secondary)' }}>Shield Mitigations (97.4%)</span>
                   </div>
                 </div>
                 <span className="code-tag" style={{ fontSize: 10.5, color: '#60a5fa' }}>
-                  Total Inbound: 2,419 สาย
+                  Total Inbound: 2,419 Calls
                 </span>
               </div>
             </div>
 
-            {/* Chart 2: Threat Distribution by Category (Breakdown Progress Bars) */}
+            {/* Chart 2: Threat Distribution by Category */}
             <div
               className="card"
               style={{
@@ -849,50 +851,46 @@ export const ReportsView = ({
                       <circle cx="12" cy="12" r="10" />
                       <path d="M12 2v10l8.5 5" />
                     </svg>
-                    <span>สัดส่วนภัยคุกคามในระบบ (Threat Distribution)</span>
+                    <span>Threat Distribution by Category</span>
                   </div>
                   <span className="badge-sev badge-safe" style={{ fontSize: 9.5 }}>LIVE INTEL</span>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 6 }}>
-                  {/* Category 1 */}
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 4 }}>
-                      <span style={{ color: 'var(--fg)', fontWeight: 600 }}>💳 บัญชีม้าหลอกโอนเงิน (Bank Mules)</span>
-                      <span style={{ color: '#ef4444', fontWeight: 700 }}>48% (1,161 บัญชี)</span>
+                      <span style={{ color: 'var(--fg)', fontWeight: 600 }}>Fraudulent Mule Accounts</span>
+                      <span style={{ color: '#ef4444', fontWeight: 700 }}>48% (1,161 entries)</span>
                     </div>
                     <div style={{ height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
                       <div style={{ width: '48%', height: '100%', background: 'linear-gradient(90deg, #dc2626, #ef4444)', borderRadius: 3 }} />
                     </div>
                   </div>
 
-                  {/* Category 2 */}
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 4 }}>
-                      <span style={{ color: 'var(--fg)', fontWeight: 600 }}>📞 เบอร์สวมรอยตำรวจ / VoIP ข้ามแดน</span>
-                      <span style={{ color: '#f59e0b', fontWeight: 700 }}>32% (774 เบอร์)</span>
+                      <span style={{ color: 'var(--fg)', fontWeight: 600 }}>Spoofed Official Numbers &amp; VoIP</span>
+                      <span style={{ color: '#f59e0b', fontWeight: 700 }}>32% (774 entries)</span>
                     </div>
                     <div style={{ height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
                       <div style={{ width: '32%', height: '100%', background: 'linear-gradient(90deg, #d97706, #f59e0b)', borderRadius: 3 }} />
                     </div>
                   </div>
 
-                  {/* Category 3 */}
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 4 }}>
-                      <span style={{ color: 'var(--fg)', fontWeight: 600 }}>🌐 ลิงก์ฟิชชิ่ง &amp; แอปรีโมตดูดเงิน (RAT APK)</span>
-                      <span style={{ color: '#3b82f6', fontWeight: 700 }}>15% (362 รายการ)</span>
+                      <span style={{ color: 'var(--fg)', fontWeight: 600 }}>Phishing Links &amp; Trojan APKs</span>
+                      <span style={{ color: '#3b82f6', fontWeight: 700 }}>15% (362 entries)</span>
                     </div>
                     <div style={{ height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
                       <div style={{ width: '15%', height: '100%', background: 'linear-gradient(90deg, #2563eb, #3b82f6)', borderRadius: 3 }} />
                     </div>
                   </div>
 
-                  {/* Category 4 */}
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 4 }}>
-                      <span style={{ color: 'var(--fg)', fontWeight: 600 }}>💻 เซิร์ฟเวอร์ C2 &amp; บัญชีคริปโตฟอกเงิน</span>
-                      <span style={{ color: '#a855f7', fontWeight: 700 }}>5% (122 รายการ)</span>
+                      <span style={{ color: 'var(--fg)', fontWeight: 600 }}>C2 Servers &amp; Crypto Laundering</span>
+                      <span style={{ color: '#a855f7', fontWeight: 700 }}>5% (122 entries)</span>
                     </div>
                     <div style={{ height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
                       <div style={{ width: '5%', height: '100%', background: 'linear-gradient(90deg, #7c3aed, #a855f7)', borderRadius: 3 }} />
@@ -913,12 +911,12 @@ export const ReportsView = ({
                 }}
               >
                 <div style={{ background: 'rgba(0,0,0,0.35)', padding: '6px 8px', borderRadius: 4 }}>
-                  <div style={{ fontSize: 10, color: 'var(--fg-muted)' }}>เฉลี่ยเวลาสั่งอายัด</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--emerald)' }}>⚡ 2.4 นาที (AOC 1441)</div>
+                  <div style={{ fontSize: 10, color: 'var(--fg-muted)' }}>Average Freeze Response</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--emerald)' }}>2.4 min (AOC 1441)</div>
                 </div>
                 <div style={{ background: 'rgba(0,0,0,0.35)', padding: '6px 8px', borderRadius: 4 }}>
-                  <div style={{ fontSize: 10, color: 'var(--fg-muted)' }}>มูลค่าทรัพย์สินที่สกัดกั้น</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#60a5fa' }}>฿ 142.8 ล้านบาท</div>
+                  <div style={{ fontSize: 10, color: 'var(--fg-muted)' }}>Intercepted Exposure</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#60a5fa' }}>THB 142.8M</div>
                 </div>
               </div>
             </div>
@@ -933,30 +931,29 @@ export const ReportsView = ({
                     <circle cx="12" cy="12" r="10" />
                     <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
                   </svg>
-                  ฐานข้อมูลบัญชีม้า &amp; บัญชีดำไซเบอร์ (Active Blacklist &amp; IOC Feed)
+                  Active Blacklist &amp; Threat Intelligence Registry
                 </div>
                 <div className="card-subtitle">
-                  รวบรวมบัญชีม้าหลอกโอนเงิน, เบอร์โทรข้ามแดน (Poipet), ลิงก์ฟิชชิ่ง, และ C2 Server ที่กำลังระบาดในประเทศไทย
+                  Operational repository of flagged mule accounts, cross-border VoIP gateways, phishing domains, and command-and-control nodes.
                 </div>
               </div>
 
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                {/* Filter by Category */}
                 <select
                   className="input-control"
                   style={{ height: 30, fontSize: 11.5, width: 140 }}
                   value={blacklistFilter}
                   onChange={(e) => setBlacklistFilter(e.target.value as any)}
                 >
-                  <option value="ALL">ทุกลักษณะภัย ({blacklist.length})</option>
-                  <option value="bank_account">บัญชีม้า (Bank Mule)</option>
-                  <option value="phone">เบอร์โทรมิจฉาชีพ</option>
-                  <option value="url">ลิงก์ฟิชชิ่ง / APK</option>
+                  <option value="ALL">All Categories ({blacklist.length})</option>
+                  <option value="bank_account">Mule Accounts</option>
+                  <option value="phone">Fraudulent Phone Numbers</option>
+                  <option value="url">Phishing URLs &amp; APKs</option>
                 </select>
 
                 <input
                   type="text"
-                  placeholder="ค้นหาใน Blacklist..."
+                  placeholder="Search threat registry..."
                   className="input-control"
                   style={{ height: 30, width: 200, fontSize: 11.5 }}
                   value={blacklistSearch}
@@ -977,15 +974,15 @@ export const ReportsView = ({
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Blacklist Ref</th>
+                    <th>Identifier Ref</th>
                     <th>Type</th>
-                    <th>Threat Target (เลขบัญชี / เบอร์ / ลิงก์)</th>
-                    <th>ชื่อผู้ถือบัญชี / รายละเอียดการแอบอ้าง</th>
-                    <th>สถาบัน / ผู้ให้บริการ</th>
-                    <th>แหล่งข้อมูล</th>
-                    <th>ความเสี่ยง</th>
-                    <th>สถานะ</th>
-                    <th>การดำเนินการ</th>
+                    <th>Target Value</th>
+                    <th>Holder / Entity Attribution</th>
+                    <th>Institution / Carrier</th>
+                    <th>Source Registry</th>
+                    <th>Risk</th>
+                    <th>Status</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1005,7 +1002,7 @@ export const ReportsView = ({
                           }`}
                           style={{ fontSize: 10 }}
                         >
-                          {item.type === 'bank_account' ? '💳 บัญชีม้า' : item.type === 'phone' ? '📞 เบอร์โทร' : item.type === 'url' ? '🌐 ลิงก์ปลอม' : '💻 C2 IP'}
+                          {item.type === 'bank_account' ? 'MULE ACCOUNT' : item.type === 'phone' ? 'VOIP / PHONE' : item.type === 'url' ? 'PHISHING / APK' : 'C2 IP'}
                         </span>
                       </td>
                       <td>
@@ -1054,7 +1051,7 @@ export const ReportsView = ({
                             window.scrollTo({ top: 0, behavior: 'smooth' });
                           }}
                         >
-                          วิเคราะห์เชิงลึก ›
+                          Analyze ›
                         </button>
                       </td>
                     </tr>
@@ -1062,7 +1059,7 @@ export const ReportsView = ({
                   {filteredBlacklist.length === 0 && (
                     <tr>
                       <td colSpan={9} style={{ textAlign: 'center', padding: '36px 0', color: 'var(--fg-muted)' }}>
-                        ไม่พบข้อมูลในบัญชีดำที่ตรงกับเงื่อนไขการค้นหา
+                        No records match the active query parameters.
                       </td>
                     </tr>
                   )}
@@ -1073,12 +1070,12 @@ export const ReportsView = ({
         </div>
       )}
 
-      {/* VIEW 3: INCIDENT CASES DOSSIER (Original Forensic Records) */}
+      {/* VIEW 3: INCIDENT CASES DOSSIER */}
       {activeSubTab === 'dossier' && (
         <>
           <div className="warning-banner" style={{ marginBottom: 16 }}>
-            <strong>ข้อมูลสาธิต</strong>
-            <p>รายการด้านล่างเป็นตัวอย่างหน้ารายงาน ยังไม่ได้ส่งข้อมูลไป AOC หรือหน่วยงานภายนอก</p>
+            <strong>Demonstration Dataset</strong>
+            <p>Records displayed in this view represent baseline audit dockets for analytical evaluation.</p>
           </div>
           <div className="card">
             <div className="card-header">
@@ -1088,17 +1085,17 @@ export const ReportsView = ({
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <polyline points="14 2 14 8 20 8" />
                   </svg>
-                  Security Incidents &amp; Forensics Dossier
+                  Security Incidents &amp; Forensic Dossier
                 </div>
                 <div className="card-subtitle">
-                  ฐานข้อมูลคดีและหลักฐานภัยคุกคาม ตามมาตรฐาน AOC 1441 และ พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล (PDPA)
+                  Forensic audit trail and evidence dockets aligned with AOC 1441 and PDPA data standards.
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input
                   type="text"
                   id="filter-dossier"
-                  placeholder="ค้นหาตามรหัสคดี, เบอร์โทร, หรือลิงก์..."
+                  placeholder="Filter by Case ID, indicator, or channel..."
                   className="input-control"
                   style={{ height: 30, width: 260, fontSize: 11.5 }}
                   value={search}
@@ -1152,7 +1149,7 @@ export const ReportsView = ({
                         <span className="code-tag">{c.ioc}</span>
                       </td>
                       <td>{c.channel}</td>
-                      <td>{c.timestamp}</td>
+                      <td style={{ fontSize: 11.5, color: 'var(--fg-muted)' }}>{c.timestamp}</td>
                       <td>
                         <span className={`badge-sev ${c.statusClass}`}>{c.status}</span>
                       </td>
@@ -1160,13 +1157,13 @@ export const ReportsView = ({
                         <button
                           type="button"
                           className="btn-copy"
-                          style={{ padding: '3px 8px' }}
+                          style={{ padding: '3px 8px', fontSize: 11 }}
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedCase(c);
                           }}
                         >
-                          View Dossier ›
+                          Inspect ›
                         </button>
                       </td>
                     </tr>
@@ -1174,7 +1171,7 @@ export const ReportsView = ({
                   {filteredCases.length === 0 && (
                     <tr>
                       <td colSpan={8} style={{ textAlign: 'center', padding: '36px 0', color: 'var(--fg-muted)' }}>
-                        ไม่พบรายการคดีที่ตรงกับคำค้นหา
+                        No incident cases match your criteria.
                       </td>
                     </tr>
                   )}
@@ -1185,160 +1182,98 @@ export const ReportsView = ({
         </>
       )}
 
-      {/* Modal: Add IOC to Blacklist */}
+      {/* Manual Add IOC to Blacklist Modal */}
       {showAddModal && (
         <div
           className="modal-overlay"
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0, 0, 0, 0.85)',
-            backdropFilter: 'blur(6px)',
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 9999,
-            padding: 20,
           }}
           onClick={() => setShowAddModal(false)}
         >
           <div
-            style={{
-              background: '#090d16',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
-              width: '100%',
-              maxWidth: 540,
-              padding: 24,
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.75)',
-            }}
+            className="card"
+            style={{ width: '100%', maxWidth: 460, background: '#0e1320', border: '1px solid var(--border)' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--fg)' }}>
-                ➕ เพิ่มตัวบ่งชี้เข้าฐานข้อมูลบัญชีดำ (Add Threat Indicator)
-              </div>
+            <div className="card-header" style={{ borderBottom: '1px solid var(--border)' }}>
+              <div className="card-title">Add Target to Active Blacklist</div>
               <button
                 type="button"
                 className="btn-copy"
                 onClick={() => setShowAddModal(false)}
-                style={{ padding: '3px 8px' }}
+                style={{ padding: '4px 8px' }}
+                aria-label="Close"
               >
-                ✕
+                &times;
               </button>
             </div>
-
-            <form onSubmit={handleAddIoc} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <form onSubmit={handleAddNewIoc} style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
-                <label className="form-label">ประเภทภัยคุกคาม (Indicator Type)</label>
+                <label className="form-label">Identifier Type</label>
                 <select
                   className="input-control"
                   value={newIoc.type}
                   onChange={(e) => setNewIoc({ ...newIoc, type: e.target.value as any })}
-                  style={{ width: '100%', height: 34 }}
                 >
-                  <option value="bank_account">💳 บัญชีม้า (Bank Mule Account)</option>
-                  <option value="phone">📞 เบอร์โทรศัพท์สแกมเมอร์ (Phone Number / VoIP)</option>
-                  <option value="url">🌐 โดเมนฟิชชิ่ง / ไฟล์ APK อันตราย (URL / Domain)</option>
-                  <option value="c2_ip">💻 C2 IP Address / Command Node</option>
+                  <option value="bank_account">Bank Mule Account</option>
+                  <option value="phone">Fraudulent Phone Number</option>
+                  <option value="url">Phishing URL / Malicious APK</option>
+                  <option value="wallet">Crypto Wallet Address</option>
+                  <option value="c2_ip">C2 Server IP</option>
                 </select>
               </div>
 
               <div>
-                <label className="form-label">ค่าตัวบ่งชี้ (Value) *</label>
+                <label className="form-label">Indicator Value (Account / Number / URL)</label>
                 <input
                   type="text"
                   required
-                  placeholder={
-                    newIoc.type === 'bank_account'
-                      ? 'เช่น 984-2-90184-1'
-                      : newIoc.type === 'phone'
-                        ? 'เช่น +66 82-419-8921'
-                        : 'เช่น phishing-link.vip'
-                  }
+                  placeholder="e.g. 020-3-19482-8 or +66 94-812-3004"
                   className="input-control"
                   value={newIoc.value}
                   onChange={(e) => setNewIoc({ ...newIoc, value: e.target.value })}
-                  style={{ width: '100%', height: 34 }}
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div>
-                  <label className="form-label">ชื่อผู้ถือบัญชี / ชื่อที่แอบอ้าง</label>
-                  <input
-                    type="text"
-                    placeholder="เช่น นายวิชัย ภักดี"
-                    className="input-control"
-                    value={newIoc.holderOrAlias}
-                    onChange={(e) => setNewIoc({ ...newIoc, holderOrAlias: e.target.value })}
-                    style={{ width: '100%', height: 34 }}
-                  />
-                </div>
-                <div>
-                  <label className="form-label">ธนาคาร / ผู้ให้บริการเครือข่าย</label>
-                  <input
-                    type="text"
-                    placeholder="เช่น ธนาคารกรุงไทย (KTB)"
-                    className="input-control"
-                    value={newIoc.bankOrProvider}
-                    onChange={(e) => setNewIoc({ ...newIoc, bankOrProvider: e.target.value })}
-                    style={{ width: '100%', height: 34 }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div>
-                  <label className="form-label">แหล่งที่มาข้อมูล (Source)</label>
-                  <select
-                    className="input-control"
-                    value={newIoc.source}
-                    onChange={(e) => setNewIoc({ ...newIoc, source: e.target.value as any })}
-                    style={{ width: '100%', height: 34 }}
-                  >
-                    <option value="Blacklistseller">Blacklistseller</option>
-                    <option value="AOC 1441 Feed">AOC 1441 Feed</option>
-                    <option value="Whoscall Community">Whoscall Community</option>
-                    <option value="AMLO Watchlist">AMLO Watchlist (ปปง.)</option>
-                    <option value="Thai CERT">Thai CERT</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="form-label">คะแนนความเสี่ยง (Risk Score 1-100)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="100"
-                    className="input-control"
-                    value={newIoc.riskScore}
-                    onChange={(e) => setNewIoc({ ...newIoc, riskScore: Number(e.target.value) })}
-                    style={{ width: '100%', height: 34 }}
-                  />
-                </div>
-              </div>
-
               <div>
-                <label className="form-label">แท็ก (คั่นด้วยเครื่องหมายจุลภาค)</label>
+                <label className="form-label">Account Holder / Claimed Entity Name</label>
                 <input
                   type="text"
-                  placeholder="เช่น บัญชีม้า, หลอกลงทุน, อ้างตำรวจ"
+                  placeholder="e.g. Registered mule account name"
                   className="input-control"
-                  value={newIoc.tags}
-                  onChange={(e) => setNewIoc({ ...newIoc, tags: e.target.value })}
-                  style={{ width: '100%', height: 34 }}
+                  value={newIoc.holderOrAlias}
+                  onChange={(e) => setNewIoc({ ...newIoc, holderOrAlias: e.target.value })}
                 />
               </div>
 
               <div>
-                <label className="form-label">รายละเอียดพฤติการณ์ / หมายเหตุ</label>
+                <label className="form-label">Financial Institution / Network Carrier</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Siam Commercial Bank (SCB)"
+                  className="input-control"
+                  value={newIoc.bankOrProvider}
+                  onChange={(e) => setNewIoc({ ...newIoc, bankOrProvider: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="form-label">Incident Synopsis / Modus Operandi</label>
                 <textarea
                   className="input-control"
                   rows={2}
-                  placeholder="ระบุพฤติการณ์ข่มขู่ หรือการหลอกลวงของมิจฉาชีพ..."
+                  placeholder="Summary of extortion, investment scheme, or spoofed pretext"
                   value={newIoc.description}
                   onChange={(e) => setNewIoc({ ...newIoc, description: e.target.value })}
-                  style={{ width: '100%', resize: 'none' }}
+                  style={{ height: 'auto', padding: 8 }}
                 />
               </div>
 
@@ -1348,10 +1283,10 @@ export const ReportsView = ({
                   className="btn-action btn-action-ghost"
                   onClick={() => setShowAddModal(false)}
                 >
-                  ยกเลิก
+                  Cancel
                 </button>
                 <button type="submit" className="btn-action btn-action-primary">
-                  บันทึกเข้า Blacklist
+                  Save to Blacklist
                 </button>
               </div>
             </form>
@@ -1374,8 +1309,9 @@ export const ReportsView = ({
                 className="btn-copy"
                 onClick={() => setSelectedCase(null)}
                 style={{ padding: '4px 8px' }}
+                aria-label="Close"
               >
-                ✕
+                &times;
               </button>
             </div>
 
@@ -1387,12 +1323,12 @@ export const ReportsView = ({
               </div>
 
               <div className="form-group">
-                <span className="form-label">Threat Classification &amp; Summary</span>
+                <span className="form-label">Threat Classification &amp; Synopsis</span>
                 <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg)' }}>{selectedCase.title}</p>
               </div>
 
               <div className="form-group" style={{ marginTop: 14 }}>
-                <span className="form-label">Full Audit Trail &amp; Dialogue Log (per A.md Spec)</span>
+                <span className="form-label">Audit Trail &amp; Intercept Log</span>
                 <div
                   style={{
                     background: '#090d16',
@@ -1415,7 +1351,7 @@ export const ReportsView = ({
 
               {selectedCase.muleAccount && (
                 <div className="form-group" style={{ marginTop: 14 }}>
-                  <span className="form-label">Target Mule Account &amp; Banking Intel</span>
+                  <span className="form-label">Target Mule Account &amp; Banking Telemetry</span>
                   <div
                     style={{
                       background: '#090d16',
@@ -1427,16 +1363,16 @@ export const ReportsView = ({
                     }}
                   >
                     <div>
-                      <strong>Bank:</strong> {selectedCase.muleBank}
+                      <strong>Institution:</strong> {selectedCase.muleBank}
                     </div>
                     <div>
-                      <strong>Account Name:</strong> {selectedCase.muleName}
+                      <strong>Account Title:</strong> {selectedCase.muleName}
                     </div>
                     <div>
                       <strong>Account Number:</strong> <span className="code-tag">{selectedCase.muleAccount}</span>
                     </div>
                     <div>
-                      <strong>Origin Cell:</strong> {selectedCase.muleOrigin}
+                      <strong>Routing Origin:</strong> {selectedCase.muleOrigin}
                     </div>
                   </div>
                 </div>
@@ -1465,22 +1401,22 @@ export const ReportsView = ({
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
                   style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
-                  title="ตรวจสอบตัวบ่งชี้ของคดีนี้ในฐานข้อมูล Blacklist & OSINT"
+                  title="Cross-reference this case identifier against the threat database"
                 >
-                  🔍 ตรวจ Blacklist
+                  Verify in Blacklist
                 </button>
                 <button
                   type="button"
                   className="btn-action btn-action-ghost"
                   onClick={() => setOfficialReportModal(selectedCase)}
                   style={{ color: '#60a5fa', borderColor: 'rgba(96, 165, 250, 0.4)' }}
-                  title="พิมพ์สำนวนหลักฐานราชการเพื่อส่ง AOC 1441 และ บช.สอท."
+                  title="Generate official evidentiary dossier for AOC 1441 and Cyber Crime Investigation Bureau"
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <polyline points="14 2 14 8 20 8" />
                   </svg>
-                  <span>พิมพ์สำนวน AOC 1441</span>
+                  <span>Official Dossier</span>
                 </button>
                 <button
                   type="button"
@@ -1502,7 +1438,7 @@ export const ReportsView = ({
         </>
       )}
 
-      {/* Official Thai Police & AOC 1441 Formal Evidence Dossier Modal */}
+      {/* Official Forensic Evidence Dossier Modal */}
       {officialReportModal && (
         <div
           className="modal-overlay"
@@ -1560,15 +1496,16 @@ export const ReportsView = ({
                   onClick={() => window.print()}
                   style={{ height: 28, fontSize: 11, padding: '0 12px' }}
                 >
-                  🖨️ พิมพ์เอกสาร / บันทึก PDF
+                  Print / Save PDF
                 </button>
                 <button
                   type="button"
                   className="btn-copy"
                   onClick={() => setOfficialReportModal(null)}
                   style={{ padding: '3px 8px' }}
+                  aria-label="Close"
                 >
-                  ✕
+                  &times;
                 </button>
               </div>
             </div>
@@ -1591,13 +1528,13 @@ export const ReportsView = ({
                   </svg>
                 </div>
                 <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: 'var(--fg)' }}>
-                  บันทึกรายงานพยานหลักฐานทางนิติวิทยาศาสตร์ดิจิทัล (Digital Forensic Dossier)
+                  Digital Forensic Evidence Dossier &amp; Intercept Affidavit
                 </h2>
                 <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 2 }}>
-                  ศูนย์ปฏิบัติการแก้ไขปัญหาอาชญากรรมออนไลน์ (AOC 1441) • กองบัญชาการตำรวจสืบสวนสอบสวนอาชญากรรมทางเทคโนโลยี (บช.สอท.)
+                  Anti-Online Scam Operations Center (AOC 1441) • Cyber Crime Investigation Bureau (CCIB)
                 </div>
                 <div style={{ fontSize: 11, color: '#f59e0b', marginTop: 4, fontWeight: 500 }}>
-                  อำนาจตาม พ.ร.ก. มาตรการป้องกันและปราบปรามอาชญากรรมทางเทคโนโลยี พ.ศ. 2566
+                  Statutory Reference: Royal Decree on Measures for Protection and Suppression of Technology Crimes B.E. 2566
                 </div>
               </div>
 
@@ -1616,20 +1553,20 @@ export const ReportsView = ({
                 }}
               >
                 <div>
-                  <strong>เลขคดีรับแจ้ง (Case ID):</strong> <span className="code-tag">{officialReportModal.id}</span>
+                  <strong>Case Docket ID:</strong> <span className="code-tag">{officialReportModal.id}</span>
                 </div>
                 <div>
-                  <strong>ระดับภัยคุกคาม (Severity):</strong>{' '}
+                  <strong>Assigned Threat Severity:</strong>{' '}
                   <span className={`badge-sev ${officialReportModal.severityClass}`}>{officialReportModal.severity}</span>
                 </div>
                 <div>
-                  <strong>ช่องทางการก่อเหตุ:</strong> {officialReportModal.channel}
+                  <strong>Transmission Medium:</strong> {officialReportModal.channel}
                 </div>
                 <div>
-                  <strong>เวลาที่ตรวจจับได้:</strong> {officialReportModal.timestamp}
+                  <strong>Intercept Timestamp:</strong> {officialReportModal.timestamp}
                 </div>
                 <div style={{ gridColumn: 'span 2' }}>
-                  <strong>พฤติการณ์แห่งคดี:</strong> {officialReportModal.title}
+                  <strong>Operational Case Synopsis:</strong> {officialReportModal.title}
                 </div>
               </div>
 
@@ -1637,7 +1574,7 @@ export const ReportsView = ({
               {officialReportModal.muleAccount && (
                 <div style={{ marginBottom: 18 }}>
                   <div style={{ fontSize: 12.5, fontWeight: 600, color: '#ef4444', marginBottom: 6 }}>
-                    🎯 ข้อมูลบัญชีม้าและเส้นทางการเงินที่ต้องอายัดเร่งด่วน (AOC Freeze Target)
+                    Designated Mule Account &amp; Financial Routing Target
                   </div>
                   <div
                     style={{
@@ -1648,10 +1585,10 @@ export const ReportsView = ({
                       fontSize: 12,
                     }}
                   >
-                    <div><strong>สถาบันการเงิน:</strong> {officialReportModal.muleBank}</div>
-                    <div><strong>ชื่อบัญชีผู้รับโอน (บัญชีม้า):</strong> {officialReportModal.muleName}</div>
-                    <div><strong>เลขที่บัญชี:</strong> <span className="code-tag" style={{ color: '#ef4444' }}>{officialReportModal.muleAccount}</span></div>
-                    <div><strong>ต้นทางสัญญาณ / Gateway:</strong> {officialReportModal.muleOrigin}</div>
+                    <div><strong>Financial Institution:</strong> {officialReportModal.muleBank}</div>
+                    <div><strong>Designated Beneficiary (Mule):</strong> {officialReportModal.muleName}</div>
+                    <div><strong>Account Identifier:</strong> <span className="code-tag" style={{ color: '#ef4444' }}>{officialReportModal.muleAccount}</span></div>
+                    <div><strong>Inbound Gateway Attribution:</strong> {officialReportModal.muleOrigin}</div>
                   </div>
                 </div>
               )}
@@ -1659,7 +1596,7 @@ export const ReportsView = ({
               {/* Audit Trail Timeline */}
               <div style={{ marginBottom: 18 }}>
                 <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--fg)', marginBottom: 6 }}>
-                  📋 ลำดับเวลาและหลักฐานการถอดเสียง (Forensic Timeline &amp; Scribe NLP Logs)
+                  Chronological Telemetry &amp; Scribe NLP Logs
                 </div>
                 <div
                   style={{
@@ -1691,9 +1628,9 @@ export const ReportsView = ({
                   marginBottom: 24,
                 }}
               >
-                <div><strong>Digital Signature (SHA-256):</strong> 7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069</div>
+                <div><strong>Cryptographic Hash (SHA-256):</strong> 7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069</div>
                 <div style={{ fontSize: 10, color: 'var(--fg-muted)', marginTop: 2 }}>
-                  รับรองความถูกต้องของข้อมูลตามมาตรฐาน ISO/IEC 27037:2012 สำหรับการส่งมอบพยานหลักฐานดิจิทัลต่อศาล
+                  Certified under ISO/IEC 27037:2012 forensic preservation standards for digital evidence admissibility.
                 </div>
               </div>
 
@@ -1701,13 +1638,13 @@ export const ReportsView = ({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 30, textAlign: 'center', paddingTop: 10 }}>
                 <div>
                   <div style={{ borderBottom: '1px solid var(--border)', width: 180, margin: '0 auto 6px auto', height: 35 }} />
-                  <div style={{ fontSize: 11.5, fontWeight: 600 }}>ผู้ส่งมอบพยานหลักฐาน (ScamTrap AI Core)</div>
-                  <div style={{ fontSize: 10, color: 'var(--fg-muted)' }}>ระบบป้องกันภัยไซเบอร์ภาคประชาชน</div>
+                  <div style={{ fontSize: 11.5, fontWeight: 600 }}>Forensic Analyst / Intercept Agent</div>
+                  <div style={{ fontSize: 10, color: 'var(--fg-muted)' }}>ScamTrap Core Defense Framework</div>
                 </div>
                 <div>
                   <div style={{ borderBottom: '1px solid var(--border)', width: 180, margin: '0 auto 6px auto', height: 35 }} />
-                  <div style={{ fontSize: 11.5, fontWeight: 600 }}>พนักงานสอบสวน / เจ้าหน้าที่รับเรื่อง</div>
-                  <div style={{ fontSize: 10, color: 'var(--fg-muted)' }}>ศูนย์ปฏิบัติการ AOC สายด่วน 1441</div>
+                  <div style={{ fontSize: 11.5, fontWeight: 600 }}>Receiving Investigative Officer</div>
+                  <div style={{ fontSize: 10, color: 'var(--fg-muted)' }}>AOC 1441 Anti-Online Scam Operations</div>
                 </div>
               </div>
             </div>
