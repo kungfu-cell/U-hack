@@ -405,7 +405,7 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
       setIsCallerSimSpeaking(false);
     }, approxDurationSec * 1000);
 
-    showToast(`กำลังสังเคราะห์เสียงมิจฉาชีพ AI (${lang === 'en' ? 'George (EN)' : 'George (TH)'})... 🚨`);
+    showToast(`กำลังสังเคราะห์เสียงมิจฉาชีพ AI (${lang === 'en' ? 'George (EN)' : 'Anan (TH)'})... 🚨`);
 
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:3001'}/sessions/speak-preview`, {
@@ -460,7 +460,7 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
   const handleSimulate = async (type: 'police' | 'otp' | 'user' | 'en_police' | 'en_otp' | 'en_user') => {
     if (type === 'police') {
       const text =
-        'ผมร้อยตำรวจเอก สมชาย จากสถานีตำรวจภูธรเมือง ตรวจพบว่าคุณเกี่ยวข้องกับคดีฟอกเงิน ให้รีบโอนเงินมาตรวจสอบทันทีและห้ามบอกใคร';
+        'สวัสดีครับ ผมร้อยตำรวจเอกสมชาย จากกองบัญชาการตำรวจไซเบอร์ ตรวจพบว่าบัญชีธนาคารของคุณมีส่วนพัวพันกับคดีฟอกเงินข้ามชาติ ขอให้โอนเงินทั้งหมดเข้ามาตรวจสอบที่บัญชีกลางของ ปปง. ด่วนที่สุด และห้ามบอกใครเด็ดขาด มิฉะนั้นจะออกหมายจับทันที';
       void playScammerSpeech(text, 'th');
       await simulateSpeech('caller', text);
       setDemoUtteranceList((prev) => [
@@ -475,7 +475,8 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
       ]);
       showToast('จำลอง: ตำรวจปลอมโทรข่มขู่โอนเงิน (เสียงออกลำโพง)');
     } else if (type === 'otp') {
-      const text = 'ทางธนาคารส่ง SMS รหัส OTP 6 หลักไปให้แล้ว รบกวนแจ้งรหัสเพื่อยืนยันสิทธิ์เดี๋ยวนี้';
+      const text =
+        'ทางเจ้าหน้าที่ได้ส่งรหัส OTP 6 หลักไปที่โทรศัพท์มือถือของคุณแล้ว ขอให้แจ้งรหัสยืนยันกลับมาเดี๋ยวนี้เพื่อระงับการอายัดบัญชีครับ';
       void playScammerSpeech(text, 'th');
       await simulateSpeech('caller', text);
       setDemoUtteranceList((prev) => [
@@ -490,7 +491,7 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
       ]);
       showToast('จำลอง: มิจฉาชีพหลอกขอ OTP (เสียงออกลำโพง)');
     } else if (type === 'user') {
-      const text = 'ขอโทษนะครับ ผมไม่สะดวกโอนเงิน และขอโทรกลับไปตรวจสอบที่สถานีตำรวจโดยตรงครับ';
+      const text = 'ขอโทษนะครับ ผมไม่สะดวกโอนเงิน และขอโทรกลับไปตรวจสอบกับทางสถานีตำรวจด้วยตัวเองครับ';
       setIsUserSimSpeaking(true);
       setTimeout(() => setIsUserSimSpeaking(false), 3500);
       await simulateSpeech('user', text);
