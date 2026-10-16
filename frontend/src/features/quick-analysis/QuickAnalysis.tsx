@@ -762,9 +762,13 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                     type="button"
                     className="btn-attach"
                     onClick={() => loadPreset('warrant')}
-                    style={{ fontSize: '10.5px', height: 22, padding: '0 7px' }}
+                    style={{ fontSize: '10.5px', height: 22, padding: '0 7px', display: 'flex', alignItems: 'center', gap: 4 }}
                   >
-                    <span>📄 Load Sample Warrant</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    <span>Load Sample Warrant</span>
                   </button>
                 </div>
                 <div className="upload-dropzone" onClick={() => fileInputImageRef.current?.click()}>
@@ -844,9 +848,13 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                     type="button"
                     className="btn-attach"
                     onClick={() => loadPreset('vishing')}
-                    style={{ fontSize: '10.5px', height: 22, padding: '0 7px' }}
+                    style={{ fontSize: '10.5px', height: 22, padding: '0 7px', display: 'flex', alignItems: 'center', gap: 4 }}
                   >
-                    <span>🎙️ Load Sample Audio</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                    </svg>
+                    <span>Load Sample Audio</span>
                   </button>
                 </div>
                 <div className="upload-dropzone" onClick={() => fileInputAudioRef.current?.click()}>
