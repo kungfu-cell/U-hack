@@ -213,97 +213,7 @@ export class AudioPipeline {
       if (this.getState() === 'ai_active') {
         await this.triggerAgentDecoyReply(utterance.text);
       }
-    } else if (speaker === 'user' && this.getState() !== 'ai_active') {
-      // When citizen/user speaks in call, AI Scammer responds to extort/threaten further
-      await this.triggerScammerResponse(utterance.text);
     }
-  }
-
-  private async triggerScammerResponse(userText: string): Promise<void> {
-    const raw = userText.trim();
-    const text = raw.toLowerCase();
-    const isThai = /[\u0E00-\u0E7F]/.test(raw);
-
-    let threatText = '';
-    if (isThai) {
-      if (/(ไม่|ไม่ได้|ไม่รู้|ไม่ใช่|ไม่โอน|ปฏิเสธ)/iu.test(text)) {
-        threatText =
-          'อย่ามาอ้าง! หลักฐานจาก ปปง. ระบุชัดเจนว่าบัญชีคุณมีเงินหมุนเวียนผิดกฎหมายกว่า 5 ล้านบาท หากไม่ให้ความร่วมมือและไม่โอนมาตรวจสอบ เจ้าหน้าที่จะนำกำลังเข้าจับกุมที่บ้านเดี๋ยวนี้!';
-      } else if (/(ตำรวจ|สน|สภ|ชื่ออะไร|ยศ|บัตร|ร้อยเวร)/iu.test(text)) {
-        threatText =
-          'ผมร้อยตำรวจเอก สมชาย เป็นหัวหน้าชุดสอบสวนพิเศษ การที่คุณมาซักไซ้เจ้าพนักงานขณะปฏิบัติหน้าที่มีความผิดฐานขัดขวางการปฏิบัติหน้าที่! รีบเปิดแอปธนาคารยืนยันรหัสเดี๋ยวนี้!';
-      } else if (/(เงิน|บาท|บัญชี|โอนยังไง|เลขบัญชี)/iu.test(text)) {
-        threatText =
-          'ฟังให้ดี! ให้โอนเงินทั้งหมดในบัญชีเข้ามาที่บัญชีกลางตรวจสอบ บัญชีนายวิชัย ภักดี เพื่อให้ ปปง. ตรวจสอบที่มาของเงิน หากบริสุทธิ์ใจเงินจะถูกโอนคืนภายใน 15 นาที!';
-      } else if (/(otp|รหัส|sms)/iu.test(text)) {
-        threatText =
-          'รหัส 6 หลักที่เพิ่งส่งไปเป็นรหัสยืนยันความปลอดภัยของระบบคุ้มครองพยาน ให้คุณแจ้งตัวเลข 6 ตัวมาทันที ห้ามปิดหน้าจอเด็ดขาด!';
-      } else {
-        threatText =
-          'คุณฟังนะ! คดีนี้เป็นคดีความมั่นคงระดับประเทศ ถ้าคุณไม่รีบดำเนินการยืนยันยอดเงินภายใน 5 นาที เราจะประสานงานอายัดบัญชีทุกธนาคารของคุณทันที!';
-      }
-    } else {
-      // English scammer response
-      if (/(no|not|don't|refuse|never|scam|fraud|police)/iu.test(text)) {
-        threatText =
-          'Listen to me very carefully! Federal warrant #NY-8921 has already been signed by the magistrate judge. If you refuse to comply with our fund verification immediately, federal agents will arrive at your residence to execute the arrest!';
-      } else if (/(badge|precinct|who are you|lawyer|attorney|verify)/iu.test(text)) {
-        threatText =
-          'I am Officer John Davis, Lead Special Agent from Taskforce 9. Questioning an active federal investigation is an obstruction of justice felony! You have 3 minutes to wire your funds to the secure vault!';
-      } else if (/(money|transfer|wire|account|bank|funds)/iu.test(text)) {
-        threatText =
-          'Your bank account is heavily contaminated with illicit narcotics transactions. Wire the full balance to the Federal Escrow Vault account under Special Custodian Wichai immediately for audit!';
-      } else {
-        threatText =
-          'Do not test our patience! Failure to comply right now will result in an immediate international asset freeze and criminal indictment!';
-      }
-    }
-
-    // Schedule scammer response after brief natural hesitation
-    setTimeout(async () => {
-      try {
-        const callerUtterance: Utterance = {
-          id: randomUUID(),
-          sessionId: this.sessionId,
-          speaker: 'caller',
-          text: threatText,
-          transcriptState: 'committed',
-          startedAtMs: Date.now() - this.startedAtEpochMs - 1500,
-          endedAtMs: Date.now() - this.startedAtEpochMs,
-          createdAt: new Date().toISOString(),
-        };
-
-        this.utterances.push(callerUtterance);
-        this.onEvent({
-          type: 'transcript.committed',
-          sessionId: this.sessionId,
-          utterance: callerUtterance,
-          occurredAt: new Date().toISOString(),
-        });
-
-        // Trigger analysis on scammer's renewed intimidation
-        void this.runAnalysisOnUtterance(callerUtterance);
-
-        // Synthesize scammer voice (George voice: JBFqnCBsd6RMkjVDRZzb)
-        if (this.agentClient && 'speakText' in this.agentClient && process.env.NODE_ENV !== 'test') {
-          const directSpeaker = this.agentClient as {
-            speakText: (t: string, v?: string) => Promise<string>;
-          };
-          const audio = await directSpeaker.speakText(threatText, 'JBFqnCBsd6RMkjVDRZzb');
-          if (audio) {
-            this.onEvent({
-              type: 'agent.audio_chunk',
-              sessionId: this.sessionId,
-              audioBase64: audio,
-              sampleRate: 16000,
-              occurredAt: new Date().toISOString(),
-            });
-          }
-        }
-      } catch {
-        // Fallback
-      }
-    }, 700);
   }
 
   private async triggerAgentDecoyReply(callerText: string): Promise<void> {
@@ -331,7 +241,7 @@ export class AudioPipeline {
       const context = ContextBuilder.build(this.sessionId, this.utterances);
       const reply = await this.agentClient.generateReply(
         context,
-        'ผู้ใช้อนุมัติให้ AI รับช่วงแล้ว กรุณาแนะนำตัวสั้น ๆ และถามชื่อกับหน่วยงานของคู่สนทนา',
+        'ผู้ใช้อนุมัติให้ AI รับช่วงแล้ว กรุณาแนะนำตัวสั้น ๆ เพียงครั้งเดียว จากนั้นอ่านประวัติและถามเฉพาะคำถามเป้าหมายของรอบนี้ ห้ามถามข้อมูลที่ผู้โทรบอกไว้แล้ว',
       );
       if (this.getState() !== 'preparing_ai') return false;
       this.setState('ai_active');

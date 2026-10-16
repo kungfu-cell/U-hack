@@ -927,34 +927,6 @@
       box-shadow: none;
     }
 
-    /* AI Takeover Command Box */
-    .takeover-panel {
-      background: linear-gradient(135deg, #0e1828 0%, #132238 100%);
-      border: 1px solid rgba(59, 130, 246, 0.3);
-      border-radius: var(--radius-sm);
-      padding: 14px;
-      margin-top: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-    }
-
-    .takeover-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--fg);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .takeover-desc {
-      font-size: 11px;
-      color: var(--fg-secondary);
-      margin-top: 2px;
-    }
-
     /* Live Transcript Feed */
     .transcript-container {
       background: #090d16;

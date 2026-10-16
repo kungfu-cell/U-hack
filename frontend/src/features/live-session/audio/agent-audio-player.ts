@@ -89,14 +89,14 @@ export class AgentAudioPlayer {
         }
       }
 
-      this.scheduleBuffer(audioBuffer);
+      await this.scheduleBuffer(audioBuffer);
     } catch {
       // Ignore playback errors on invalid frames
     }
   }
 
-  private scheduleBuffer(buffer: AudioBuffer): void {
-    if (!this.audioContext || !this.mediaDestination) return;
+  private scheduleBuffer(buffer: AudioBuffer): Promise<void> {
+    if (!this.audioContext || !this.mediaDestination) return Promise.resolve();
 
     const source = this.audioContext.createBufferSource();
     source.buffer = buffer;
@@ -116,12 +116,15 @@ export class AgentAudioPlayer {
 
     this.activeSources.push(source);
 
-    source.onended = () => {
-      const idx = this.activeSources.indexOf(source);
-      if (idx !== -1) {
-        this.activeSources.splice(idx, 1);
-      }
-    };
+    return new Promise((resolve) => {
+      source.onended = () => {
+        const idx = this.activeSources.indexOf(source);
+        if (idx !== -1) {
+          this.activeSources.splice(idx, 1);
+        }
+        resolve();
+      };
+    });
   }
 
   /**
