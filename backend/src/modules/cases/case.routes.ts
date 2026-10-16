@@ -1,6 +1,7 @@
 import {
   addCaseInputRequestSchema,
   audioUploadRequestSchema,
+  imageUploadRequestSchema,
   dataWithdrawalRequestSchema,
   createShareProposalRequestSchema,
   createCaseRequestSchema,
@@ -17,6 +18,7 @@ import {
 import { toCaseRecord } from './case.repository.js';
 import type { CaseService } from './case.service.js';
 import type { AudioFileTranscriber } from './audio-file-transcriber.js';
+import type { ImageOcrProvider } from './image-ocr-provider.js';
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 const consentParamsSchema = z.object({ id: z.string().uuid(), consentId: z.string() });
@@ -28,6 +30,7 @@ export const registerCaseRoutes = async (
   service: CaseService,
   reviewerApiKey?: string,
   audioTranscriber?: AudioFileTranscriber,
+  imageOcrProvider?: ImageOcrProvider,
 ) => {
   app.post('/cases', async (request, reply) => {
     const parsed = createCaseRequestSchema.safeParse(request.body ?? {});
@@ -62,6 +65,62 @@ export const registerCaseRoutes = async (
 
     const updated = await service.addInput(record, body.data);
     return reply.status(201).send(toCaseRecord(updated));
+  });
+
+  app.post('/cases/:id/image-uploads', async (request, reply) => {
+    const params = paramsSchema.safeParse(request.params);
+    const body = imageUploadRequestSchema.safeParse(request.body);
+    if (!params.success) return sendValidationError(reply, params.error);
+    if (!body.success) return sendValidationError(reply, body.error);
+
+    const record = await service.get(params.data.id);
+    if (!record) return sendNotFound(reply, 'Case');
+    if (record.ownerId !== getOwnerId(request)) return sendForbidden(reply);
+    if (!imageOcrProvider) {
+      return reply.status(503).send({
+        error: {
+          code: 'IMAGE_OCR_UNAVAILABLE',
+          message: 'Image OCR is not configured in this environment',
+        },
+      });
+    }
+
+    const bytes = Buffer.from(body.data.imageBase64, 'base64');
+    if (bytes.length === 0 || bytes.length > 15 * 1024 * 1024) {
+      return reply.status(413).send({
+        error: { code: 'IMAGE_FILE_TOO_LARGE', message: 'Image files must not exceed 15 MB' },
+      });
+    }
+
+    try {
+      const ocrResult = await imageOcrProvider.extractText({
+        fileName: body.data.fileName,
+        mimeType: body.data.mimeType,
+        bytes,
+      });
+      const withOcrText = await service.addInput(record, {
+        type: 'text',
+        content: ocrResult.text,
+        source: `image_upload:${body.data.fileName}`,
+      });
+      const analyzed = await service.analyze(withOcrText);
+      return reply.status(201).send({
+        case: toCaseRecord(analyzed),
+        ocrText: ocrResult.text,
+        provider: ocrResult.provider,
+      });
+    } catch (error) {
+      request.log.warn(
+        { error: error instanceof Error ? error.message.split(':')[0] : 'unknown' },
+        'Image OCR processing failed',
+      );
+      return reply.status(502).send({
+        error: {
+          code: 'IMAGE_OCR_FAILED',
+          message: 'The image OCR provider could not process this image',
+        },
+      });
+    }
   });
 
   app.post('/cases/:id/audio-uploads', async (request, reply) => {

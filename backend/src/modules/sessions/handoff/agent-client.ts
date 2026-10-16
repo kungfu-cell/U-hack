@@ -81,13 +81,28 @@ export class DemoAgentAdapter implements AgentClient {
     const rawText = latestCallerUtterance.trim();
     const text = rawText.toLowerCase();
 
-    // Check language: Thai or English strictly
-    const hasThai = /[\u0E00-\u0E7F]/.test(rawText);
-    const hasEnglish = /[a-zA-Z]/.test(rawText);
+    // Determine language based on utterance character frequencies and context fallback
+    const thaiCount = (rawText.match(/[\u0E00-\u0E7F]/g) || []).length;
+    const englishCount = (rawText.match(/[a-zA-Z]/g) || []).length;
+
+    let language: 'th' | 'en';
+    if (englishCount > thaiCount && englishCount >= 3) {
+      language = 'en';
+    } else if (thaiCount > englishCount && thaiCount >= 3) {
+      language = 'th';
+    } else if (context.language) {
+      language = context.language;
+    } else if (thaiCount > 0) {
+      language = 'th';
+    } else if (englishCount > 0) {
+      language = 'en';
+    } else {
+      language = 'th';
+    }
 
     let proposedText = "";
 
-    if (hasThai) {
+    if (language === "th") {
       // Thai Decoy Stalling & Counter-Interrogation
       if (/(otp|รหัส|pin|sms)/iu.test(text)) {
         proposedText =
@@ -111,7 +126,7 @@ export class DemoAgentAdapter implements AgentClient {
         proposedText =
           "ค่ะ ได้ยินแล้วค่ะ ขอรบกวนทวนชื่อเจ้าหน้าที่และหน่วยงานที่ติดต่อมาอีกครั้งได้ไหมคะ พอดีจะจดบันทึกไว้ค่ะ";
       }
-    } else if (hasEnglish) {
+    } else if (language === "en") {
       // English Decoy Stalling & Counter-Interrogation
       if (/(otp|code|pin|password|sms|verification)/iu.test(text)) {
         proposedText =
@@ -153,10 +168,12 @@ export class DemoAgentAdapter implements AgentClient {
     let audioBase64: string | undefined;
     const apiKey = process.env.ELEVENLABS_API_KEY;
     if (apiKey && process.env.NODE_ENV !== "test") {
+      const isThaiReply = /[\u0E00-\u0E7F]/.test(guardrail.sanitizedText);
+      const decoyVoiceId = isThaiReply ? "nealpwJT5tCyJFKDzEq8" : "cjVigY5qzO86Huf0OWal";
       const audio = await fetchElevenLabsTts(
         apiKey,
         guardrail.sanitizedText,
-        "cjVigY5qzO86Huf0OWal",
+        decoyVoiceId,
       );
       if (audio) audioBase64 = audio;
     }

@@ -174,12 +174,27 @@ export const registerSessionRoutes = async (
     if (!session) return sendNotFound(reply, 'Session');
     if (session.ownerId !== getOwnerId(request)) return sendForbidden(reply);
 
+    const bodyLang =
+      typeof request.body === 'object' && request.body !== null && 'lang' in request.body
+        ? ((request.body as { lang?: unknown }).lang as 'th' | 'en' | undefined)
+        : undefined;
+    const queryLang =
+      typeof request.query === 'object' && request.query !== null && 'lang' in request.query
+        ? ((request.query as { lang?: unknown }).lang as 'th' | 'en' | undefined)
+        : undefined;
+    const targetLang: 'th' | 'en' | undefined =
+      bodyLang === 'en' || queryLang === 'en'
+        ? 'en'
+        : bodyLang === 'th' || queryLang === 'th'
+          ? 'th'
+          : undefined;
+
     try {
       const updated = service.requestHandoff(session);
       const pipeline = liveManager?.getOrCreatePipeline(session.id, session.caseId);
       pipeline?.setState(updated.state);
       if (pipeline) {
-        void pipeline.startHandoff().then((activated) => {
+        void pipeline.startHandoff(targetLang).then((activated) => {
           const current = service.get(session.id);
           if (!current || current.state !== 'preparing_ai') return;
           if (activated) service.activateAi(current);
@@ -352,11 +367,17 @@ export const registerSessionRoutes = async (
         .safeParse(request.body);
       if (!body.success) return sendValidationError(reply, body.error);
 
-      // Scammer voice: George (JBFqnCBsd6RMkjVDRZzb - deep, stern, authoritative interrogator)
-      // Decoy voice: Eric (cjVigY5qzO86Huf0OWal - polite, reassuring assistant)
-      const targetVoice =
-        body.data.voiceId ??
-        (body.data.voiceRole === 'scammer' ? 'JBFqnCBsd6RMkjVDRZzb' : 'cjVigY5qzO86Huf0OWal');
+      // Intelligent language & role voice mapping:
+      // - Scammer (Thai): Anan (tAV9ucNkXgK2k9TLxWkM - Native Thai male, deep, authoritative officer)
+      // - Scammer (English): George (JBFqnCBsd6RMkjVDRZzb - Native English male, stern taskforce interrogator)
+      // - Decoy (Thai): Aom (nealpwJT5tCyJFKDzEq8 - Native Thai female, polite, clear, natural citizen)
+      // - Decoy (English): Eric (cjVigY5qzO86Huf0OWal - Native English male, calm, reassuring assistant)
+      const isThai = /[\u0E00-\u0E7F]/.test(body.data.text);
+      const defaultVoice =
+        body.data.voiceRole === 'scammer'
+          ? (isThai ? 'tAV9ucNkXgK2k9TLxWkM' : 'JBFqnCBsd6RMkjVDRZzb')
+          : (isThai ? 'nealpwJT5tCyJFKDzEq8' : 'cjVigY5qzO86Huf0OWal');
+      const targetVoice = body.data.voiceId ?? defaultVoice;
 
       if (liveManager?.agentClient) {
         if (body.data.directText && 'speakText' in liveManager.agentClient) {

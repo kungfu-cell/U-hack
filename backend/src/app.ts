@@ -24,6 +24,11 @@ import {
   ElevenLabsAudioFileTranscriber,
   type AudioFileTranscriber,
 } from './modules/cases/audio-file-transcriber.js';
+import {
+  DemoImageOcrProvider,
+  OpenAIImageOcrProvider,
+  type ImageOcrProvider,
+} from './modules/cases/image-ocr-provider.js';
 import { registerSessionRoutes } from './modules/sessions/session.routes.js';
 import { SessionService } from './modules/sessions/session.service.js';
 
@@ -34,12 +39,28 @@ export const buildApp = async (options?: {
   analysisProvider?: AnalysisProvider;
   agentClient?: AgentClient;
   audioTranscriber?: AudioFileTranscriber;
+  imageOcrProvider?: ImageOcrProvider;
 }) => {
   const persistenceMode =
     options?.persistenceMode ?? (env.NODE_ENV === 'test' ? 'memory' : env.PERSISTENCE_MODE);
   const app = Fastify({ logger: { level: env.LOG_LEVEL }, bodyLimit: 22 * 1024 * 1024 });
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body: string | Buffer, defaultDone) => {
+    const text = typeof body === 'string' ? body : body.toString('utf-8');
+    if (text.trim() === '') {
+      defaultDone(null, {});
+      return;
+    }
+    try {
+      defaultDone(null, JSON.parse(text));
+    } catch (err) {
+      defaultDone(err as Error, undefined);
+    }
+  });
   await app.register(cors, {
-    origin: env.NODE_ENV === 'development' ? true : [env.WEB_ORIGIN, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin:
+      env.NODE_ENV === 'development' || env.WEB_ORIGIN === '*'
+        ? true
+        : [env.WEB_ORIGIN, 'http://localhost:5173', 'http://127.0.0.1:5173'],
   });
   await app.register(websocket);
 
@@ -57,6 +78,8 @@ export const buildApp = async (options?: {
             ],
       speechToText:
         env.USE_DEMO_ADAPTERS || !env.ELEVENLABS_API_KEY ? 'demo' : 'elevenlabs_scribe',
+      imageOcr:
+        env.USE_DEMO_ADAPTERS || !env.OPENAI_API_KEY ? 'demo' : 'openai_vision',
       agent:
         env.USE_DEMO_ADAPTERS || !env.ELEVENLABS_API_KEY || !env.ELEVENLABS_AGENT_ID
           ? 'demo'
@@ -118,11 +141,18 @@ export const buildApp = async (options?: {
       ? new ElevenLabsAudioFileTranscriber(env.ELEVENLABS_API_KEY)
       : undefined);
 
+  const imageOcrProvider =
+    options?.imageOcrProvider ??
+    (!env.USE_DEMO_ADAPTERS && env.OPENAI_API_KEY
+      ? new OpenAIImageOcrProvider(env.OPENAI_API_KEY, env.OPENAI_MODEL)
+      : new DemoImageOcrProvider());
+
   await registerCaseRoutes(
     app,
     caseService,
     options?.reviewerApiKey ?? env.REVIEWER_API_KEY,
     audioTranscriber,
+    imageOcrProvider,
   );
   await registerSessionRoutes(
     app,

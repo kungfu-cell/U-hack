@@ -8,7 +8,7 @@ export interface RuleDetectionResult {
   rawScore: number;
 }
 
-const NEGATION_LOOKBEHIND = 16;
+const NEGATION_LOOKBEHIND = 28;
 
 const cloneForGlobalSearch = (pattern: RegExp) =>
   new RegExp(

@@ -19,121 +19,121 @@ export const INITIAL_BLACKLIST: BlacklistItem[] = [
     id: 'BL-TH-9021',
     type: 'bank_account',
     value: '984-2-90184-1',
-    holderOrAlias: 'นายวิชัย ภักดี (บัญชีม้าแถว 1)',
-    bankOrProvider: 'ธนาคารกรุงไทย (KTB)',
+    holderOrAlias: 'Wichai Phakdee (Tier-1 Mule)',
+    bankOrProvider: 'Krungthai Bank (KTB)',
     source: 'Blacklistseller',
     riskScore: 98,
     riskLevel: 'CRITICAL',
     reportCount: 42,
-    lastReported: '10 นาทีที่แล้ว',
-    tags: ['บัญชีม้า', 'หลอกโอนเงิน', 'อ้างตำรวจเชียงใหม่', 'ปปง. เฝ้าระวัง'],
+    lastReported: '10m ago',
+    tags: ['Mule Account', 'Wire Fraud', 'Police Impersonation', 'AMLO Flagged'],
     status: 'ACTIVE_BLOCK',
-    description: 'เชื่อมโยงกับแก๊งคอลเซ็นเตอร์อ้าง ปปง./ตำรวจเชียงใหม่ ข่มขู่ให้โอนเงินตรวจสอบคดีฟอกเงิน',
+    description: 'Linked to transnational call center syndicate impersonating AMLO and Chiang Mai provincial police officers.',
   },
   {
     id: 'BL-TH-8842',
     type: 'bank_account',
     value: '710-0-84192-3',
-    holderOrAlias: 'น.ส. สุภาภรณ์ รัตนโชติ',
-    bankOrProvider: 'ธนาคารกสิกรไทย (KBANK)',
+    holderOrAlias: 'Supaporn Rattanachot',
+    bankOrProvider: 'Kasikornbank (KBANK)',
     source: 'AMLO Watchlist',
     riskScore: 94,
     riskLevel: 'CRITICAL',
     reportCount: 29,
-    lastReported: '1 ชั่วโมงที่แล้ว',
-    tags: ['บัญชีม้า', 'หลอกลงทุนคริปโต', 'ศูนย์ AOC 1441 ระงับ'],
+    lastReported: '1h ago',
+    tags: ['Mule Account', 'Crypto Fraud', 'AOC 1441 Freeze'],
     status: 'ACTIVE_BLOCK',
-    description: 'รับโอนเงินจากเหยื่อคดีหลอกเทรดเหรียญปลอม และรับจ้างเปิดบัญชีม้าในกลุ่ม Telegram',
+    description: 'Receiving node for fraudulent crypto arbitrage platforms; account recruited via encrypted messaging channels.',
   },
   {
     id: 'BL-TH-7721',
     type: 'bank_account',
     value: '020-3-19482-8',
-    holderOrAlias: 'นายกิตติศักดิ์ พูลสวัสดิ์',
-    bankOrProvider: 'ธนาคารไทยพาณิชย์ (SCB)',
+    holderOrAlias: 'Kittisak Poonsawat',
+    bankOrProvider: 'Siam Commercial Bank (SCB)',
     source: 'AOC 1441 Feed',
     riskScore: 88,
     riskLevel: 'HIGH',
     reportCount: 17,
-    lastReported: '3 ชั่วโมงที่แล้ว',
-    tags: ['บัญชีม้า', 'งานออนไลน์ปลอม', 'Shopee ภารกิจ'],
+    lastReported: '3h ago',
+    tags: ['Mule Account', 'Job Scam', 'Task E-Commerce'],
     status: 'SYNCED_POLICE',
-    description: 'หลอกกดไลก์สินค้าทำภารกิจค่าคอมมิชชั่น โอนรอบแรกได้จริง รอบถัดไปบล็อกหนี',
+    description: 'Used in task-completion refund schemes. Initial payouts permitted to establish credibility before capital freeze.',
   },
   {
     id: 'BL-TH-5510',
     type: 'phone',
     value: '+66 82-419-8921',
-    holderOrAlias: 'แก๊งคอลเซ็นเตอร์สวมรอย สภ.เมืองเชียงใหม่',
+    holderOrAlias: 'Chiang Mai Police Impersonation Ring',
     bankOrProvider: 'VoIP Trunk (Poipet Gateway)',
     source: 'Whoscall Community',
     riskScore: 96,
     riskLevel: 'CRITICAL',
     reportCount: 156,
-    lastReported: '2 นาทีที่แล้ว',
-    tags: ['เบอร์ VoIP ข้ามแดน', 'อ้างตำรวจ', 'ข่มขู่ฟอกเงิน', 'กสทช. สั่งบล็อก'],
+    lastReported: '2m ago',
+    tags: ['Cross-border VoIP', 'Police Impersonation', 'Extortion', 'NBTC Block Order'],
     status: 'ACTIVE_BLOCK',
-    description: 'เบอร์ SIP Trunking ข้ามแดน สวมรอยเบอร์ราชการ สคริปต์สวมรอยสารวัตรเวร สภ.เมืองเชียงใหม่',
+    description: 'Cross-border SIP trunk masquerading as provincial police station dispatch numbers.',
   },
   {
     id: 'BL-TH-4491',
     type: 'phone',
     value: '+66 94-812-3004',
-    holderOrAlias: 'มิจฉาชีพอ้างขนส่ง Flash Express / ไปรษณีย์ไทย',
+    holderOrAlias: 'Courier Dispatch Impersonation',
     bankOrProvider: 'AIS Cellular Trunk',
     source: 'AOC 1441 Feed',
     riskScore: 91,
     riskLevel: 'HIGH',
     reportCount: 88,
-    lastReported: '25 นาทีที่แล้ว',
-    tags: ['พัสดุตกค้าง', 'มีสิ่งของผิดกฎหมาย', 'โอนสายให้ตำรวจปลอม'],
+    lastReported: '25m ago',
+    tags: ['Detained Parcel', 'Contraband Extortion', 'Transfer Route'],
     status: 'ACTIVE_BLOCK',
-    description: 'ระบบโทรอัตโนมัติ (Robocall) แจ้งพัสดุมีพาสปอร์ตและสารเสพติด แล้วโอนสายไปยังตำรวจปลอม',
+    description: 'Automated dialer citing confiscated parcels containing illegal passports, redirecting victims to fraudulent investigators.',
   },
   {
     id: 'BL-TH-3312',
     type: 'url',
     value: 'ktb-online-claim.vip',
-    holderOrAlias: 'หน้า Phishing สวมรอย Krungthai NEXT',
-    bankOrProvider: 'Cloudflare Proxy (Fake DNS)',
+    holderOrAlias: 'Krungthai NEXT Credential Harvester',
+    bankOrProvider: 'Cloudflare Proxy (Spoofed DNS)',
     source: 'URLhaus',
     riskScore: 99,
     riskLevel: 'CRITICAL',
     reportCount: 210,
-    lastReported: '5 นาทีที่แล้ว',
-    tags: ['Phishing', 'ดัก OTP', 'ขโมยรหัส Mobile Banking'],
+    lastReported: '5m ago',
+    tags: ['Phishing', 'OTP Harvester', 'Mobile Banking Threat'],
     status: 'ACTIVE_BLOCK',
-    description: 'เว็บไซต์ปลอมหลอกรับเงินคืนภาษี/เงินดิจิทัล ดักจับ Username, Password และเลขอ้างอิง OTP',
+    description: 'Deceptive portal promising tax rebate distribution, capturing online banking credentials and real-time OTP submissions.',
   },
   {
     id: 'BL-TH-2289',
     type: 'url',
     value: 'dlt-tax-payment.apk',
-    holderOrAlias: 'แอปกรมการขนส่งทางบกปลอม (รีโมตดูดเงิน)',
+    holderOrAlias: 'Department of Land Transport Trojan APK',
     bankOrProvider: 'Host: 103.45.89.214',
     source: 'Thai CERT',
     riskScore: 100,
     riskLevel: 'CRITICAL',
     reportCount: 74,
-    lastReported: '30 นาทีที่แล้ว',
-    tags: ['มัลแวร์ดูดเงิน', 'RAT Trojan', 'Accessibility Service Control'],
+    lastReported: '30m ago',
+    tags: ['Malware Trojan', 'Remote Access (RAT)', 'Accessibility Abuse'],
     status: 'ACTIVE_BLOCK',
-    description: 'ไฟล์ติดตั้ง Android ปลอม ขอสิทธิ์ Accessibility Service เพื่อล็อกหน้าจอและโอนเงินเอง',
+    description: 'Malicious Android application package abusing Android accessibility services to lock display and execute unauthorized transfers.',
   },
   {
     id: 'BL-TH-1104',
     type: 'c2_ip',
     value: '103.45.89.214:8080',
-    holderOrAlias: 'C2 Command & Control Server (Poipet Node)',
-    bankOrProvider: 'Offshore Bulletproof Host',
+    holderOrAlias: 'Command & Control Server (Poipet Hub)',
+    bankOrProvider: 'Offshore Hosting Infrastructure',
     source: 'Thai CERT',
     riskScore: 95,
     riskLevel: 'CRITICAL',
     reportCount: 31,
-    lastReported: '40 นาทีที่แล้ว',
-    tags: ['C2 Malware', 'Scam Hub Server', 'Cambodia Range'],
+    lastReported: '40m ago',
+    tags: ['C2 Node', 'Malware Controller', 'Border Range'],
     status: 'ACTIVE_BLOCK',
-    description: 'เซิร์ฟเวอร์ควบคุมมัลแวร์และบันทึกคีย์บอร์ด (Keylogger) ของขบวนการแก๊งคอลเซ็นเตอร์',
+    description: 'Active command and telemetry relay server controlling mobile malware implants and keystroke exfiltration streams.',
   },
 ];
 
@@ -155,8 +155,8 @@ export interface ThreatAnalysisResult {
 }
 
 /**
- * Intelligent OSINT & Blacklist Analyzer Engine
- * Cross-references query with Thai intelligence sources (Blacklistseller, AOC 1441, Whoscall, AMLO, URLhaus)
+ * OSINT & Intelligence Verification Engine
+ * Cross-references queries against authoritative threat intelligence registries.
  */
 export function analyzeThreatQuery(rawQuery: string, blacklist: BlacklistItem[]): ThreatAnalysisResult {
   const query = rawQuery.trim();
@@ -193,24 +193,24 @@ export function analyzeThreatQuery(rawQuery: string, blacklist: BlacklistItem[])
       matchedBlacklist: matched,
       riskScore: matched.riskScore,
       riskLevel: matched.riskLevel,
-      verdict: `🚨 ตรวจพบในฐานข้อมูล ${matched.source} (รายงานแล้ว ${matched.reportCount} ครั้ง)`,
-      sourceConfidence: 'ยืนยันพยานหลักฐาน 99.4% (Direct Threat Match)',
+      verdict: `Confirmed in ${matched.source} intelligence registry (${matched.reportCount} prior incident reports)`,
+      sourceConfidence: 'Direct threat intelligence match (99.4% confidence)',
       threatSignals: [
         ...matched.tags,
-        `สถานะปัจจุบัน: ${matched.status}`,
+        `Current Enforcement Status: ${matched.status}`,
         matched.description,
       ],
-      recommendation: 'ห้ามทำธุรกรรม ห้ามโอนเงิน ห้ามกดลิงก์ และแจ้งระงับธุรกรรมทันทีผ่าน AOC 1441',
+      recommendation: 'Cease communication immediately. Do not execute transfers or access provided links. Initiate immediate account freeze via AOC 1441.',
       externalFeedsChecked: [
-        { name: 'Blacklistseller Thailand', status: matched.source === 'Blacklistseller' ? 'FLAGGED' : 'REPORTED', detail: matched.holderOrAlias ?? 'มีประวัติฉ้อโกง' },
-        { name: 'AOC 1441 Anti-Online Scam', status: 'FLAGGED', detail: 'จัดอยู่ในกลุ่มเป้าหมายเฝ้าระวังความมั่นคง' },
-        { name: 'Whoscall / กสทช. Registry', status: matched.type === 'phone' ? 'FLAGGED' : 'CLEAN', detail: 'VoIP Fraud Gateway Signal' },
-        { name: 'Google Safe Browsing & URLhaus', status: matched.type === 'url' ? 'FLAGGED' : 'CLEAN', detail: 'High Risk Phishing/Malware Target' },
+        { name: 'Blacklistseller National Registry', status: matched.source === 'Blacklistseller' ? 'FLAGGED' : 'REPORTED', detail: matched.holderOrAlias ?? 'Documented fraudulent financial history' },
+        { name: 'AOC 1441 Anti-Online Scam Center', status: 'FLAGGED', detail: 'Designated national enforcement priority target' },
+        { name: 'Whoscall / NBTC Telecommunications Registry', status: matched.type === 'phone' ? 'FLAGGED' : 'CLEAN', detail: 'Unregulated cross-border VoIP routing gateway' },
+        { name: 'Google Safe Browsing & URLhaus', status: matched.type === 'url' ? 'FLAGGED' : 'CLEAN', detail: 'High-severity credential harvesting domain' },
       ],
     };
   }
 
-  // 3. Dynamic Heuristic & OSINT Analysis for new queries
+  // 3. Dynamic Heuristic & Telemetry Verification for New Queries
   if (type === 'phone') {
     const isVoIP = query.includes('082') || query.includes('+6682') || query.includes('+666') || query.includes('060');
     return {
@@ -219,17 +219,19 @@ export function analyzeThreatQuery(rawQuery: string, blacklist: BlacklistItem[])
       riskScore: isVoIP ? 85 : 45,
       riskLevel: isVoIP ? 'HIGH' : 'SUSPICIOUS',
       verdict: isVoIP
-        ? '⚠️ เบอร์ VoIP ข้ามแดนความเสี่ยงสูง (ตรงกับแพตเทิร์นสแกมเมอร์ ปอยเปต/สีหนุวิลล์)'
-        : '🔍 ตรวจสอบเบอร์โทรศัพท์ (ยังไม่พบในบัญชีดำศูนย์ AOC แต่ควรระวังเบอร์แปลกหน้า)',
-      sourceConfidence: isVoIP ? 'Heuristic Analysis (VoIP Pattern Match)' : 'OSINT Live Feeds Checked',
+        ? 'High-risk cross-border VoIP routing pattern detected'
+        : 'Telecommunications identifier verified; no active enforcement orders on file',
+      sourceConfidence: isVoIP ? 'VoIP routing telemetry signature match' : 'Standard telecommunications registry lookup',
       threatSignals: isVoIP
-        ? ['VoIP SIP Trunking สุ่มโทรเข้าอัตโนมัติ', 'อาจมีการปลอมแปลงหมายเลขผู้โทร (Caller ID Spoofing)', 'แนะนำใช้ ScamTrap Bot รับสายแทน']
-        : ['เบอร์ใหม่ หรือยังไม่ถูกผู้เสียหายแจ้งความเข้าระบบ', 'ตรวจสอบเพิ่มเติมหากมีพฤติกรรมเร่งรัดโอนเงิน'],
-      recommendation: isVoIP ? 'ปฏิเสธสาย หรือกดใช้ฟังก์ชัน ScamTrap Bot ดักฟังล่อจับ' : 'สังเกตบทสนทนา หากอ้างตัวเป็นตำรวจหรือสรรพากรให้ตัดสายทันที',
+        ? ['Inbound trunk matches automated dialer infrastructure', 'Potential Caller ID spoofing vector detected', 'Decoy agent routing recommended']
+        : ['Unflagged identifier with no active complainant filings on record', 'Verify caller identity before acting on urgent financial requests'],
+      recommendation: isVoIP
+        ? 'Disconnect immediately. Official agencies never demand remote capital transfers.'
+        : 'Exercise standard vigilance. Disconnect if caller requests personal credentials or immediate funds transfers.',
       externalFeedsChecked: [
-        { name: 'Whoscall Community Feed', status: isVoIP ? 'REPORTED' : 'CLEAN', detail: isVoIP ? 'ผู้ใช้รายงานเบอร์สแปม 12+ ครั้ง' : 'ไม่มีประวัติสแปม' },
-        { name: 'กสทช. / Operator Blacklist', status: 'CLEAN', detail: 'ไม่มีคำสั่งอายัดเบอร์ระดับค่ายมือถือ' },
-        { name: 'AOC 1441 Real-time Feed', status: 'CLEAN', detail: 'ยังไม่พบในคดีที่อยู่ระหว่างดำเนินคดี' },
+        { name: 'Whoscall Community Registry', status: isVoIP ? 'REPORTED' : 'CLEAN', detail: isVoIP ? 'Multiple user spam and extortion flags logged' : 'No recorded spam reports' },
+        { name: 'NBTC Telecommunications Directory', status: 'CLEAN', detail: 'Standard licensed carrier allocation' },
+        { name: 'AOC 1441 Enforcement Feed', status: 'CLEAN', detail: 'No formal criminal complaints on record' },
       ],
     };
   }
@@ -240,17 +242,17 @@ export function analyzeThreatQuery(rawQuery: string, blacklist: BlacklistItem[])
       type: 'bank_account',
       riskScore: 78,
       riskLevel: 'HIGH',
-      verdict: '⚠️ ตรวจสอบเลขบัญชีธนาคาร (ระบบตรวจพบธุรกรรมเสี่ยง หรือรูปแบบบัญชีม้า)',
-      sourceConfidence: 'Bank Routing & AMLO Heuristic Model',
+      verdict: 'Financial account under preliminary review; anomaly indicators detected',
+      sourceConfidence: 'Commercial banking routing and anomaly scoring model',
       threatSignals: [
-        'ควรตรวจสอบชื่อ-นามสกุลจริงผู้ถือบัญชีในระบบ Blacklistseller ก่อนโอน',
-        'หากปลายทางให้เวลาโอนไม่เกิน 10 นาที เข้าข่ายกลโกงเร่งรัด',
+        'Account holder identity requires verification against certified registries prior to wire transfer.',
+        'High-pressure transfer timeframes are typical indicators of social engineering extortion.',
       ],
-      recommendation: 'ตรวจสอบชื่อผู้ถือบัญชีกับชื่อผู้ติดต่อ ห้ามโอนเงินหากปลายทางเป็นบุคคลธรรมดาแต่แอบอ้างบริษัท',
+      recommendation: 'Cross-check account title against official recipient documentation. Never transfer capital to individual accounts citing government agency representation.',
       externalFeedsChecked: [
-        { name: 'Blacklistseller Online', status: 'REPORTED', detail: 'แนะนำให้ค้นหาชื่อ-นามสกุลภาษาไทยเพื่อยืนยัน' },
-        { name: 'ธนาคารแห่งประเทศไทย (CFR Watchlist)', status: 'CLEAN', detail: 'ไม่พบคำสั่งอายัดฉุกเฉินระดับธนาคารพาณิชย์' },
-        { name: 'AOC 1441 Emergency Line', status: 'CLEAN', detail: 'ยังไม่มีหมายจับเชื่อมโยง' },
+        { name: 'Blacklistseller Public Directory', status: 'REPORTED', detail: 'Recommend recipient name verification' },
+        { name: 'Bank of Thailand Central Fraud Registry', status: 'CLEAN', detail: 'No commercial bank administrative freeze orders' },
+        { name: 'AOC 1441 Operations Line', status: 'CLEAN', detail: 'No active criminal warrants linked' },
       ],
     };
   }
@@ -263,17 +265,17 @@ export function analyzeThreatQuery(rawQuery: string, blacklist: BlacklistItem[])
       riskScore: isSuspiciousTLD ? 92 : 60,
       riskLevel: isSuspiciousTLD ? 'CRITICAL' : 'SUSPICIOUS',
       verdict: isSuspiciousTLD
-        ? '🚨 ลิงก์ฟิชชิ่งหรือมัลแวร์อันตราย (Suspicious Domain / Phishing Bait)'
-        : '⚠️ เว็บไซต์เสี่ยง (ตรวจสอบ Certificate และผู้จดทะเบียน)',
-      sourceConfidence: 'Domain WHOIS & URLhaus Intelligence Feed',
+        ? 'Confirmed phishing vector or untrusted application download portal'
+        : 'Untrusted domain requires SSL and registrar validation',
+      sourceConfidence: 'Domain WHOIS and URLhaus Threat Intelligence Feed',
       threatSignals: isSuspiciousTLD
-        ? ['โดเมนเพิ่งจดทะเบียนไม่เกิน 30 วัน', 'แอบอ้างสถาบันการเงินหรือหน่วยงานรัฐ', 'มีพฤติกรรมพยายามดาวน์โหลดไฟล์ .apk ลงมือถือ']
-        : ['ไม่มีข้อมูล SSL ที่น่าเชื่อถือ หรือเป็นลิงก์ย่อ'],
-      recommendation: 'ห้ามคลิกเด็ดขาด และห้ามกรอกหมายเลขบัตรประชาชนหรือเบอร์โทรศัพท์',
+        ? ['Domain registration age under 30 days', 'Impersonates official banking or administrative authorities', 'Direct distribution path for sideloaded mobile APK packages']
+        : ['Lacks recognized corporate verification credentials or utilizes shortlink redirection'],
+      recommendation: 'Do not access the link or submit personal credentials, identification numbers, or one-time verification passcodes.',
       externalFeedsChecked: [
-        { name: 'URLhaus Abuse Feeds', status: isSuspiciousTLD ? 'FLAGGED' : 'CLEAN', detail: isSuspiciousTLD ? 'ตรวจพบมัลแวร์ C2 หรือ Phishing Kit' : 'ไม่พบมัลแวร์' },
-        { name: 'Google Safe Browsing API', status: isSuspiciousTLD ? 'FLAGGED' : 'CLEAN', detail: isSuspiciousTLD ? 'บล็อกเนื่องจากหลอกลวง (Social Engineering)' : 'สถานะปกติ' },
-        { name: 'Thai CERT Phishing Watch', status: 'REPORTED', detail: 'เฝ้าระวังการสวมรอยแอปราชการ' },
+        { name: 'URLhaus Threat Intel', status: isSuspiciousTLD ? 'FLAGGED' : 'CLEAN', detail: isSuspiciousTLD ? 'Active command-and-control or credential phishing kit' : 'No reported malware signatures' },
+        { name: 'Google Safe Browsing API', status: isSuspiciousTLD ? 'FLAGGED' : 'CLEAN', detail: isSuspiciousTLD ? 'Flagged for deceptive engineering techniques' : 'Standard status' },
+        { name: 'Thai CERT Telemetry Registry', status: 'REPORTED', detail: 'Monitored for unauthorized brand impersonation' },
       ],
     };
   }
@@ -283,13 +285,13 @@ export function analyzeThreatQuery(rawQuery: string, blacklist: BlacklistItem[])
     type: 'unknown',
     riskScore: 25,
     riskLevel: 'SAFE',
-    verdict: 'ℹ️ รูปแบบข้อมูลทั่วไป (ไม่ตรงกับฐานข้อมูลบัญชีม้าหรือภัยคุกคามที่ระบุชัดเจน)',
-    sourceConfidence: 'Global Intelligence Baseline',
-    threatSignals: ['ไม่พบความเสี่ยงที่ระบุได้ชัดเจนในฐานข้อมูลสาธารณะ'],
-    recommendation: 'หากสงสัยว่าเป็นภัยคุกคาม สามารถกดปุ่ม "เพิ่มเข้ารายการ Blacklist" เพื่อส่งให้ทีมวิเคราะห์ AOC ตรวจสอบต่อได้',
+    verdict: 'Standard identifier query; no active correlation with flagged threat vectors',
+    sourceConfidence: 'Baseline threat registry catalog',
+    threatSignals: ['No documented risk flags located in public threat registries'],
+    recommendation: 'If this identifier has exhibited suspicious behavior, submit it to the national blacklist queue for investigative review.',
     externalFeedsChecked: [
-      { name: 'Blacklistseller', status: 'CLEAN', detail: 'ไม่พบประวัติ' },
-      { name: 'AOC 1441', status: 'CLEAN', detail: 'ไม่พบประวัติ' },
+      { name: 'Blacklistseller', status: 'CLEAN', detail: 'No historical records' },
+      { name: 'AOC 1441', status: 'CLEAN', detail: 'No historical records' },
     ],
   };
 }

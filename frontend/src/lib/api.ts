@@ -2,6 +2,7 @@ import {
   apiErrorSchema,
   audioUploadResponseSchema,
   caseListSchema,
+  imageUploadResponseSchema,
   caseSchema,
   incidentReportSchema,
   shareProposalSchema,
@@ -9,6 +10,7 @@ import {
   utteranceSchema,
   type AddCaseInputRequest,
   type AudioUploadResponse,
+  type ImageUploadResponse,
   type CaseRecord,
   type IncidentReport,
   type ShareProposal,
@@ -74,6 +76,19 @@ export const uploadCaseAudio = (
       body: JSON.stringify(input),
     },
     (data) => audioUploadResponseSchema.parse(data),
+  );
+
+export const uploadCaseImage = (
+  caseId: string,
+  input: { fileName: string; mimeType: string; imageBase64: string },
+) =>
+  request<ImageUploadResponse>(
+    `/cases/${caseId}/image-uploads`,
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    },
+    (data) => imageUploadResponseSchema.parse(data),
   );
 
 export const getCaseReport = (caseId: string) =>

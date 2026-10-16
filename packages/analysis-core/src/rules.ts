@@ -19,32 +19,38 @@ export const scamRules: readonly ScamRule[] = [
   },
   {
     tactic: "threat_or_fear",
-    pattern: /(ฟอกเงิน|หมายจับ|ดำเนินคดี|อายัดบัญชี|ถูกจับ|arrest|lawsuit|laundering|prosecution|warrant|frozen|freeze|confiscate)/iu,
+    pattern:
+      /(ฟอกเงิน|หมายจับ|ดำเนินคดี|อายัดบัญชี|ถูกจับ|ติดคุก|จำคุก|ยึดทรัพย์|หมายศาล|ความผิดอาญา|arrest|lawsuit|laundering|prosecution|warrant|frozen|freeze|confiscate)/iu,
     weight: tacticWeights.threat_or_fear,
     explanation: "มีข้อความสร้างความกลัวหรือข่มขู่ให้รีบทำตาม",
+    ignoredWhen:
+      /(?:ไม่|ไม่ได้|มิได้|ไม่มีส่วน).{0,14}(?:เกี่ยวข้อง|กระทำ|ทำผิด)|(?:ข่าว|รายงานข่าว)/iu,
   },
   {
     tactic: "urgency",
-    pattern: /(ทันที|เดี๋ยวนี้|ภายในวันนี้|ห้ามวางสาย|urgent|immediately|right now|do not hang up)/iu,
+    pattern:
+      /(ทันที|เดี๋ยวนี้|ภายในวันนี้|ด่วนที่สุด|ห้ามวางสาย|ภายใน\s*\d+\s*(?:นาที|ชั่วโมง)|ก่อนหมดเวลา|urgent|immediately|asap|right now|do not hang up)/iu,
     weight: tacticWeights.urgency,
     explanation: "มีการเร่งรัดหรือลดเวลาที่ผู้ใช้จะตรวจสอบข้อมูล",
+    ignoredWhen: /(ไม่รีบ|ไม่ด่วน|สะดวกตอนไหน|เมื่อไหร่ก็ได้)/iu,
   },
   {
     tactic: "money_transfer_request",
     pattern:
-      /(โอน(?:เงิน)?(?:มา|ให้|เข้า|ไป)|ชำระเงินเข้าบัญชี|transfer (?:the )?money|wire (?:all )?funds|wire transfer|send money|deposit)/iu,
+      /(โอน(?:เงิน|ยอด)?(?:มา|ให้|เข้า|ไป)|ชำระ(?:เงิน|ค่าธรรมเนียม)?เข้าบัญชี|ฝากเงินเข้าบัญชี|โอนเงินตรวจสอบ|transfer (?:the )?money|wire (?:all )?funds|wire transfer|send money|deposit)/iu,
     weight: tacticWeights.money_transfer_request,
     explanation: "มีคำขอให้โอนหรือชำระเงิน",
-    ignoredWhen: /(อย่า|ห้าม|ไม่ควร|never|do not).{0,24}(โอน|transfer|wire)/iu,
+    ignoredWhen:
+      /(?:(?:อย่า|ห้าม|ไม่ควร|never|do not).{0,6}|(?:ไม่มีนโยบาย|ระวัง|เตือน).{0,16})(?:โอน|transfer|wire|ชำระ)/iu,
   },
   {
     tactic: "secret_request",
     pattern:
-      /((?:บอก|ส่ง|อ่าน|แจ้ง|tell|send|read|give|provide|disclose).{0,24}(?:otp|รหัสผ่าน|pin|passcode)|(?:otp|pin|passcode).{0,24}(?:บอก|ส่ง|อ่าน|แจ้ง|tell|send|read|give|provide|disclose))/iu,
+      /((?:บอก|ส่ง|อ่าน|แจ้ง|ขอ|กรอก|ใส่|ยืนยัน|tell|send|read|give|provide|disclose).{0,24}(?:otp|รหัสผ่าน|pin|รหัสยืนยัน|verification code|password|passcode)|(?:otp|pin|รหัสผ่าน|รหัสยืนยัน|verification code|password|passcode).{0,24}(?:บอก|ส่ง|อ่าน|แจ้ง|ขอ|กรอก|ใส่|ยืนยัน|tell|send|read|give|provide|disclose))/iu,
     weight: tacticWeights.secret_request,
     explanation: "มีคำขอข้อมูลลับที่ไม่ควรเปิดเผย",
     ignoredWhen:
-      /(อย่า|ห้าม|ไม่ควร|never|do not).{0,24}(บอก|ส่ง|อ่าน|แจ้ง|otp|pin|tell|disclose)/iu,
+      /(?:(?:อย่า|ห้าม|ไม่ควร|never|do not).{0,6}|(?:ไม่มีนโยบาย|ระวัง|เตือน).{0,16})(?:บอก|ส่ง|อ่าน|แจ้ง|ขอ|กรอก|ใส่|ยืนยัน|otp|pin|รหัส|tell|disclose)/iu,
   },
   {
     tactic: "isolation",

@@ -128,7 +128,24 @@ export class CaseService {
   }
 
   buildReport(record: StoredCase, version = 1): IncidentReport {
-    if (!record.latestAnalysis) throw new Error('CASE_HAS_NO_ANALYSIS');
+    if (!record.latestAnalysis) {
+      return {
+        caseId: record.id,
+        version,
+        generatedAt: new Date().toISOString(),
+        isDemo: record.isDemo,
+        summary: 'Case is currently compiling evidentiary records or in early session initialization. No definitive threats confirmed yet.',
+        recommendation: 'If further dialogue or telemetry is captured, trigger "Re-Analyze" to synthesize conclusions and evaluate indicators in detail.',
+        inputs: record.inputs.map((input) => ({ ...input })),
+        evidence: [],
+        entities: [],
+        threatChecks: [],
+        limitations: [
+          'This evidentiary docket is awaiting in-depth heuristic model synthesis.',
+          ...(record.isDemo ? ['This record represents simulated demonstration telemetry and will not populate production threat registries.'] : []),
+        ],
+      };
+    }
     const analysis = record.latestAnalysis;
     const sensitiveTypes = new Set([
       'phone',
@@ -180,12 +197,15 @@ export class CaseService {
       threatChecks: analysis.threatChecks,
       limitations: [
         ...analysis.limitations,
-        ...(record.isDemo ? ['รายงานนี้เป็นข้อมูลจำลองและไม่เข้าสู่ฐานภัยคุกคามจริง'] : []),
+        ...(record.isDemo ? ['This record represents simulated demonstration telemetry and will not populate production threat registries.'] : []),
       ],
     };
   }
 
   async getOrCreateReport(record: StoredCase): Promise<IncidentReport> {
+    if (!record.latestAnalysis && record.inputs.length > 0) {
+      record = await this.analyze(record);
+    }
     if (this.reportRepository) {
       const latest = await this.reportRepository.getLatestReport(record.id);
       if (latest) {

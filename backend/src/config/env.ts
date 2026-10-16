@@ -20,8 +20,11 @@ const envSchema = z.object({
     .enum(["development", "test", "production"])
     .default("development"),
   API_HOST: z.string().default("0.0.0.0"),
-  API_PORT: z.coerce.number().int().positive().default(3001),
-  WEB_ORIGIN: z.string().url().default("http://localhost:5173"),
+  API_PORT: z.preprocess(
+    (val) => val ?? process.env.PORT,
+    z.coerce.number().int().positive().default(3001),
+  ),
+  WEB_ORIGIN: z.string().default("*"),
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),
