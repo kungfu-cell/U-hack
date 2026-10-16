@@ -98,15 +98,32 @@
     }
 
     .brand-shield {
-      width: 28px;
-      height: 28px;
-      background: var(--emerald-tint);
-      border: 1px solid var(--emerald);
-      border-radius: var(--radius-sm);
+      width: 34px;
+      height: 34px;
+      background: transparent;
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      border-radius: var(--radius-md);
       display: flex;
       align-items: center;
       justify-content: center;
-      color: var(--emerald);
+      overflow: hidden;
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
+      transition: all 0.25s ease;
+    }
+
+    .brand-shield:hover {
+      border-color: var(--emerald);
+      box-shadow: 0 0 16px rgba(16, 185, 129, 0.45);
+      transform: scale(1.04);
+    }
+
+    .brand-logo-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transform: scale(1.08);
+      border-radius: inherit;
     }
 
     .brand-name {
@@ -181,6 +198,42 @@
       display: flex;
       align-items: center;
       gap: 12px;
+    }
+
+    .lang-switcher-bar {
+      display: inline-flex;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .lang-btn {
+      background: transparent;
+      border: none;
+      color: var(--fg-muted);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 9px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: inherit;
+    }
+
+    .lang-btn:hover {
+      color: var(--fg);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .lang-btn.active {
+      background: var(--blue-primary);
+      color: #ffffff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     }
 
     .ws-status-badge {

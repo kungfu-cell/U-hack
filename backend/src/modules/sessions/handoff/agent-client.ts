@@ -168,10 +168,12 @@ export class DemoAgentAdapter implements AgentClient {
     let audioBase64: string | undefined;
     const apiKey = process.env.ELEVENLABS_API_KEY;
     if (apiKey && process.env.NODE_ENV !== "test") {
+      const isThaiReply = /[\u0E00-\u0E7F]/.test(guardrail.sanitizedText);
+      const decoyVoiceId = isThaiReply ? "nealpwJT5tCyJFKDzEq8" : "cjVigY5qzO86Huf0OWal";
       const audio = await fetchElevenLabsTts(
         apiKey,
         guardrail.sanitizedText,
-        "cjVigY5qzO86Huf0OWal",
+        decoyVoiceId,
       );
       if (audio) audioBase64 = audio;
     }

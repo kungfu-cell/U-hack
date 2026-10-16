@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import type { IncidentReport, ShareProposal, Utterance } from '@scamtrap/contracts';
+import { useAppLanguage } from '../../lib/LanguageContext';
 import {
   addCaseInput,
   analyzeCase,
@@ -21,6 +22,7 @@ export const ReportPlaceholder = ({
   sessionId: propSessionId,
   refreshKey = 0,
 }: ReportPlaceholderProps = {}) => {
+  const { language } = useAppLanguage();
   const [report, setReport] = useState<IncidentReport | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [consentConfirmed, setConsentConfirmed] = useState(false);
@@ -244,10 +246,16 @@ export const ReportPlaceholder = ({
               <polyline points="14 2 14 8 20 8" />
             </svg>
           </div>
-          <span className="code-tag" style={{ fontSize: 11 }}>NO ACTIVE LIVE CASE</span>
-          <h2 style={{ fontSize: 18, margin: 0 }}>No Live Session Dossier Available</h2>
+          <span className="code-tag" style={{ fontSize: 11 }}>
+            {language === 'en' ? 'NO ACTIVE LIVE CASE' : 'ยังไม่มีประวัติการโทรสด'}
+          </span>
+          <h2 style={{ fontSize: 18, margin: 0 }}>
+            {language === 'en' ? 'No Live Session Dossier Available' : 'ยังไม่มีรายงานจากสายสนทนาสด'}
+          </h2>
           <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0, lineHeight: 1.6 }}>
-            Initiate a live test call or simulated conversation from the <strong>Live Call Shield</strong> tab. When an audio session concludes, the case dossier will be populated automatically here.
+            {language === 'en'
+              ? 'Initiate a live test call or simulated conversation from the Live Call Shield tab. When an audio session concludes, the case dossier will be populated automatically here.'
+              : 'เริ่มการทดสอบโทรศัพท์ หรือจำลองสายมิจฉาชีพได้จากแท็บ "Live Call & Takeover" เมื่อการสนทนาสิ้นสุด ระบบจะประมวลผลและสร้างรายงานสำนวนคดีพร้อมหลักฐานให้ที่นี่โดยอัตโนมัติ'}
           </p>
         </div>
       </div>
@@ -394,7 +402,9 @@ export const ReportPlaceholder = ({
             : `Synthesized from ${report.inputs.length} submitted evidentiary records.`}
         </p>
         <p style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--fg)', margin: '0 0 14px 0' }}>
-          {report.summary}
+          {report.summary?.includes('คดีอยู่ในสถานะรวบรวมหลักฐาน')
+            ? 'Case is currently compiling evidentiary records or in early session initialization. No definitive threats confirmed yet.'
+            : report.summary}
         </p>
         <div
           style={{
@@ -406,7 +416,9 @@ export const ReportPlaceholder = ({
         >
           <strong style={{ fontSize: 12.5, color: 'var(--emerald)' }}>Operational Advisory:</strong>
           <p style={{ fontSize: 12.5, color: 'var(--fg-muted)', margin: '4px 0 0 0', lineHeight: 1.5 }}>
-            {report.recommendation}
+            {report.recommendation?.includes('วิเคราะห์สำนวนคดีด้วย AI')
+              ? 'If further dialogue or telemetry is captured, trigger "Re-Analyze" to synthesize conclusions and evaluate indicators in detail.'
+              : report.recommendation}
           </p>
         </div>
       </div>

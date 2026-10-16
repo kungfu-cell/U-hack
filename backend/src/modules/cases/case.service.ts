@@ -130,15 +130,15 @@ export class CaseService {
         version,
         generatedAt: new Date().toISOString(),
         isDemo: record.isDemo,
-        summary: 'คดีอยู่ในสถานะรวบรวมหลักฐานหรือเพิ่งเริ่มต้นเซสชัน ยังไม่มีความเสี่ยงที่ยืนยันแน่ชัด',
-        recommendation: 'หากมีการสนทนาหรือหลักฐานเพิ่มเติม ให้กดปุ่ม "วิเคราะห์สำนวนคดีด้วย AI" เพื่อสร้างข้อสรุปและตรวจสอบภัยคุกคามโดยละเอียด',
+        summary: 'Case is currently compiling evidentiary records or in early session initialization. No definitive threats confirmed yet.',
+        recommendation: 'If further dialogue or telemetry is captured, trigger "Re-Analyze" to synthesize conclusions and evaluate indicators in detail.',
         inputs: record.inputs.map((input) => ({ ...input })),
         evidence: [],
         entities: [],
         threatChecks: [],
         limitations: [
-          'สำนวนคดีนี้ยังอยู่ระหว่างการบันทึกหรือรอการวิเคราะห์เชิงลึกจากโมเดล AI',
-          ...(record.isDemo ? ['รายงานนี้เป็นข้อมูลจำลองและไม่เข้าสู่ฐานภัยคุกคามจริง'] : []),
+          'This evidentiary docket is awaiting in-depth heuristic model synthesis.',
+          ...(record.isDemo ? ['This record represents simulated demonstration telemetry and will not populate production threat registries.'] : []),
         ],
       };
     }
@@ -193,7 +193,7 @@ export class CaseService {
       threatChecks: analysis.threatChecks,
       limitations: [
         ...analysis.limitations,
-        ...(record.isDemo ? ['รายงานนี้เป็นข้อมูลจำลองและไม่เข้าสู่ฐานภัยคุกคามจริง'] : []),
+        ...(record.isDemo ? ['This record represents simulated demonstration telemetry and will not populate production threat registries.'] : []),
       ],
     };
   }

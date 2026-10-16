@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { showToast } from '../../lib/toast';
 import { ReportPlaceholder } from './ReportPlaceholder';
+import { useAppLanguage } from '../../lib/LanguageContext';
 import {
   type BlacklistItem,
   INITIAL_BLACKLIST,
@@ -12,11 +13,12 @@ export interface IncidentCase {
   id: string;
   severity: 'Critical' | 'High' | 'Medium' | 'Low';
   severityClass: 'badge-critical' | 'badge-warning' | 'badge-safe' | 'badge-info';
+  priority?: 'P1 - Urgent' | 'P2 - Elevated' | 'P3 - Standard' | 'P4 - Low';
   category: string;
   ioc: string;
   channel: string;
   timestamp: string;
-  status: string;
+  status: 'Active Takeover' | 'Under Investigation' | 'Awaiting Freeze' | 'Reported 1441' | 'Quarantined' | 'Cleared' | 'Closed';
   statusClass: 'badge-critical' | 'badge-warning' | 'badge-safe' | 'badge-info';
   title: string;
   auditLog: string[];
@@ -24,6 +26,9 @@ export interface IncidentCase {
   muleName?: string;
   muleAccount?: string;
   muleOrigin?: string;
+  assignedInvestigator?: string;
+  tags?: string[];
+  investigatorNotes?: string;
 }
 
 const INITIAL_CASES: IncidentCase[] = [
@@ -31,6 +36,7 @@ const INITIAL_CASES: IncidentCase[] = [
     id: 'INC-2026-9042',
     severity: 'Critical',
     severityClass: 'badge-critical',
+    priority: 'P1 - Urgent',
     category: 'Police Impersonation & Money Laundering',
     ioc: '+66 82-419-8921',
     channel: 'Inbound VoIP',
@@ -50,11 +56,15 @@ const INITIAL_CASES: IncidentCase[] = [
     muleName: 'Wichai Phakdee (Flagged Mule)',
     muleAccount: '984-2-90184-1',
     muleOrigin: 'Gateway Cell-04 Border Range (Poipet)',
+    assignedInvestigator: 'Capt. S. Wongsawat (CCIB-4)',
+    tags: ['AOC-Priority', 'Voice-Clone', 'Mule-Network'],
+    investigatorNotes: 'Suspect actively utilizing dynamic SIM box array. Expedited freeze request pending with Krungthai fraud operations.',
   },
   {
     id: 'INC-2026-8819',
     severity: 'High',
     severityClass: 'badge-warning',
+    priority: 'P2 - Elevated',
     category: 'Banking Phishing SMS (Krungthai Spoof)',
     ioc: 'ktb-online-claim.vip',
     channel: 'SMS Text',
@@ -72,11 +82,15 @@ const INITIAL_CASES: IncidentCase[] = [
     muleName: 'AMLO Watchlist Target (Blacklistseller Confirmed)',
     muleAccount: '710-0-84192-3',
     muleOrigin: 'Bangkok Telecommunications SMS Trunk',
+    assignedInvestigator: 'Insp. P. Rattana (Cyber Taskforce)',
+    tags: ['Phishing-Kit', 'SMS-Spoof'],
+    investigatorNotes: 'Origin gateway traced to virtual SMS aggregator; block order dispatched to national telecom regulator (NBTC).',
   },
   {
     id: 'INC-2026-8740',
     severity: 'Critical',
     severityClass: 'badge-critical',
+    priority: 'P1 - Urgent',
     category: 'Transport Department Remote Trojan APK',
     ioc: 'dlt-tax-payment.apk',
     channel: 'Web Phish',
@@ -90,11 +104,15 @@ const INITIAL_CASES: IncidentCase[] = [
       '[11:40:40] Malware payload quarantined; command-and-control node 103.45.89.214:8080 blacklisted.',
     ],
     muleOrigin: 'Malware C2 Infrastructure (Cambodia Range)',
+    assignedInvestigator: 'K. Somchai (Malware Forensics)',
+    tags: ['Trojan-RAT', 'C2-Teardown'],
+    investigatorNotes: 'Decompiled APK matches SpyNote branch variant. C2 node blocked at perimeter firewall level.',
   },
   {
     id: 'INC-2026-8610',
     severity: 'Low',
     severityClass: 'badge-info',
+    priority: 'P4 - Low',
     category: 'Legitimate Two-Factor Verification (Shopee)',
     ioc: 'ShopeePay-OTP',
     channel: 'SMS 2FA',
@@ -107,6 +125,9 @@ const INITIAL_CASES: IncidentCase[] = [
       '[09:15:30] Heuristic verification confirmed compliant signature and legitimate advisory notice.',
       '[09:15:35] No coercion, extortion markers, or suspicious redirects detected.',
     ],
+    assignedInvestigator: 'Automated Triaging Bot',
+    tags: ['Whitelisted', 'False-Positive-Check'],
+    investigatorNotes: 'Verified compliant OTP payload with authenticated brand signature.',
   },
 ];
 
@@ -126,6 +147,7 @@ export const ReportsView = ({
   initialLookupQuery,
   refreshKey = 0,
 }: ReportsViewProps = {}) => {
+  const { language } = useAppLanguage();
   const [activeSubTab, setActiveSubTab] = useState<'dossier' | 'blacklist' | 'live-report'>(initialSubTab);
   const [cases, setCases] = useState<IncidentCase[]>(INITIAL_CASES);
   const [search, setSearch] = useState('');
@@ -154,13 +176,52 @@ export const ReportsView = ({
   const [latestCaseContext, setLatestCaseContext] = useState(getLatestCaseContext);
   const { caseId: latestCaseId, sessionId: latestSessionId } = latestCaseContext;
 
-  const filteredCases = cases.filter(
-    (c) =>
-      c.id.toLowerCase().includes(search.toLowerCase()) ||
-      c.category.toLowerCase().includes(search.toLowerCase()) ||
-      c.ioc.toLowerCase().includes(search.toLowerCase()) ||
-      c.channel.toLowerCase().includes(search.toLowerCase()),
-  );
+  // Dossier Triage & Filter State
+  const [dossierStatusFilter, setDossierStatusFilter] = useState<string>('ALL');
+  const [dossierPriorityFilter, setDossierPriorityFilter] = useState<string>('ALL');
+
+  const filteredCases = cases.filter((c) => {
+    const q = search.toLowerCase();
+    const matchesSearch =
+      !q ||
+      c.id.toLowerCase().includes(q) ||
+      c.category.toLowerCase().includes(q) ||
+      c.ioc.toLowerCase().includes(q) ||
+      c.channel.toLowerCase().includes(q) ||
+      (c.assignedInvestigator && c.assignedInvestigator.toLowerCase().includes(q)) ||
+      (c.tags && c.tags.some((t) => t.toLowerCase().includes(q)));
+
+    const matchesStatus = dossierStatusFilter === 'ALL' || c.status === dossierStatusFilter;
+    const matchesPriority = dossierPriorityFilter === 'ALL' || c.priority === dossierPriorityFilter;
+
+    return matchesSearch && matchesStatus && matchesPriority;
+  });
+
+  const updateCaseTriage = (
+    caseId: string,
+    updates: Partial<IncidentCase>,
+  ) => {
+    setCases((prev) =>
+      prev.map((c) => {
+        if (c.id !== caseId) return c;
+        const updated = { ...c, ...updates };
+        if (updates.status) {
+          if (updates.status === 'Active Takeover' || updates.status === 'Awaiting Freeze') {
+            updated.statusClass = 'badge-critical';
+          } else if (updates.status === 'Under Investigation') {
+            updated.statusClass = 'badge-warning';
+          } else {
+            updated.statusClass = 'badge-safe';
+          }
+        }
+        return updated;
+      }),
+    );
+    if (selectedCase && selectedCase.id === caseId) {
+      setSelectedCase((prev) => (prev ? { ...prev, ...updates } : null));
+    }
+    showToast(`Updated triage docket for case ${caseId}.`);
+  };
 
   const filteredBlacklist = blacklist.filter((item) => {
     const matchesType = blacklistFilter === 'ALL' || item.type === blacklistFilter;
@@ -331,7 +392,7 @@ export const ReportsView = ({
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <polyline points="14 2 14 8 20 8" />
             </svg>
-            <span>Incident Dossier</span>
+            <span>{language === 'en' ? 'Incident Dossier' : 'แฟ้มคดี & หลักฐาน (Dossier)'}</span>
             <span className="code-tag" style={{ fontSize: 10.5, padding: '1px 6px' }}>{cases.length}</span>
           </button>
 
@@ -345,7 +406,7 @@ export const ReportsView = ({
               <circle cx="12" cy="12" r="10" />
               <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
             </svg>
-            <span>Mule Accounts &amp; Threat Intelligence</span>
+            <span>{language === 'en' ? 'Mule Accounts & Threat Intelligence' : 'บัญชีม้า & ฐานข้อมูล Blacklist'}</span>
             <span
               className="badge-sev badge-critical"
               style={{ fontSize: 10, padding: '1px 6px' }}
@@ -365,7 +426,7 @@ export const ReportsView = ({
                 <circle cx="12" cy="12" r="10" />
                 <polyline points="12 6 12 12 16 14" />
               </svg>
-              <span>Live Session Report</span>
+              <span>{language === 'en' ? 'Live Session Report' : 'รายงานการดักฟังสายสด'}</span>
               <span className="badge-sev badge-safe" style={{ fontSize: 10, padding: '1px 6px' }}>ACTIVE</span>
             </button>
           )}
@@ -379,7 +440,7 @@ export const ReportsView = ({
               onClick={() => setShowAddModal(true)}
               style={{ height: 32, fontSize: 12, padding: '0 14px' }}
             >
-              Add Identifier to Blacklist
+              {language === 'en' ? '+ Add Target to Blacklist' : '+ เพิ่มเป้าหมายใน Blacklist'}
             </button>
           )}
         </div>
@@ -443,7 +504,11 @@ export const ReportsView = ({
             <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
               <input
                 type="text"
-                placeholder="Enter bank account (e.g. 984-2-90184-1), phone number (+66 82-419-8921), holder name, or URL..."
+                placeholder={
+                  language === 'en'
+                    ? 'Enter bank account (e.g. 984-2-90184-1), phone (+66 82-419-8921), holder name, or URL...'
+                    : 'ค้นหาเลขบัญชี (เช่น 984-2-90184-1), เบอร์โทร (+66 82-419-8921), ชื่อเจ้าของบัญชี หรือ URL...'
+                }
                 className="input-control"
                 value={lookupQuery}
                 onChange={(e) => setLookupQuery(e.target.value)}
@@ -470,7 +535,9 @@ export const ReportsView = ({
                   borderColor: 'var(--crimson)',
                 }}
               >
-                {isAnalyzing ? 'Querying Intelligence...' : 'Verify Identifier'}
+                {isAnalyzing
+                  ? (language === 'en' ? 'Querying Intelligence...' : 'กำลังสืบค้นฐานข้อมูล...')
+                  : (language === 'en' ? 'Verify Identifier' : 'ตรวจสอบข้อมูล (Verify)')}
               </button>
             </div>
 
@@ -1077,8 +1144,57 @@ export const ReportsView = ({
             <strong>Demonstration Dataset</strong>
             <p>Records displayed in this view represent baseline audit dockets for analytical evaluation.</p>
           </div>
+
+          {/* Quick Triage Operational Summary Cards */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+              gap: 12,
+              marginBottom: 16,
+            }}
+          >
+            <div className="card" style={{ padding: '12px 14px', background: 'rgba(239, 68, 68, 0.06)', border: '1px solid rgba(239, 68, 68, 0.25)' }}>
+              <div style={{ fontSize: 11, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Active Takeovers &amp; Urgent</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
+                <span style={{ fontSize: 20, fontWeight: 700, color: '#f87171' }}>
+                  {cases.filter((c) => c.status === 'Active Takeover' || c.priority === 'P1 - Urgent').length}
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--fg-secondary)' }}>Immediate Triage</span>
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: '12px 14px', background: 'rgba(245, 158, 11, 0.06)', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
+              <div style={{ fontSize: 11, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Under Investigation</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
+                <span style={{ fontSize: 20, fontWeight: 700, color: '#fbbf24' }}>
+                  {cases.filter((c) => c.status === 'Under Investigation' || c.status === 'Awaiting Freeze').length}
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--fg-secondary)' }}>Assigned to Analysts</span>
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: '12px 14px', background: 'rgba(16, 185, 129, 0.06)', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+              <div style={{ fontSize: 11, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Dispatched AOC 1441</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
+                <span style={{ fontSize: 20, fontWeight: 700, color: '#34d399' }}>
+                  {cases.filter((c) => c.status === 'Reported 1441' || c.status === 'Quarantined').length}
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--fg-secondary)' }}>Escalated &amp; Frozen</span>
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: '12px 14px', background: 'rgba(59, 130, 246, 0.06)', border: '1px solid rgba(59, 130, 246, 0.25)' }}>
+              <div style={{ fontSize: 11, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Total Registered Dockets</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
+                <span style={{ fontSize: 20, fontWeight: 700, color: '#60a5fa' }}>{cases.length}</span>
+                <span style={{ fontSize: 11, color: 'var(--fg-secondary)' }}>AOC-Compliant</span>
+              </div>
+            </div>
+          </div>
+
           <div className="card">
-            <div className="card-header">
+            <div className="card-header" style={{ flexWrap: 'wrap', gap: 12 }}>
               <div>
                 <div className="card-title">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1088,19 +1204,58 @@ export const ReportsView = ({
                   Security Incidents &amp; Forensic Dossier
                 </div>
                 <div className="card-subtitle">
-                  Forensic audit trail and evidence dockets aligned with AOC 1441 and PDPA data standards.
+                  Investigative triage and forensic evidence dockets aligned with AOC 1441 and CCIB cyber protocols.
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
+
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                {/* Status Triage Filter */}
+                <select
+                  className="input-control"
+                  style={{ height: 30, fontSize: 11.5, width: 155 }}
+                  value={dossierStatusFilter}
+                  onChange={(e) => setDossierStatusFilter(e.target.value)}
+                  aria-label="Filter by case status"
+                >
+                  <option value="ALL">All Statuses ({cases.length})</option>
+                  <option value="Active Takeover">Active Takeover</option>
+                  <option value="Under Investigation">Under Investigation</option>
+                  <option value="Awaiting Freeze">Awaiting Freeze</option>
+                  <option value="Reported 1441">Reported 1441</option>
+                  <option value="Quarantined">Quarantined</option>
+                  <option value="Cleared">Cleared</option>
+                  <option value="Closed">Closed</option>
+                </select>
+
+                {/* Priority Filter */}
+                <select
+                  className="input-control"
+                  style={{ height: 30, fontSize: 11.5, width: 140 }}
+                  value={dossierPriorityFilter}
+                  onChange={(e) => setDossierPriorityFilter(e.target.value)}
+                  aria-label="Filter by priority tier"
+                >
+                  <option value="ALL">All Priorities</option>
+                  <option value="P1 - Urgent">P1 - Urgent</option>
+                  <option value="P2 - Elevated">P2 - Elevated</option>
+                  <option value="P3 - Standard">P3 - Standard</option>
+                  <option value="P4 - Low">P4 - Low</option>
+                </select>
+
                 <input
                   type="text"
                   id="filter-dossier"
-                  placeholder="Filter by Case ID, indicator, or channel..."
+                  placeholder={
+                    language === 'en'
+                      ? 'Search docket, IOC, analyst, or tag...'
+                      : 'ค้นหารหัสเคส, เลขบัญชี, เบอร์โทร, หรือแท็ก...'
+                  }
                   className="input-control"
-                  style={{ height: 30, width: 260, fontSize: 11.5 }}
+                  style={{ height: 30, width: 230, fontSize: 11.5 }}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
+
                 <button
                   type="button"
                   className="btn-action btn-action-ghost"
@@ -1122,11 +1277,11 @@ export const ReportsView = ({
                 <thead>
                   <tr>
                     <th>Case ID</th>
+                    <th>Priority</th>
                     <th>Severity</th>
                     <th>Threat Category</th>
                     <th>Primary Indicator (IOC)</th>
-                    <th>Source Channel</th>
-                    <th>Timestamp</th>
+                    <th>Investigator</th>
                     <th>Status</th>
                     <th>Action</th>
                   </tr>
@@ -1140,16 +1295,54 @@ export const ReportsView = ({
                     >
                       <td>
                         <span className="code-tag">{c.id}</span>
+                        {c.tags && c.tags.length > 0 && (
+                          <div style={{ display: 'flex', gap: 4, marginTop: 3, flexWrap: 'wrap' }}>
+                            {c.tags.map((t, idx) => (
+                              <span
+                                key={idx}
+                                style={{
+                                  fontSize: 9.5,
+                                  padding: '1px 5px',
+                                  borderRadius: 3,
+                                  background: 'rgba(255,255,255,0.06)',
+                                  color: 'var(--fg-muted)',
+                                }}
+                              >
+                                #{t}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <span
+                          className={`badge-sev ${
+                            c.priority === 'P1 - Urgent'
+                              ? 'badge-critical'
+                              : c.priority === 'P2 - Elevated'
+                                ? 'badge-warning'
+                                : 'badge-safe'
+                          }`}
+                          style={{ fontSize: 10, letterSpacing: 0.3 }}
+                        >
+                          {c.priority || 'P3 - Standard'}
+                        </span>
                       </td>
                       <td>
                         <span className={`badge-sev ${c.severityClass}`}>{c.severity}</span>
                       </td>
-                      <td>{c.category}</td>
+                      <td>
+                        <div style={{ fontWeight: 600, color: 'var(--fg)', fontSize: 12 }}>{c.category}</div>
+                        <div style={{ fontSize: 10.5, color: 'var(--fg-muted)', marginTop: 2 }}>
+                          {c.channel} &bull; {c.timestamp}
+                        </div>
+                      </td>
                       <td>
                         <span className="code-tag">{c.ioc}</span>
                       </td>
-                      <td>{c.channel}</td>
-                      <td style={{ fontSize: 11.5, color: 'var(--fg-muted)' }}>{c.timestamp}</td>
+                      <td style={{ fontSize: 11.5, color: c.assignedInvestigator ? 'var(--fg)' : 'var(--fg-muted)' }}>
+                        {c.assignedInvestigator || 'Unassigned'}
+                      </td>
                       <td>
                         <span className={`badge-sev ${c.statusClass}`}>{c.status}</span>
                       </td>
@@ -1163,7 +1356,7 @@ export const ReportsView = ({
                             setSelectedCase(c);
                           }}
                         >
-                          Inspect ›
+                          Triage ›
                         </button>
                       </td>
                     </tr>
@@ -1204,7 +1397,7 @@ export const ReportsView = ({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="card-header" style={{ borderBottom: '1px solid var(--border)' }}>
-              <div className="card-title">Add Target to Active Blacklist</div>
+              <div className="card-title">{language === 'en' ? 'Add Target to Active Blacklist' : 'บันทึกเป้าหมายเข้าฐานข้อมูล Blacklist'}</div>
               <button
                 type="button"
                 className="btn-copy"
@@ -1217,26 +1410,26 @@ export const ReportsView = ({
             </div>
             <form onSubmit={handleAddNewIoc} style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
-                <label className="form-label">Identifier Type</label>
+                <label className="form-label">{language === 'en' ? 'Identifier Type' : 'ประเภทข้อมูล (Identifier Type)'}</label>
                 <select
                   className="input-control"
                   value={newIoc.type}
                   onChange={(e) => setNewIoc({ ...newIoc, type: e.target.value as any })}
                 >
-                  <option value="bank_account">Bank Mule Account</option>
-                  <option value="phone">Fraudulent Phone Number</option>
-                  <option value="url">Phishing URL / Malicious APK</option>
-                  <option value="wallet">Crypto Wallet Address</option>
+                  <option value="bank_account">{language === 'en' ? 'Bank Mule Account' : 'บัญชีม้าธนาคาร (Bank Mule)'}</option>
+                  <option value="phone">{language === 'en' ? 'Fraudulent Phone Number' : 'เบอร์โทรศัพท์มิจฉาชีพ (Phone / VoIP)'}</option>
+                  <option value="url">{language === 'en' ? 'Phishing URL / Malicious APK' : 'ลิงก์ฟิชชิ่ง / ไฟล์ APK อันตราย'}</option>
+                  <option value="wallet">{language === 'en' ? 'Crypto Wallet Address' : 'กระเป๋าคริปโต (Crypto Wallet)'}</option>
                   <option value="c2_ip">C2 Server IP</option>
                 </select>
               </div>
 
               <div>
-                <label className="form-label">Indicator Value (Account / Number / URL)</label>
+                <label className="form-label">{language === 'en' ? 'Indicator Value (Account / Number / URL)' : 'ข้อมูลเป้าหมาย (เลขบัญชี / เบอร์โทร / ลิงก์)'}</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. 020-3-19482-8 or +66 94-812-3004"
+                  placeholder={language === 'en' ? 'e.g. 020-3-19482-8 or +66 94-812-3004' : 'เช่น 020-3-19482-8 หรือ +66 94-812-3004'}
                   className="input-control"
                   value={newIoc.value}
                   onChange={(e) => setNewIoc({ ...newIoc, value: e.target.value })}
@@ -1244,10 +1437,10 @@ export const ReportsView = ({
               </div>
 
               <div>
-                <label className="form-label">Account Holder / Claimed Entity Name</label>
+                <label className="form-label">{language === 'en' ? 'Account Holder / Claimed Entity Name' : 'ชื่อเจ้าของบัญชี / บุคคลแอบอ้าง'}</label>
                 <input
                   type="text"
-                  placeholder="e.g. Registered mule account name"
+                  placeholder={language === 'en' ? 'e.g. Registered mule account name' : 'เช่น นายสมชาย หมายจับ หรือชื่อตามบัญชีม้า'}
                   className="input-control"
                   value={newIoc.holderOrAlias}
                   onChange={(e) => setNewIoc({ ...newIoc, holderOrAlias: e.target.value })}
@@ -1255,10 +1448,10 @@ export const ReportsView = ({
               </div>
 
               <div>
-                <label className="form-label">Financial Institution / Network Carrier</label>
+                <label className="form-label">{language === 'en' ? 'Financial Institution / Network Carrier' : 'ธนาคาร / ผู้ให้บริการเครือข่าย'}</label>
                 <input
                   type="text"
-                  placeholder="e.g. Siam Commercial Bank (SCB)"
+                  placeholder={language === 'en' ? 'e.g. Siam Commercial Bank (SCB)' : 'เช่น ธนาคารกสิกรไทย (KBANK), AIS, True'}
                   className="input-control"
                   value={newIoc.bankOrProvider}
                   onChange={(e) => setNewIoc({ ...newIoc, bankOrProvider: e.target.value })}
@@ -1266,11 +1459,11 @@ export const ReportsView = ({
               </div>
 
               <div>
-                <label className="form-label">Incident Synopsis / Modus Operandi</label>
+                <label className="form-label">{language === 'en' ? 'Incident Synopsis / Modus Operandi' : 'พฤติการณ์ / รายละเอียดภัยคุกคาม'}</label>
                 <textarea
                   className="input-control"
                   rows={2}
-                  placeholder="Summary of extortion, investment scheme, or spoofed pretext"
+                  placeholder={language === 'en' ? 'Summary of extortion, investment scheme, or spoofed pretext' : 'ระบุพฤติกรรม เช่น หลอกลงทุน, อ้างตำรวจขู่โอนเงิน, ส่ง SMS หลอกรับรางวัล'}
                   value={newIoc.description}
                   onChange={(e) => setNewIoc({ ...newIoc, description: e.target.value })}
                   style={{ height: 'auto', padding: 8 }}
@@ -1283,10 +1476,10 @@ export const ReportsView = ({
                   className="btn-action btn-action-ghost"
                   onClick={() => setShowAddModal(false)}
                 >
-                  Cancel
+                  {language === 'en' ? 'Cancel' : 'ยกเลิก'}
                 </button>
                 <button type="submit" className="btn-action btn-action-primary">
-                  Save to Blacklist
+                  {language === 'en' ? 'Save to Blacklist' : 'บันทึกลง Blacklist'}
                 </button>
               </div>
             </form>
@@ -1349,6 +1542,91 @@ export const ReportsView = ({
                 </div>
               </div>
 
+              {/* Investigator Triage & Workflow Section */}
+              <div
+                style={{
+                  background: 'rgba(59, 130, 246, 0.05)',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: 12,
+                  marginBottom: 14,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 10,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    Investigator Triage &amp; Workflow
+                  </span>
+                  <span className="badge-sev badge-safe" style={{ fontSize: 9.5 }}>AOC CCIB SYNC</span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div>
+                    <label className="form-label" style={{ fontSize: 10 }}>Workflow Status</label>
+                    <select
+                      className="input-control"
+                      style={{ height: 28, fontSize: 11 }}
+                      value={selectedCase.status}
+                      onChange={(e) => updateCaseTriage(selectedCase.id, { status: e.target.value as any })}
+                    >
+                      <option value="Active Takeover">Active Takeover</option>
+                      <option value="Under Investigation">Under Investigation</option>
+                      <option value="Awaiting Freeze">Awaiting Freeze</option>
+                      <option value="Reported 1441">Reported 1441</option>
+                      <option value="Quarantined">Quarantined</option>
+                      <option value="Cleared">Cleared</option>
+                      <option value="Closed">Closed</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="form-label" style={{ fontSize: 10 }}>Priority Tier</label>
+                    <select
+                      className="input-control"
+                      style={{ height: 28, fontSize: 11 }}
+                      value={selectedCase.priority || 'P3 - Standard'}
+                      onChange={(e) => updateCaseTriage(selectedCase.id, { priority: e.target.value as any })}
+                    >
+                      <option value="P1 - Urgent">P1 - Urgent</option>
+                      <option value="P2 - Elevated">P2 - Elevated</option>
+                      <option value="P3 - Standard">P3 - Standard</option>
+                      <option value="P4 - Low">P4 - Low</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="form-label" style={{ fontSize: 10 }}>Assigned Lead Investigator</label>
+                  <select
+                    className="input-control"
+                    style={{ height: 28, fontSize: 11 }}
+                    value={selectedCase.assignedInvestigator || ''}
+                    onChange={(e) => updateCaseTriage(selectedCase.id, { assignedInvestigator: e.target.value })}
+                  >
+                    <option value="">Unassigned</option>
+                    <option value="Capt. S. Wongsawat (CCIB-4)">Capt. S. Wongsawat (CCIB-4)</option>
+                    <option value="Insp. P. Rattana (Cyber Taskforce)">Insp. P. Rattana (Cyber Taskforce)</option>
+                    <option value="K. Somchai (Malware Forensics)">K. Somchai (Malware Forensics)</option>
+                    <option value="Special Agent M. Chai (AOC Liaison)">Special Agent M. Chai (AOC Liaison)</option>
+                    <option value="Automated Triaging Bot">Automated Triaging Bot</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="form-label" style={{ fontSize: 10 }}>Investigator Triage Notes</label>
+                  <textarea
+                    className="input-control"
+                    rows={2}
+                    style={{ height: 'auto', fontSize: 11, padding: 6 }}
+                    placeholder="Enter analytical findings, judicial warrants, or bank contact log..."
+                    value={selectedCase.investigatorNotes || ''}
+                    onChange={(e) => updateCaseTriage(selectedCase.id, { investigatorNotes: e.target.value })}
+                  />
+                </div>
+              </div>
+
               {selectedCase.muleAccount && (
                 <div className="form-group" style={{ marginTop: 14 }}>
                   <span className="form-label">Target Mule Account &amp; Banking Telemetry</span>
@@ -1386,7 +1664,7 @@ export const ReportsView = ({
                 onClick={() => deleteCase(selectedCase.id)}
                 style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
               >
-                Delete / Revoke
+                {language === 'en' ? 'Delete / Revoke' : 'ลบ / ยกเลิกเคส'}
               </button>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
@@ -1403,7 +1681,7 @@ export const ReportsView = ({
                   style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
                   title="Cross-reference this case identifier against the threat database"
                 >
-                  Verify in Blacklist
+                  {language === 'en' ? 'Verify in Blacklist' : 'ตรวจใน Blacklist'}
                 </button>
                 <button
                   type="button"
@@ -1416,7 +1694,7 @@ export const ReportsView = ({
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <polyline points="14 2 14 8 20 8" />
                   </svg>
-                  <span>Official Dossier</span>
+                  <span>{language === 'en' ? 'Official Dossier' : 'เอกสารส่งเจ้าหน้าที่'}</span>
                 </button>
                 <button
                   type="button"
@@ -1430,7 +1708,7 @@ export const ReportsView = ({
                   className="btn-action btn-action-primary"
                   onClick={() => dispatchAoc(selectedCase.id)}
                 >
-                  Dispatch to AOC 1441
+                  {language === 'en' ? 'Dispatch to AOC 1441' : 'ส่งต่อข้อมูล AOC 1441'}
                 </button>
               </div>
             </div>

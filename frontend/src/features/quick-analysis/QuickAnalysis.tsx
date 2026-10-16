@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, type FormEvent } from 'react';
 import type { AnalysisResult } from '@scamtrap/contracts';
-import { createCase, addCaseInput, analyzeCase, uploadCaseAudio } from '../../lib/api';
+import { createCase, addCaseInput, analyzeCase, uploadCaseAudio, uploadCaseImage } from '../../lib/api';
 import { copyToClipboard, showToast } from '../../lib/toast';
+import { useAppLanguage } from '../../lib/LanguageContext';
 
 interface PresetData {
   payload: string;
@@ -231,6 +232,7 @@ interface QuickAnalysisProps {
 }
 
 export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}) => {
+  const { language } = useAppLanguage();
   const [activePreset, setActivePreset] = useState<string>('police');
   const [inputMode, setInputMode] = useState<'text' | 'image' | 'audio' | 'link'>('text');
   const [payloadText, setPayloadText] = useState(PRESETS.police.payload);
@@ -262,6 +264,7 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
   const [imageName, setImageName] = useState<string>('');
   const [imageSize, setImageSize] = useState<string>('');
   const [imageOcrText, setImageOcrText] = useState<string>('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   // Dedicated audio state
   const [audioName, setAudioName] = useState<string | null>(null);
@@ -403,15 +406,26 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
     try {
       // Execute against backend Case API
       const content = payloadText.trim() || url.trim();
-      if (!content && !audioFile) {
-        throw new Error('กรุณาใส่ข้อความ ลิงก์ หรือเลือกไฟล์เสียงก่อนเริ่มวิเคราะห์');
+      if (!content && !audioFile && !imageFile) {
+        throw new Error('กรุณาใส่ข้อความ ลิงก์ เลือกไฟล์เสียง หรืออัปโหลดรูปภาพก่อนเริ่มวิเคราะห์');
       }
       if (audioFile && !audioConsentConfirmed) {
         throw new Error('กรุณายืนยันว่าคุณมีสิทธิ์ส่งไฟล์เสียงนี้ไปประมวลผล');
       }
-      if (content || audioFile) {
+      if (content || audioFile || imageFile) {
         const created = await createCase();
-        const analyzed = audioFile
+        const analyzed = imageFile
+          ? (await (async () => {
+              const res = await uploadCaseImage(created.id, {
+                fileName: imageFile.name,
+                mimeType: imageFile.type || 'image/jpeg',
+                imageBase64: await readFileAsBase64(imageFile),
+              });
+              setImageOcrText(`[OCR ผลลัพธ์โดย ${res.provider}]\n${res.ocrText}`);
+              setPayloadText(res.ocrText);
+              return res.case;
+            })())
+          : audioFile
           ? (await uploadCaseAudio(created.id, {
               fileName: audioFile.name,
               mimeType: audioFile.type || 'audio/mpeg',
@@ -496,7 +510,9 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                 Threat Intake &amp; Heuristic Verification
               </div>
               <div className="card-subtitle">
-                ตรวจสอบข้อความน่าสงสัย, ลิงก์ฟิชชิ่ง, หมายจับปลอม (OCR) หรือไฟล์เสียงสนทนา
+                {language === 'en'
+                  ? 'Inspect suspicious text, phishing URLs, forged warrants (OCR), or audio call evidence'
+                  : 'ตรวจสอบข้อความน่าสงสัย, ลิงก์ฟิชชิ่ง, หมายจับปลอม (OCR) หรือไฟล์เสียงสนทนา'}
               </div>
             </div>
             <button className="btn-action btn-action-ghost" onClick={clearForm} style={{ height: 26, fontSize: 11 }}>
@@ -512,62 +528,75 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
               <span>
-                <strong>Privacy Guard Active:</strong> ชื่อ นามสกุล เลขบัตรประชาชน และ PIN ธนาคารจะถูก Redact ปิดบังอัตโนมัติก่อนวิเคราะห์
+                <strong>Privacy Guard Active:</strong>{' '}
+                {language === 'en'
+                  ? 'PII, Citizen IDs, bank account numbers, and PIN codes are automatically redacted before analysis'
+                  : 'ชื่อ นามสกุล เลขบัตรประชาชน และ PIN ธนาคารจะถูก Redact ปิดบังอัตโนมัติก่อนวิเคราะห์'}
               </span>
             </div>
 
             {/* Quick Presets for Demo */}
             <div className="form-group">
-              <span className="form-label">Simulate Real-World Incident Presets (Thai Fraud Vectors):</span>
+              <span className="form-label">
+                {language === 'en'
+                  ? 'Simulate Real-World Incident Presets (Fraud Vectors):'
+                  : 'Simulate Real-World Incident Presets (Thai Fraud Vectors):'}
+              </span>
               <div className="presets-row">
                 <button
                   type="button"
                   className={`preset-chip ${activePreset === 'police' ? 'active' : ''}`}
                   onClick={() => loadPreset('police')}
                 >
-                  <span style={{ color: '#ef4444' }}>●</span> ตำรวจขู่โอนเงิน (สภ.เชียงใหม่)
+                  <span style={{ color: '#ef4444' }}>●</span>{' '}
+                  {language === 'en' ? 'Police Wire Extortion' : 'ตำรวจขู่โอนเงิน (สภ.เชียงใหม่)'}
                 </button>
                 <button
                   type="button"
                   className={`preset-chip ${activePreset === 'bank' ? 'active' : ''}`}
                   onClick={() => loadPreset('bank')}
                 >
-                  <span style={{ color: '#f59e0b' }}>●</span> SMS ธนาคารหลอกล่อ OTP
+                  <span style={{ color: '#f59e0b' }}>●</span>{' '}
+                  {language === 'en' ? 'Bank Phishing SMS (OTP)' : 'SMS ธนาคารหลอกล่อ OTP'}
                 </button>
                 <button
                   type="button"
                   className={`preset-chip ${activePreset === 'warrant' ? 'active' : ''}`}
                   onClick={() => loadPreset('warrant')}
                 >
-                  <span style={{ color: '#ef4444' }}>●</span> หมายจับปลอม (Image OCR)
+                  <span style={{ color: '#ef4444' }}>●</span>{' '}
+                  {language === 'en' ? 'Forged Warrant (Image OCR)' : 'หมายจับปลอม (Image OCR)'}
                 </button>
                 <button
                   type="button"
                   className={`preset-chip ${activePreset === 'vishing' ? 'active' : ''}`}
                   onClick={() => loadPreset('vishing')}
                 >
-                  <span style={{ color: '#38bdf8' }}>●</span> สายโทรขู่กรรโชก (Scribe STT)
+                  <span style={{ color: '#38bdf8' }}>●</span>{' '}
+                  {language === 'en' ? 'Audio Vishing Call (Scribe STT)' : 'สายโทรขู่กรรโชก (Scribe STT)'}
                 </button>
                 <button
                   type="button"
                   className={`preset-chip ${activePreset === 'trojan' ? 'active' : ''}`}
                   onClick={() => loadPreset('trojan')}
                 >
-                  <span style={{ color: '#ef4444' }}>●</span> หลอกโหลด APK กรมขนส่ง
+                  <span style={{ color: '#ef4444' }}>●</span>{' '}
+                  {language === 'en' ? 'Transport APK RAT Scam' : 'หลอกโหลด APK กรมขนส่ง'}
                 </button>
                 <button
                   type="button"
                   className={`preset-chip ${activePreset === 'legit' ? 'active' : ''}`}
                   onClick={() => loadPreset('legit')}
                 >
-                  <span style={{ color: 'var(--emerald)' }}>●</span> OTP ปกติ (ShopeePay)
+                  <span style={{ color: 'var(--emerald)' }}>●</span>{' '}
+                  {language === 'en' ? 'Legitimate OTP (ShopeePay)' : 'OTP ปกติ (ShopeePay)'}
                 </button>
               </div>
             </div>
 
             {/* Channel / Modality Selector */}
             <div className="form-group">
-              <span className="form-label">Input Modality:</span>
+              <span className="form-label">{language === 'en' ? 'Input Modality:' : 'เลือกรูปแบบข้อมูล (Input Modality):'}</span>
               <div className="input-mode-tabs">
                 <button
                   type="button"
@@ -577,7 +606,7 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                   </svg>
-                  Text / Chat Log
+                  {language === 'en' ? 'Text / Chat Log' : 'ข้อความ / แชต'}
                 </button>
                 <button
                   type="button"
@@ -589,7 +618,7 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                     <circle cx="8.5" cy="8.5" r="1.5" />
                     <polyline points="21 15 16 10 5 21" />
                   </svg>
-                  Image / OCR
+                  {language === 'en' ? 'Image / OCR' : 'รูปภาพ / OCR'}
                 </button>
                 <button
                   type="button"
@@ -600,7 +629,7 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                     <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
                     <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                   </svg>
-                  Audio File (Scribe STT)
+                  {language === 'en' ? 'Audio File (Scribe STT)' : 'ไฟล์เสียง (Scribe STT)'}
                 </button>
                 <button
                   type="button"
@@ -611,7 +640,7 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                     <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                     <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                   </svg>
-                  Suspicious URL
+                  {language === 'en' ? 'Suspicious URL' : 'ลิงก์ / URL'}
                 </button>
               </div>
             </div>
@@ -625,7 +654,11 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                 <textarea
                   id="txt-payload"
                   className="textarea-box"
-                  placeholder="วางข้อความ SMS, แชต LINE หรือบทสนทนาที่ต้องการวิเคราะห์..."
+                  placeholder={
+                    language === 'en'
+                      ? 'Paste SMS text, LINE chat log, or call transcript to analyze...'
+                      : 'วางข้อความ SMS, แชต LINE หรือบทสนทนาที่ต้องการวิเคราะห์...'
+                  }
                   value={payloadText}
                   onChange={(e) => {
                     setPayloadText(e.target.value);
@@ -645,7 +678,7 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                         <circle cx="8.5" cy="8.5" r="1.5" />
                         <polyline points="21 15 16 10 5 21" />
                       </svg>
-                      <span>+ แนบรูปภาพ (preview)</span>
+                      <span>{language === 'en' ? '+ Attach Image (preview)' : '+ แนบรูปภาพ (preview)'}</span>
                     </button>
                     <button
                       type="button"
@@ -657,7 +690,7 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                         <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
                         <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                       </svg>
-                      <span>+ แนบไฟล์เสียง</span>
+                      <span>{language === 'en' ? '+ Attach Audio' : '+ แนบไฟล์เสียง'}</span>
                     </button>
                   </div>
                   <span style={{ color: 'var(--fg-muted)', fontSize: '10.5px' }}>Image preview &amp; Scribe upload</span>
@@ -740,8 +773,8 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                     <circle cx="8.5" cy="8.5" r="1.5" />
                     <polyline points="21 15 16 10 5 21" />
                   </svg>
-                  <div className="dropzone-title">{imageName ? `Uploaded: ${imageName}` : 'Click to upload screenshot or drag image here'}</div>
-                  <div className="dropzone-subtitle">Preview only — OCR is not enabled in this prototype</div>
+                  <div className="dropzone-title">{imageName ? `Selected: ${imageName}` : 'Click to upload screenshot or drag image here'}</div>
+                  <div className="dropzone-subtitle">AI Vision OCR enabled — extracts text, bank accounts &amp; intent automatically</div>
                   <input
                     type="file"
                     ref={fileInputImageRef}
@@ -750,13 +783,14 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
+                        setImageFile(file);
                         const reader = new FileReader();
                         reader.onload = (ev) => {
                           setImagePreview(String(ev.target?.result ?? ''));
                           setImageName(file.name);
                           setImageSize(`${(file.size / 1024 / 1024).toFixed(2)} MB`);
-                          setImageOcrText('OCR ยังไม่เปิดใช้ในต้นแบบ กรุณาวางข้อความจากภาพในช่องข้อความ');
-                          showToast(`อัปโหลดรูปภาพ "${file.name}" สำหรับดูตัวอย่างแล้ว (ยังไม่ได้ทำ OCR)`);
+                          setImageOcrText('รูปภาพพร้อมประมวลผล • กด "Execute Risk Analysis" เพื่อให้ AI ถอดข้อความและวิเคราะห์ความเสี่ยง');
+                          showToast(`เลือกรูปภาพ "${file.name}" แล้ว กดวิเคราะห์เพื่อถอดข้อความ`);
                         };
                         reader.readAsDataURL(file);
                       }
@@ -773,10 +807,10 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg)' }}>{imageName}</span>
-                          <span className="badge-sev badge-info">Preview only</span>
+                          <span className="badge-sev badge-safe">AI Vision OCR</span>
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 2 }}>{imageSize}</div>
-                        <div style={{ marginTop: 6, fontSize: 11.5, color: 'var(--fg-secondary)', background: 'var(--surface)', padding: '6px 8px', borderRadius: 4, border: '1px solid var(--border-subtle)', maxHeight: 60, overflowY: 'auto' }}>
+                        <div style={{ marginTop: 6, fontSize: 11.5, color: 'var(--fg-secondary)', background: 'var(--surface)', padding: '6px 8px', borderRadius: 4, border: '1px solid var(--border-subtle)', maxHeight: 60, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
                           {imageOcrText}
                         </div>
                       </div>
@@ -786,6 +820,8 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                         onClick={() => {
                           setImagePreview(null);
                           setImageName('');
+                          setImageFile(null);
+                          setImageOcrText('');
                           showToast('ลบรูปภาพแล้ว');
                         }}
                       >
@@ -911,7 +947,9 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                   onChange={(event) => setAudioConsentConfirmed(event.target.checked)}
                 />
                 <span>
-                  ฉันยืนยันว่ามีสิทธิ์และความยินยอมในการส่งไฟล์เสียงนี้ไปยัง ElevenLabs Scribe เพื่อถอดเสียง
+                  {language === 'en'
+                    ? 'I confirm that I have the right and consent to send this audio recording to ElevenLabs Scribe for transcription'
+                    : 'ฉันยืนยันว่ามีสิทธิ์และความยินยอมในการส่งไฟล์เสียงนี้ไปยัง ElevenLabs Scribe เพื่อถอดเสียง'}
                 </span>
               </label>
             )}
@@ -931,7 +969,7 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                     setUrl(e.target.value);
                     invalidateAnalysis();
                   }}
-                  placeholder="เว้นว่างได้ หากไม่มี URL"
+                  placeholder={language === 'en' ? 'Optional if no URL' : 'เว้นว่างได้ หากไม่มี URL'}
                 />
               </div>
               <div>
@@ -947,7 +985,7 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                     setPhone(e.target.value);
                     invalidateAnalysis();
                   }}
-                  placeholder="เว้นว่างได้ หากไม่มีเบอร์หรือ Sender ID"
+                  placeholder={language === 'en' ? 'Optional if no phone or Sender ID' : 'เว้นว่างได้ หากไม่มีเบอร์หรือ Sender ID'}
                 />
               </div>
             </div>
@@ -983,13 +1021,13 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
               disabled={analyzing}
             >
               {analyzing ? (
-                <span>Evaluating with AI Core &amp; configured threat sources...</span>
+                <span>{language === 'en' ? 'Evaluating threat telemetry with AI Core...' : 'กำลังประมวลผลและตรวจสอบกับฐานข้อมูลภัยคุกคาม...'}</span>
               ) : (
                 <>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <polygon points="5 3 19 12 5 21 5 3" />
                   </svg>
-                  <span>Execute Risk Analysis</span>
+                  <span>{language === 'en' ? 'Execute Risk Analysis' : 'เริ่มการวิเคราะห์ความเสี่ยง (Run Analysis)'}</span>
                 </>
               )}
             </button>
@@ -1110,7 +1148,7 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                   </svg>
-                  <span>คำแนะนำจากระบบวิเคราะห์:</span>
+                  <span>{language === 'en' ? 'AI Analytical Recommendation:' : 'คำแนะนำจากระบบวิเคราะห์:'}</span>
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--fg)', lineHeight: 1.5 }}>
                   {aiRecommendation}
@@ -1167,7 +1205,9 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                   {iocs.length === 0 ? (
                     <tr>
                       <td colSpan={4} style={{ color: 'var(--fg-muted)', textAlign: 'center' }}>
-                        ไม่พบ URL, เบอร์โทร หรือข้อมูลบ่งชี้จากผลวิเคราะห์นี้
+                        {language === 'en'
+                          ? 'No URL, phone number, or malicious indicators extracted from this analysis'
+                          : 'ไม่พบ URL, เบอร์โทร หรือข้อมูลบ่งชี้จากผลวิเคราะห์นี้'}
                       </td>
                     </tr>
                   ) : (
@@ -1191,9 +1231,9 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                                 className="btn-copy"
                                 style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
                                 onClick={() => onNavigateToBlacklist(ioc.val)}
-                                title="ส่งค่าตัวบ่งชี้นี้ไปตรวจกับฐานข้อมูล Blacklist & OSINT"
+                                title="Check this indicator in Blacklist & OSINT"
                               >
-                                ตรวจ Blacklist ›
+                                {language === 'en' ? 'Check Blacklist ›' : 'ตรวจ Blacklist ›'}
                               </button>
                             )}
                           </div>
@@ -1234,9 +1274,19 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                 Immediate Countermeasure Checklist:
               </div>
               <ul style={{ fontSize: 11, color: 'var(--fg-secondary)', paddingLeft: 18, lineHeight: 1.6 }}>
-                <li>หยุดการสนทนาหรือธุรกรรมไว้ก่อน แล้วตรวจสอบผ่านช่องทางทางการที่ค้นหาเอง</li>
-                <li>อย่าเปิดเผย OTP, PIN หรือโอนเงินตามคำขอในข้อความหรือสายที่ยังยืนยันไม่ได้</li>
-                <li>เก็บหลักฐานและตรวจทานรายงานใน Incident Dossier ก่อนตัดสินใจแชร์ข้อมูล</li>
+                {language === 'en' ? (
+                  <>
+                    <li>Cease conversation and halt transactions; verify independently via official channels.</li>
+                    <li>Never disclose OTPs, PINs, or transfer funds upon unverified inbound requests.</li>
+                    <li>Archive digital telemetry and inspect Incident Dossier before sharing intelligence.</li>
+                  </>
+                ) : (
+                  <>
+                    <li>หยุดการสนทนาหรือธุรกรรมไว้ก่อน แล้วตรวจสอบผ่านช่องทางทางการที่ค้นหาเอง</li>
+                    <li>อย่าเปิดเผย OTP, PIN หรือโอนเงินตามคำขอในข้อความหรือสายที่ยังยืนยันไม่ได้</li>
+                    <li>เก็บหลักฐานและตรวจทานรายงานใน Incident Dossier ก่อนตัดสินใจแชร์ข้อมูล</li>
+                  </>
+                )}
               </ul>
             </div>}
           </div>
