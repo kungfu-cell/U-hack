@@ -6,4 +6,5 @@ export * from "./rules.js";
 export * from "./risk.js";
 export * from "./redaction.js";
 export * from "./google-safe-browsing.js";
+export * from "./urlhaus.js";
 export * from "./openai-analyzer.js";

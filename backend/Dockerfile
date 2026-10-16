@@ -4,10 +4,21 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 RUN corepack enable
 WORKDIR /app
+ENV PNPM_CONFIG_FETCH_TIMEOUT=300000 COREPACK_HOME=/root/.cache/node/corepack
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY backend/package.json ./backend/package.json
+COPY frontend/package.json ./frontend/package.json
+COPY packages/analysis-core/package.json ./packages/analysis-core/package.json
+COPY packages/contracts/package.json ./packages/contracts/package.json
+COPY packages/database/package.json ./packages/database/package.json
+RUN --mount=type=cache,id=scamtrap-corepack,target=/root/.cache/node/corepack,sharing=locked \
+  --mount=type=cache,id=scamtrap-pnpm-store,target=/root/.local/share/pnpm/store,sharing=locked \
+  pnpm install --frozen-lockfile
 COPY . .
-RUN pnpm install --frozen-lockfile
-RUN pnpm db:generate
-RUN pnpm build
+RUN --mount=type=cache,id=scamtrap-corepack,target=/root/.cache/node/corepack,sharing=locked \
+  pnpm db:generate
+RUN --mount=type=cache,id=scamtrap-corepack,target=/root/.cache/node/corepack,sharing=locked \
+  pnpm build
 
 FROM node:24-bookworm-slim AS runtime
 RUN apt-get update \

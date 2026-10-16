@@ -69,6 +69,10 @@ export class CaseService {
     return this.repository.findById(id);
   }
 
+  list(ownerId: string) {
+    return this.repository.listByOwner(ownerId);
+  }
+
   async addInput(record: StoredCase, request: AddCaseInputRequest) {
     const input: CaseInput = {
       id: randomUUID(),

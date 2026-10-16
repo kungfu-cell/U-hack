@@ -17,14 +17,14 @@ const DEFAULT_DEMO_UTTERANCES: DemoUtterance[] = [
     id: 'demo-1',
     speaker: 'caller',
     time: '00:04',
-    text: 'สวัสดีครับ ผมร้อยตำรวจเอก ธนกร จาก สภ.เมืองเชียงใหม่ มีเรื่องด่วนต้องเรียนสายกับคุณสมชายครับ',
-    intent: ['AUTHORITY IMPERSONATION'],
+    text: 'สวัสดีครับ ผมร้อยตำรวจเอก ธนกร จากกองบัญชาการตำรวจไซเบอร์ มีเรื่องด่วนที่สุด! ตรวจพบว่าบัญชีของคุณพัวพันคดีฟอกเงินข้ามชาติ 2 ล้าน 4 แสนบาท คุณต้องฟังเดี๋ยวนี้และห้ามวางสายเด็ดขาด!',
+    intent: ['AUTHORITY IMPERSONATION', 'URGENCY TRIGGER'],
   },
   {
     id: 'demo-2',
     speaker: 'user',
     time: '00:12',
-    text: 'ครับ... มีเรื่องอะไรหรือเปล่าครับผู้หมวด?',
+    text: 'ครับ... ผมไม่เคยเปิดบัญชีนั้นเลยนะ มีเรื่องอะไรกันแน่ครับผู้หมวด?',
   },
   {
     id: 'demo-3',
@@ -35,16 +35,17 @@ const DEFAULT_DEMO_UTTERANCES: DemoUtterance[] = [
   },
   {
     id: 'demo-4',
-    speaker: 'user',
-    time: '00:45',
-    text: 'ผมไม่เคยเปิดบัญชีนั้นเลยนะ จะให้ผมทำยังไงครับ?',
+    speaker: 'ai',
+    time: '00:35',
+    text: 'ตกใจมากเลยค่ะคุณตำรวจ หนูยินดีให้ความร่วมมือค่ะ ขอเลขบัญชีตรวจสอบของ ปปง. ชัดๆ อีกรอบได้ไหมคะ เดี๋ยวหนูรีบกดโอนไปให้ตรวจสอบเลยค่ะ',
+    intent: ['FEIGNED COMPLIANCE', 'MULE EXTRACTION'],
   },
   {
     id: 'demo-5',
     speaker: 'caller',
-    time: '01:05',
-    text: 'ตอนนี้ให้คุณโอนเงินในทุกบัญชีที่คุณมี ไปไว้ที่บัญชีคุ้มครองความปลอดภัย ปปง. ชื่อนายวิชัย ภักดี เพื่อตรวจสอบก่อนครับ ถ้าบริสุทธิ์ใจจะโอนคืนให้ใน 15 นาที',
-    intent: ['MONEY ROUTING'],
+    time: '00:50',
+    text: 'จดเดี๋ยวนี้! โอนเข้ามาที่ธนาคารกรุงไทย เลขบัญชี 984-2-90184-1 ชื่อนายวิชัย ภักดี โอนเสร็จส่งสลิปมา ห้ามวางสายเด็ดขาด!',
+    intent: ['MULE ACCOUNT DISCLOSURE', 'URGENCY TRIGGER'],
   },
 ];
 
@@ -184,8 +185,10 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
   // Speech simulation and audio animation state
   const [isCallerSimSpeaking, setIsCallerSimSpeaking] = useState<boolean>(false);
   const [isUserSimSpeaking, setIsUserSimSpeaking] = useState<boolean>(false);
+  const [isAiSimSpeaking, setIsAiSimSpeaking] = useState<boolean>(false);
   const phaseRef = useRef<number>(0);
   const callerAudioPlayerRef = useRef<AgentAudioPlayer | null>(null);
+  const decoyAudioPlayerRef = useRef<AgentAudioPlayer | null>(null);
 
   // Waveform heights state (defaults to resting baseline 4px)
   const [callerWaveBars, setCallerWaveBars] = useState<number[]>(() =>
@@ -221,6 +224,7 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
 
   const isAiSpeaking = Boolean(
     isAiActive && (
+      isAiSimSpeaking ||
       (activePartials.ai && activePartials.ai.text.trim().length > 0) ||
       (!isCallerActive && !isUserActive)
     ),
@@ -332,31 +336,100 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
     if (!sessionId) {
       await startCall();
     }
+    const targetLang: 'th' | 'en' = spokenLanguage === 'en-US' ? 'en' : 'th';
     if (isAiActive) {
       const resumed = await resumeHuman();
       if (resumed) showToast('ส่งคำขอคืนสายให้ผู้ใช้แล้ว');
     } else {
       const accepted = await requestHandoff();
-      if (accepted) showToast('กำลังเตรียม AI Decoy รับช่วงสายล่อ');
+      if (accepted) {
+        showToast('🛡️ สลับสายสำเร็จ! AI Decoy "น้องออม" สวมรอยคุยแทนเพื่อล่อขอเลขบัญชีม้า');
+        
+        // Step 1: AI Decoy speaks compliant bait
+        setTimeout(async () => {
+          const decoyText =
+            targetLang === 'en'
+              ? 'I am so scared officer, I have never opened such account. I want to cooperate fully. Could you please give me the verified official custody bank account again? I will wire the funds right away.'
+              : 'ตกใจมากเลยค่ะคุณตำรวจ หนูยินดีให้ความร่วมมือค่ะ ขอเลขบัญชีตรวจสอบของ ปปง. ชัดๆ อีกรอบได้ไหมคะ เดี๋ยวหนูรีบกดโอนไปให้ตรวจสอบเลยค่ะ';
+          
+          void playDecoySpeech(decoyText, targetLang);
+          setDemoUtteranceList((prev) => [
+            ...prev,
+            {
+              id: `sim-decoy-${Date.now()}`,
+              speaker: 'ai',
+              time: formatTimer(callDurationSec + 2),
+              text: decoyText,
+              intent: ['FEIGNED COMPLIANCE', 'MULE EXTRACTION'],
+            },
+          ]);
+
+          // Step 2: Scammer falls for the trap and reveals the mule account
+          setTimeout(async () => {
+            const muleText =
+              targetLang === 'en'
+                ? 'Note this down immediately! Wire to Krungthai Bank, account 984-2-90184-1, beneficiary Wichai Phakdee. Send the transfer slip once done, and do not disconnect this line!'
+                : 'จดเดี๋ยวนี้! โอนเข้ามาที่ธนาคารกรุงไทย เลขบัญชี 984-2-90184-1 ชื่อนายวิชัย ภักดี โอนเสร็จส่งสลิปมา ห้ามวางสายเด็ดขาด!';
+            
+            void playScammerSpeech(muleText, targetLang);
+            await simulateSpeech('caller', muleText);
+            setDemoUtteranceList((prev) => [
+              ...prev,
+              {
+                id: `sim-mule-${Date.now()}`,
+                speaker: 'caller',
+                time: formatTimer(callDurationSec + 6),
+                text: muleText,
+                intent: ['MULE ACCOUNT DISCLOSURE', 'URGENCY TRIGGER'],
+              },
+            ]);
+            showToast('🎯 สำเร็จ! AI ล่อให้มิจฉาชีพคายเลขบัญชีม้า 984-2-90184-1 ออกมาแล้ว');
+          }, 4500);
+
+        }, 700);
+      }
     }
   };
 
   const handleAcceptCall = async () => {
     ringtoneRef.current.stop();
     callerAudioPlayerRef.current?.stopAndFlush();
+    decoyAudioPlayerRef.current?.stopAndFlush();
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     setCallStatus('connected');
     setCallEndedLocally(false);
     setCallDurationSec(0);
+    setDemoUtteranceList([]);
     if (!sessionId) await startCall();
+
+    const targetLang: 'th' | 'en' = spokenLanguage === 'en-US' ? 'en' : 'th';
     showToast(
-      spokenLanguage === 'en-US'
-        ? 'Call Connected! English Scammer AI (Fraud Taskforce) is connecting...'
-        : 'รับสายแล้ว! มิจฉาชีพ AI (ตำรวจไซเบอร์) กำลังเชื่อมต่อสายตรง...',
+      targetLang === 'en'
+        ? '📞 Call Connected! Federal Fraud Taskforce Scammer speaking...'
+        : '📞 รับสายแล้ว! มิจฉาชีพ (ตำรวจไซเบอร์ปลอม) กำลังข่มขู่ในสาย...',
     );
 
-    // ConvAI owns live-call audio. Transcript updates must never trigger a second TTS playback.
-    const targetLang: 'th' | 'en' = spokenLanguage === 'en-US' ? 'en' : 'th';
+    // Automatically trigger realistic scam opening threat right on answer!
+    setTimeout(async () => {
+      const scammerText =
+        targetLang === 'en'
+          ? 'This is Officer John Davis from Federal Fraud Taskforce. Your bank account has been flagged in an international 2.4-million-dollar money laundering syndicate. Do not hang up, you are required to cooperate immediately!'
+          : 'สวัสดีครับ ผมร้อยตำรวจเอก ธนกร จากกองบัญชาการตำรวจไซเบอร์ มีเรื่องด่วนที่สุด! ตรวจพบว่าบัญชีของคุณพัวพันคดีฟอกเงินข้ามชาติ 2 ล้าน 4 แสนบาท คุณต้องฟังเดี๋ยวนี้และห้ามวางสายเด็ดขาด!';
+      
+      void playScammerSpeech(scammerText, targetLang);
+      await simulateSpeech('caller', scammerText);
+      setDemoUtteranceList((prev) => [
+        ...prev,
+        {
+          id: `sim-scam-${Date.now()}`,
+          speaker: 'caller',
+          time: '00:02',
+          text: scammerText,
+          intent: ['AUTHORITY IMPERSONATION', 'CRIMINAL COERCION', 'URGENCY TRIGGER'],
+        },
+      ]);
+    }, 600);
+
     await startScammerCall(targetLang);
   };
 
@@ -456,6 +529,65 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
       }
     } catch {
       // ignore
+    }
+  };
+
+  const playDecoySpeech = async (text: string, lang: 'th' | 'en' = 'th') => {
+    setIsAiSimSpeaking(true);
+    const approxDurationSec = Math.max(3.5, Math.min(10, text.length * 0.075));
+    const timer = setTimeout(() => {
+      setIsAiSimSpeaking(false);
+    }, approxDurationSec * 1000);
+
+    showToast(`กำลังสังเคราะห์เสียง AI Decoy (${lang === 'en' ? 'Eric (EN)' : 'Aom (TH)'})... 🛡️`);
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:3001'}/sessions/speak-preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-id': 'demo-user' },
+        body: JSON.stringify({
+          text,
+          directText: true,
+          voiceRole: 'decoy',
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.audioBase64) {
+          if (!decoyAudioPlayerRef.current) {
+            decoyAudioPlayerRef.current = new AgentAudioPlayer();
+          }
+          await decoyAudioPlayerRef.current.enqueueAudioChunk(data.audioBase64, 16000);
+          showToast(`🛡️ เสียง AI Decoy (น้องออม) กำลังคุยล่อในสาย...`);
+          return;
+        }
+      }
+    } catch {
+      // Fallback below
+    }
+
+    // Fallback: Web Speech API speechSynthesis for zero-dependency speaker playback
+    try {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = lang === 'en' ? 'en-US' : 'th-TH';
+        utterance.rate = 1.05;
+        utterance.pitch = 1.25; // Gentle, polite tone for Aom decoy
+        utterance.onend = () => {
+          clearTimeout(timer);
+          setIsAiSimSpeaking(false);
+        };
+        utterance.onerror = () => {
+          clearTimeout(timer);
+          setIsAiSimSpeaking(false);
+        };
+        window.speechSynthesis.speak(utterance);
+        showToast(`🛡️ เสียง AI Decoy ออกลำโพง (Web Speech): ${lang === 'en' ? 'EN' : 'TH'}`);
+      }
+    } catch {
+      setIsAiSimSpeaking(false);
     }
   };
 

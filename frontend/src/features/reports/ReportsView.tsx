@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import type { CaseRecord } from '@scamtrap/contracts';
+import { getCases } from '../../lib/api';
 import { showToast } from '../../lib/toast';
 import { ReportPlaceholder } from './ReportPlaceholder';
 import { useAppLanguage } from '../../lib/LanguageContext';
@@ -11,6 +13,7 @@ import {
 
 export interface IncidentCase {
   id: string;
+  isDemo: boolean;
   severity: 'Critical' | 'High' | 'Medium' | 'Low';
   severityClass: 'badge-critical' | 'badge-warning' | 'badge-safe' | 'badge-info';
   priority?: 'P1 - Urgent' | 'P2 - Elevated' | 'P3 - Standard' | 'P4 - Low';
@@ -18,7 +21,7 @@ export interface IncidentCase {
   ioc: string;
   channel: string;
   timestamp: string;
-  status: 'Active Takeover' | 'Under Investigation' | 'Awaiting Freeze' | 'Reported 1441' | 'Quarantined' | 'Cleared' | 'Closed';
+  status: string;
   statusClass: 'badge-critical' | 'badge-warning' | 'badge-safe' | 'badge-info';
   title: string;
   auditLog: string[];
@@ -31,105 +34,62 @@ export interface IncidentCase {
   investigatorNotes?: string;
 }
 
-const INITIAL_CASES: IncidentCase[] = [
-  {
-    id: 'INC-2026-9042',
-    severity: 'Critical',
-    severityClass: 'badge-critical',
-    priority: 'P1 - Urgent',
-    category: 'Police Impersonation & Money Laundering',
-    ioc: '+66 82-419-8921',
-    channel: 'Inbound VoIP',
-    timestamp: 'Today, 14:28:10',
-    status: 'Active Takeover',
-    statusClass: 'badge-critical',
-    title: 'Transnational Syndicate Extortion: Police Official Impersonation',
-    auditLog: [
-      '[14:28:10] Inbound call initiated from +66 82-419-8921 via Poipet VoIP Gateway.',
-      '[14:28:18] Caller falsely claimed to be Pol. Capt. Thanakorn from Chiang Mai Police Station.',
-      '[14:28:35] ScamTrap Scribe NLP detected coercion triggers ("arrest warrant", "asset freeze", "AMLO audit").',
-      '[14:29:10] Suspect instructed recipient to transfer capital to mule account held under Wichai Phakdee.',
-      '[14:29:40] ScamTrap Honeypot Decoy intercepted the live audio stream.',
-      '[14:30:00] Automated IOC alert queued for Central Investigation Bureau and AOC 1441.',
-    ],
-    muleBank: 'Krungthai Bank (KTB)',
-    muleName: 'Wichai Phakdee (Flagged Mule)',
-    muleAccount: '984-2-90184-1',
-    muleOrigin: 'Gateway Cell-04 Border Range (Poipet)',
-    assignedInvestigator: 'Capt. S. Wongsawat (CCIB-4)',
-    tags: ['AOC-Priority', 'Voice-Clone', 'Mule-Network'],
-    investigatorNotes: 'Suspect actively utilizing dynamic SIM box array. Expedited freeze request pending with Krungthai fraud operations.',
-  },
-  {
-    id: 'INC-2026-8819',
-    severity: 'High',
-    severityClass: 'badge-warning',
-    priority: 'P2 - Elevated',
-    category: 'Banking Phishing SMS (Krungthai Spoof)',
-    ioc: 'ktb-online-claim.vip',
-    channel: 'SMS Text',
-    timestamp: 'Today, 13:12:45',
-    status: 'Reported 1441',
-    statusClass: 'badge-safe',
-    title: 'Banking Credential Harvester With Spoofed SMS Header',
-    auditLog: [
-      '[13:12:45] Inbound SMS received with spoofed sender ID "KTB-Privilege".',
-      '[13:13:02] Redirected target to credential harvesting domain ktb-online-claim.vip.',
-      '[13:13:20] Domain matched threat intelligence blocklist (Google Safe Browsing & URLhaus).',
-      '[13:14:00] Recipient alerted against credential disclosure; incident docket filed with AOC 1441.',
-    ],
-    muleBank: 'Krungthai Bank (KTB)',
-    muleName: 'AMLO Watchlist Target (Blacklistseller Confirmed)',
-    muleAccount: '710-0-84192-3',
-    muleOrigin: 'Bangkok Telecommunications SMS Trunk',
-    assignedInvestigator: 'Insp. P. Rattana (Cyber Taskforce)',
-    tags: ['Phishing-Kit', 'SMS-Spoof'],
-    investigatorNotes: 'Origin gateway traced to virtual SMS aggregator; block order dispatched to national telecom regulator (NBTC).',
-  },
-  {
-    id: 'INC-2026-8740',
-    severity: 'Critical',
-    severityClass: 'badge-critical',
-    priority: 'P1 - Urgent',
-    category: 'Transport Department Remote Trojan APK',
-    ioc: 'dlt-tax-payment.apk',
-    channel: 'Web Phish',
-    timestamp: 'Today, 11:40:02',
-    status: 'Quarantined',
-    statusClass: 'badge-safe',
-    title: 'Remote Access Trojan (RAT) Distribution Targeting Android Devices',
-    auditLog: [
-      '[11:40:02] Deceptive Department of Land Transport site prompted target to install sideloaded APK.',
-      '[11:40:15] Binary analysis verified elevated request for BIND_ACCESSIBILITY_SERVICE permission.',
-      '[11:40:40] Malware payload quarantined; command-and-control node 103.45.89.214:8080 blacklisted.',
-    ],
-    muleOrigin: 'Malware C2 Infrastructure (Cambodia Range)',
-    assignedInvestigator: 'K. Somchai (Malware Forensics)',
-    tags: ['Trojan-RAT', 'C2-Teardown'],
-    investigatorNotes: 'Decompiled APK matches SpyNote branch variant. C2 node blocked at perimeter firewall level.',
-  },
-  {
-    id: 'INC-2026-8610',
-    severity: 'Low',
-    severityClass: 'badge-info',
-    priority: 'P4 - Low',
-    category: 'Legitimate Two-Factor Verification (Shopee)',
-    ioc: 'ShopeePay-OTP',
-    channel: 'SMS 2FA',
-    timestamp: 'Today, 09:15:20',
-    status: 'Cleared',
-    statusClass: 'badge-safe',
-    title: 'Standard Two-Factor Authentication Protocol',
-    auditLog: [
-      '[09:15:20] Standard ShopeePay verification SMS received.',
-      '[09:15:30] Heuristic verification confirmed compliant signature and legitimate advisory notice.',
-      '[09:15:35] No coercion, extortion markers, or suspicious redirects detected.',
-    ],
-    assignedInvestigator: 'Automated Triaging Bot',
-    tags: ['Whitelisted', 'False-Positive-Check'],
-    investigatorNotes: 'Verified compliant OTP payload with authenticated brand signature.',
-  },
-];
+const severityPresentation = {
+  critical: { severity: 'Critical', severityClass: 'badge-critical' },
+  high: { severity: 'High', severityClass: 'badge-warning' },
+  medium: { severity: 'Medium', severityClass: 'badge-warning' },
+  low: { severity: 'Low', severityClass: 'badge-info' },
+} as const;
+
+const toIncidentCase = (record: CaseRecord): IncidentCase => {
+  const analysis = record.latestAnalysis;
+  const level = analysis?.level ?? 'low';
+  const presentation = severityPresentation[level];
+  const primaryEntity = analysis?.entities.find((entity) =>
+    ['url', 'phone', 'bank_account', 'email', 'line_id'].includes(entity.type),
+  );
+  const firstInput = record.inputs[0];
+  const channel = firstInput?.source.startsWith('live_session:')
+    ? 'Live Call'
+    : firstInput?.source.startsWith('audio_upload:')
+      ? 'Audio Upload'
+      : firstInput?.type === 'url'
+        ? 'Suspicious URL'
+        : 'Text / Chat';
+  const statusPresentation = record.status === 'completed'
+    ? { status: 'Analyzed', statusClass: 'badge-safe' as const }
+    : record.status === 'analyzing'
+      ? { status: 'Analyzing', statusClass: 'badge-warning' as const }
+      : { status: record.status, statusClass: 'badge-info' as const };
+  const priority = level === 'critical'
+    ? 'P1 - Urgent'
+    : level === 'high'
+      ? 'P2 - Elevated'
+      : level === 'medium'
+        ? 'P3 - Standard'
+        : 'P4 - Low';
+  const auditLog = [
+    `[${new Date(record.createdAt).toLocaleString()}] สร้างเคสใน ScamTrap AI`,
+    `[${new Date(record.updatedAt).toLocaleString()}] สถานะล่าสุด: ${statusPresentation.status}`,
+    ...(analysis?.threatChecks.map(
+      (check) => `[${new Date(check.checkedAt).toLocaleString()}] ${check.provider}: ${check.status}${check.threatType ? ` (${check.threatType})` : ''}`,
+    ) ?? []),
+  ];
+
+  return {
+    id: record.id,
+    isDemo: record.isDemo,
+    ...presentation,
+    priority,
+    category: analysis?.summary ?? record.title,
+    ioc: primaryEntity?.value ?? '—',
+    channel,
+    timestamp: new Date(record.updatedAt).toLocaleString(),
+    ...statusPresentation,
+    title: analysis?.summary ?? record.title,
+    auditLog,
+  };
+};
 
 interface ReportsViewProps {
   initialSubTab?: ('dossier' | 'blacklist' | 'live-report') | undefined;
@@ -149,7 +109,9 @@ export const ReportsView = ({
 }: ReportsViewProps = {}) => {
   const { language } = useAppLanguage();
   const [activeSubTab, setActiveSubTab] = useState<'dossier' | 'blacklist' | 'live-report'>(initialSubTab);
-  const [cases, setCases] = useState<IncidentCase[]>(INITIAL_CASES);
+  const [cases, setCases] = useState<IncidentCase[]>([]);
+  const [casesLoadError, setCasesLoadError] = useState('');
+  const [reportCaseId, setReportCaseId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selectedCase, setSelectedCase] = useState<IncidentCase | null>(null);
   const [officialReportModal, setOfficialReportModal] = useState<IncidentCase | null>(null);
@@ -175,6 +137,7 @@ export const ReportsView = ({
 
   const [latestCaseContext, setLatestCaseContext] = useState(getLatestCaseContext);
   const { caseId: latestCaseId, sessionId: latestSessionId } = latestCaseContext;
+  const activeReportCaseId = reportCaseId ?? latestCaseId;
 
   // Dossier Triage & Filter State
   const [dossierStatusFilter, setDossierStatusFilter] = useState<string>('ALL');
@@ -262,6 +225,30 @@ export const ReportsView = ({
   useEffect(() => {
     setLatestCaseContext(getLatestCaseContext());
   }, [refreshKey, activeSubTab]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setCasesLoadError('');
+    void getCases()
+      .then((records) => {
+        if (!cancelled) {
+          const realCasesFirst = [...records].sort((left, right) => {
+            if (left.isDemo !== right.isDemo) return left.isDemo ? 1 : -1;
+            return right.updatedAt.localeCompare(left.updatedAt);
+          });
+          setCases(realCasesFirst.map(toIncidentCase));
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setCases([]);
+          setCasesLoadError(error instanceof Error ? error.message : 'โหลดรายการเคสไม่สำเร็จ');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
 
   const handleAddNewIoc = (e: React.FormEvent) => {
     e.preventDefault();
@@ -415,18 +402,21 @@ export const ReportsView = ({
             </span>
           </button>
 
-          {latestCaseId && (
+          {activeReportCaseId && (
             <button
               type="button"
               className={`nav-tab-btn ${activeSubTab === 'live-report' ? 'active' : ''}`}
-              onClick={() => setActiveSubTab('live-report')}
+              onClick={() => {
+                setReportCaseId(null);
+                setActiveSubTab('live-report');
+              }}
               style={{ fontSize: 13, padding: '7px 16px' }}
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10" />
                 <polyline points="12 6 12 12 16 14" />
               </svg>
-              <span>{language === 'en' ? 'Live Session Report' : 'รายงานการดักฟังสายสด'}</span>
+              <span>{language === 'en' ? 'Incident Report' : 'รายงานเคสจริง'}</span>
               <span className="badge-sev badge-safe" style={{ fontSize: 10, padding: '1px 6px' }}>ACTIVE</span>
             </button>
           )}
@@ -447,11 +437,13 @@ export const ReportsView = ({
       </div>
 
       {/* VIEW 1: LIVE SESSION REPORT */}
-      {activeSubTab === 'live-report' && latestCaseId && (
+      {activeSubTab === 'live-report' && activeReportCaseId && (
         <div>
           <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: 'var(--fg-muted)' }}>
-              Displaying formal case dossier from the latest live interception session.
+              {language === 'en'
+                ? 'Displaying the report generated from this case and its external threat-intelligence checks.'
+                : 'กำลังแสดงรายงานที่ระบบสร้างจากข้อมูลและผลตรวจแหล่งภายนอกของเคสนี้'}
             </span>
             <button
               type="button"
@@ -463,8 +455,8 @@ export const ReportsView = ({
             </button>
           </div>
           <ReportPlaceholder
-            caseId={latestCaseId}
-            sessionId={latestSessionId}
+            caseId={activeReportCaseId}
+            sessionId={activeReportCaseId === latestCaseId ? latestSessionId : null}
             refreshKey={refreshKey}
           />
         </div>
@@ -492,12 +484,16 @@ export const ReportsView = ({
                   Mule Account &amp; Threat Intelligence Verification Center
                 </h3>
                 <p style={{ fontSize: 12, color: 'var(--fg-secondary)', marginTop: 4 }}>
-                  Real-time cross-referencing against <strong>Blacklistseller, AOC 1441, Whoscall, NBTC, AMLO, and URLhaus</strong> repositories.
+                  {language === 'en' ? (
+                    <>URLs are checked through <strong>Google Safe Browsing and URLhaus</strong>. Phone and bank-account entries on this tab are internal demonstration data.</>
+                  ) : (
+                    <>URL จะตรวจด้วย <strong>Google Safe Browsing และ URLhaus</strong> ส่วนข้อมูลเบอร์โทรและบัญชีในหน้านี้เป็นรายการภายในเพื่อการสาธิต</>
+                  )}
                 </p>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                <span className="badge-sev badge-critical" style={{ fontSize: 10 }}>AOC 1441 LIVE FEED</span>
-                <span className="badge-sev badge-safe" style={{ fontSize: 10 }}>BLACKLISTSELLER SYNCED</span>
+                <span className="badge-sev badge-info" style={{ fontSize: 10 }}>AOC 1441 NOT CONNECTED</span>
+                <span className="badge-sev badge-warning" style={{ fontSize: 10 }}>PHONE / ACCOUNT DEMO DATA</span>
               </div>
             </div>
 
@@ -1144,9 +1140,19 @@ export const ReportsView = ({
       {activeSubTab === 'dossier' && (
         <>
           <div className="warning-banner" style={{ marginBottom: 16 }}>
-            <strong>Demonstration Dataset</strong>
-            <p>Records displayed in this view represent baseline audit dockets for analytical evaluation.</p>
+            <strong>{language === 'en' ? 'ScamTrap AI case database' : 'ข้อมูลเคสจากระบบ ScamTrap AI'}</strong>
+            <p>
+              {language === 'en'
+                ? 'Records are loaded from PostgreSQL and labelled REAL or DEMO. No data is submitted to AOC or another agency automatically.'
+                : 'รายการดึงจาก PostgreSQL และแยกป้าย REAL/DEMO โดยยังไม่มีการส่งข้อมูลไป AOC หรือหน่วยงานภายนอกโดยอัตโนมัติ'}
+            </p>
           </div>
+          {casesLoadError && (
+            <div className="warning-banner" style={{ marginBottom: 16 }}>
+              <strong>{language === 'en' ? 'Unable to load cases' : 'โหลดรายการเคสไม่สำเร็จ'}</strong>
+              <p>{casesLoadError}</p>
+            </div>
+          )}
 
           {/* Quick Triage Operational Summary Cards */}
           <div
@@ -1191,7 +1197,7 @@ export const ReportsView = ({
               <div style={{ fontSize: 11, color: 'var(--fg-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Total Registered Dockets</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
                 <span style={{ fontSize: 20, fontWeight: 700, color: '#60a5fa' }}>{cases.length}</span>
-                <span style={{ fontSize: 11, color: 'var(--fg-secondary)' }}>AOC-Compliant</span>
+                <span style={{ fontSize: 11, color: 'var(--fg-secondary)' }}>PostgreSQL Records</span>
               </div>
             </div>
           </div>
@@ -1207,7 +1213,9 @@ export const ReportsView = ({
                   Security Incidents &amp; Forensic Dossier
                 </div>
                 <div className="card-subtitle">
-                  Investigative triage and forensic evidence dockets aligned with AOC 1441 and CCIB cyber protocols.
+                  {language === 'en'
+                    ? 'Case analysis and threat-intelligence results persisted in PostgreSQL.'
+                    : 'เคส การวิเคราะห์ และผลตรวจ Threat Intelligence ที่บันทึกใน PostgreSQL'}
                 </div>
               </div>
 
@@ -1295,11 +1303,20 @@ export const ReportsView = ({
                     {filteredCases.map((c) => (
                       <tr
                         key={c.id}
-                        onClick={() => setSelectedCase(c)}
+                        onClick={() => {
+                          setReportCaseId(c.id);
+                          setActiveSubTab('live-report');
+                        }}
                         style={{ cursor: 'pointer' }}
                       >
                         <td>
                           <span className="code-tag">{c.id}</span>
+                          <span
+                            className={`badge-sev ${c.isDemo ? 'badge-warning' : 'badge-safe'}`}
+                            style={{ marginLeft: 6, fontSize: 9 }}
+                          >
+                            {c.isDemo ? 'DEMO' : 'REAL'}
+                          </span>
                           {c.tags && c.tags.length > 0 && (
                             <div style={{ display: 'flex', gap: 4, marginTop: 3, flexWrap: 'wrap' }}>
                               {c.tags.map((t, idx) => (
@@ -1358,7 +1375,8 @@ export const ReportsView = ({
                             style={{ padding: '3px 8px', fontSize: 11 }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              setSelectedCase(c);
+                              setReportCaseId(c.id);
+                              setActiveSubTab('live-report');
                             }}
                           >
                             Triage ›

@@ -4,6 +4,7 @@ import {
   DemoAnalysisProvider,
   GoogleSafeBrowsingProvider,
   OpenAIAnalysisProvider,
+  UrlhausProvider,
   type AnalysisProvider,
 } from '@scamtrap/analysis-core';
 import Fastify from 'fastify';
@@ -40,7 +41,8 @@ export const buildApp = async (options?: {
   audioTranscriber?: AudioFileTranscriber;
   imageOcrProvider?: ImageOcrProvider;
 }) => {
-  const persistenceMode = options?.persistenceMode ?? env.PERSISTENCE_MODE;
+  const persistenceMode =
+    options?.persistenceMode ?? (env.NODE_ENV === 'test' ? 'memory' : env.PERSISTENCE_MODE);
   const app = Fastify({ logger: { level: env.LOG_LEVEL }, bodyLimit: 22 * 1024 * 1024 });
   app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body: string | Buffer, defaultDone) => {
     const text = typeof body === 'string' ? body : body.toString('utf-8');
@@ -68,9 +70,12 @@ export const buildApp = async (options?: {
     providers: {
       analysis: env.USE_DEMO_ADAPTERS || !env.OPENAI_API_KEY ? 'demo' : 'openai',
       threatIntel:
-        env.USE_DEMO_ADAPTERS || !env.GOOGLE_SAFE_BROWSING_API_KEY
+        env.USE_DEMO_ADAPTERS || (!env.GOOGLE_SAFE_BROWSING_API_KEY && !env.URLHAUS_AUTH_KEY)
           ? 'not_checked'
-          : 'google_safe_browsing',
+          : [
+              ...(env.GOOGLE_SAFE_BROWSING_API_KEY ? ['google_safe_browsing'] : []),
+              ...(env.URLHAUS_AUTH_KEY ? ['urlhaus'] : []),
+            ],
       speechToText:
         env.USE_DEMO_ADAPTERS || !env.ELEVENLABS_API_KEY ? 'demo' : 'elevenlabs_scribe',
       imageOcr:
@@ -89,13 +94,14 @@ export const buildApp = async (options?: {
       ? new OpenAIAnalysisProvider({
           apiKey: env.OPENAI_API_KEY,
           model: env.OPENAI_MODEL,
-          ...(env.GOOGLE_SAFE_BROWSING_API_KEY
-            ? {
-                threatIntelProvider: new GoogleSafeBrowsingProvider(
-                  env.GOOGLE_SAFE_BROWSING_API_KEY,
-                ),
-              }
-            : {}),
+          threatIntelProviders: [
+            ...(env.GOOGLE_SAFE_BROWSING_API_KEY
+              ? [new GoogleSafeBrowsingProvider(env.GOOGLE_SAFE_BROWSING_API_KEY)]
+              : []),
+            ...(env.URLHAUS_AUTH_KEY
+              ? [new UrlhausProvider(env.URLHAUS_AUTH_KEY)]
+              : []),
+          ],
         })
       : new DemoAnalysisProvider());
   const caseService = new CaseService(

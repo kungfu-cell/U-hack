@@ -83,6 +83,8 @@ export const caseSchema = z.object({
 });
 export type CaseRecord = z.infer<typeof caseSchema>;
 
+export const caseListSchema = z.array(caseSchema);
+
 export const apiErrorSchema = z.object({
   error: z.object({
     code: z.string(),

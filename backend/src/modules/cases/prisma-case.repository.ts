@@ -152,14 +152,25 @@ export class PrismaCaseRepository implements CaseRepository {
           confidence: em.confidence,
           verified: em.verified,
         })),
-        threatChecks: latestAssessment.intelChecks.map((ic) => ({
-          provider: ic.provider,
-          status: ic.status as any,
-          checkedAt: ic.checkedAt.toISOString(),
-          indicator: ic.entityMentionId ?? '',
-          ...(ic.threatType ? { threatType: ic.threatType } : {}),
-          isDemo: ic.isDemo,
-        })),
+        threatChecks: latestAssessment.intelChecks.map((ic) => {
+          const responseSummary =
+            ic.responseSummary &&
+            typeof ic.responseSummary === 'object' &&
+            !Array.isArray(ic.responseSummary)
+              ? ic.responseSummary
+              : {};
+          const indicator = responseSummary.indicator;
+          const message = responseSummary.message;
+          return {
+            provider: ic.provider,
+            status: ic.status as any,
+            checkedAt: ic.checkedAt.toISOString(),
+            indicator: typeof indicator === 'string' ? indicator : '',
+            ...(ic.threatType ? { threatType: ic.threatType } : {}),
+            ...(typeof message === 'string' ? { message } : {}),
+            isDemo: ic.isDemo,
+          };
+        }),
       };
     }
 
@@ -180,6 +191,16 @@ export class PrismaCaseRepository implements CaseRepository {
       createdAt: found.createdAt.toISOString(),
       updatedAt: found.updatedAt.toISOString(),
     };
+  }
+
+  async listByOwner(ownerId: string): Promise<StoredCase[]> {
+    const rows = await this.prisma.case.findMany({
+      where: { ownerId, deletedAt: null },
+      select: { id: true },
+      orderBy: { updatedAt: 'desc' },
+    });
+    const records = await Promise.all(rows.map((row) => this.findById(row.id)));
+    return records.filter((record): record is StoredCase => Boolean(record));
   }
 
   async save(record: StoredCase): Promise<StoredCase> {

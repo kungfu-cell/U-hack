@@ -83,6 +83,23 @@ describe('API smoke test', () => {
 
     expect(response.statusCode).toBe(403);
 
+    const ownerList = await app.inject({
+      method: 'GET',
+      url: '/cases',
+      headers: { 'x-user-id': 'owner-a' },
+    });
+    const otherOwnerList = await app.inject({
+      method: 'GET',
+      url: '/cases',
+      headers: { 'x-user-id': 'owner-b' },
+    });
+    expect(ownerList.statusCode).toBe(200);
+    expect(ownerList.json()).toEqual([
+      expect.objectContaining({ id: created.id, title: 'Private case' }),
+    ]);
+    expect(otherOwnerList.statusCode).toBe(200);
+    expect(otherOwnerList.json()).toEqual([]);
+
     await app.inject({
       method: 'DELETE',
       url: `/cases/${created.id}`,
