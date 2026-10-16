@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { IncidentReport, ShareProposal, Utterance } from '@scamtrap/contracts';
 import { useAppLanguage } from '../../lib/LanguageContext';
 import {
@@ -28,6 +28,7 @@ export const ReportPlaceholder = ({
   const [consentConfirmed, setConsentConfirmed] = useState(false);
   const [proposal, setProposal] = useState<ShareProposal | null>(null);
   const [timeline, setTimeline] = useState<Utterance[]>([]);
+  const timelineRef = useRef<Utterance[]>([]);
   const [status, setStatus] = useState<'loading' | 'analyzing' | 'ready' | 'pending' | 'empty' | 'error'>('loading');
   const [message, setMessage] = useState('');
   const [manualRefreshKey, setManualRefreshKey] = useState(0);
@@ -35,20 +36,25 @@ export const ReportPlaceholder = ({
   const effectiveCaseId = propCaseId || window.localStorage.getItem('scamtrap:lastCaseId') || '';
   const effectiveSessionId = propSessionId ?? window.localStorage.getItem('scamtrap:lastSessionId');
 
+  const replaceTimeline = useCallback((nextTimeline: Utterance[]) => {
+    timelineRef.current = nextTimeline;
+    setTimeline(nextTimeline);
+  }, []);
+
   const handleTriggerAnalysis = useCallback(async (targetCaseId?: string) => {
     const id = targetCaseId || effectiveCaseId;
     if (!id) return;
 
     setStatus('analyzing');
     try {
-      let capturedUtterances: Utterance[] = timeline;
+      let capturedUtterances: Utterance[] = timelineRef.current;
 
       if (effectiveSessionId && capturedUtterances.length === 0) {
         try {
           const snap = await getSessionSnapshot(effectiveSessionId);
           if (snap.utterances && snap.utterances.length > 0) {
             capturedUtterances = snap.utterances;
-            setTimeline(snap.utterances);
+            replaceTimeline(snap.utterances);
           }
         } catch {
           // ignore
@@ -79,7 +85,7 @@ export const ReportPlaceholder = ({
       setMessage(err instanceof Error ? err.message : 'Unable to complete case analysis.');
       setStatus('error');
     }
-  }, [effectiveCaseId, effectiveSessionId, timeline]);
+  }, [effectiveCaseId, effectiveSessionId, replaceTimeline]);
 
   const loadReport = useCallback(async (id: string, autoAnalyzeOnMissing = true) => {
     try {
@@ -92,7 +98,7 @@ export const ReportPlaceholder = ({
         try {
           const snapshot = await getSessionSnapshot(effectiveSessionId);
           if (snapshot.utterances && snapshot.utterances.length > 0) {
-            setTimeline(snapshot.utterances);
+            replaceTimeline(snapshot.utterances);
           }
         } catch {
           // ignore
@@ -114,7 +120,7 @@ export const ReportPlaceholder = ({
         );
       }
     }
-  }, [effectiveSessionId, handleTriggerAnalysis]);
+  }, [effectiveSessionId, handleTriggerAnalysis, replaceTimeline]);
 
   useEffect(() => {
     if (!effectiveCaseId) {
@@ -161,7 +167,9 @@ export const ReportPlaceholder = ({
     if (!correctedText || correctedText === utterance.text) return;
     try {
       const corrected = await correctSessionUtterance(effectiveSessionId, utterance.id, correctedText);
-      setTimeline((current) => current.map((item) => item.id === corrected.id ? corrected : item));
+      replaceTimeline(
+        timelineRef.current.map((item) => item.id === corrected.id ? corrected : item),
+      );
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Unable to update transcript segment.');
     }
