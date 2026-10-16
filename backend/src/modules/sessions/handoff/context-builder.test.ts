@@ -93,4 +93,28 @@ describe("ContextBuilder greeting policy", () => {
     );
     expect(context.systemPrompt).toContain("ห้ามย้อนกลับไปถามเป้าหมายก่อนหน้า");
   });
+
+  it("detects English caller and formats English prompt and objectives", () => {
+    const utterances = [
+      {
+        id: "caller-en-1",
+        sessionId: "session-en",
+        speaker: "caller",
+        text: "This is Special Agent David from the Cyber Crime Taskforce. You have a criminal warrant for money laundering.",
+        transcriptState: "committed",
+        startedAtMs: 0,
+        endedAtMs: 1500,
+        createdAt: new Date(0).toISOString(),
+      },
+    ] satisfies Utterance[];
+
+    const context = ContextBuilder.build("session-en", utterances);
+
+    expect(context.language).toBe("en");
+    expect(context.systemPrompt).toContain("You are the ScamTrap AI Decoy Agent");
+    expect(context.systemPrompt).toContain("LANGUAGE RULE: You MUST speak strictly in English");
+    expect(context.callerClaims).toContain("Caller claims to be a police officer or law enforcement authority");
+    expect(context.callerClaims).toContain("Caller threatens arrest warrants or money laundering prosecution");
+    expect(context.systemPrompt).toContain("Target question for this turn: Ask for the caller's full name and department");
+  });
 });

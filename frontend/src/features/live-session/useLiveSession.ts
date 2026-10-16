@@ -604,10 +604,12 @@ export const useLiveSession = () => {
   const requestHandoff = async (): Promise<boolean> => {
     if (!sessionId || participantRoleRef.current !== 'owner') return false;
     try {
+      const preferredLang =
+        activeScammerLang || (spokenLanguageRef.current?.startsWith('en') ? 'en' : 'th');
       const res = await fetch(`${apiUrl}/sessions/${sessionId}/handoff`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-user-id': 'demo-user' },
-        body: '{}',
+        body: JSON.stringify({ lang: preferredLang }),
       });
       if (!res.ok) throw new Error('AI ยังไม่พร้อมรับช่วงในสถานะปัจจุบัน');
       const updated = await res.json();

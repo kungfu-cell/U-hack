@@ -174,12 +174,27 @@ export const registerSessionRoutes = async (
     if (!session) return sendNotFound(reply, 'Session');
     if (session.ownerId !== getOwnerId(request)) return sendForbidden(reply);
 
+    const bodyLang =
+      typeof request.body === 'object' && request.body !== null && 'lang' in request.body
+        ? ((request.body as { lang?: unknown }).lang as 'th' | 'en' | undefined)
+        : undefined;
+    const queryLang =
+      typeof request.query === 'object' && request.query !== null && 'lang' in request.query
+        ? ((request.query as { lang?: unknown }).lang as 'th' | 'en' | undefined)
+        : undefined;
+    const targetLang: 'th' | 'en' | undefined =
+      bodyLang === 'en' || queryLang === 'en'
+        ? 'en'
+        : bodyLang === 'th' || queryLang === 'th'
+          ? 'th'
+          : undefined;
+
     try {
       const updated = service.requestHandoff(session);
       const pipeline = liveManager?.getOrCreatePipeline(session.id, session.caseId);
       pipeline?.setState(updated.state);
       if (pipeline) {
-        void pipeline.startHandoff().then((activated) => {
+        void pipeline.startHandoff(targetLang).then((activated) => {
           const current = service.get(session.id);
           if (!current || current.state !== 'preparing_ai') return;
           if (activated) service.activateAi(current);
