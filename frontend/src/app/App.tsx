@@ -14,6 +14,10 @@ export const App = () => {
   );
   const [reportRefreshKey, setReportRefreshKey] = useState(0);
 
+  const handleAnalysisComplete = () => {
+    setReportRefreshKey((current) => current + 1);
+  };
+
   const handleQuickExport = () => {
     const sampleIncident = {
       incidentId: 'INC-2026-9042',
@@ -146,7 +150,10 @@ export const App = () => {
       {/* Main Workspace */}
       <main className="app-main">
         <div style={{ display: activeTab === 'tab-verify' ? 'contents' : 'none' }}>
-          <QuickAnalysis onNavigateToBlacklist={handleNavigateToBlacklist} />
+          <QuickAnalysis
+            onNavigateToBlacklist={handleNavigateToBlacklist}
+            onAnalysisComplete={handleAnalysisComplete}
+          />
         </div>
         {mountedTabs.has('tab-live-call') && (
           <div style={{ display: activeTab === 'tab-live-call' ? 'contents' : 'none' }}>

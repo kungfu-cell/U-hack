@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import type { CaseRecord } from '@scamtrap/contracts';
+import { getCases } from '../../lib/api';
 import { showToast } from '../../lib/toast';
 import { ReportPlaceholder } from './ReportPlaceholder';
 import {
@@ -10,6 +12,7 @@ import {
 
 export interface IncidentCase {
   id: string;
+  isDemo: boolean;
   severity: 'Critical' | 'High' | 'Medium' | 'Low';
   severityClass: 'badge-critical' | 'badge-warning' | 'badge-safe' | 'badge-info';
   category: string;
@@ -26,89 +29,54 @@ export interface IncidentCase {
   muleOrigin?: string;
 }
 
-const INITIAL_CASES: IncidentCase[] = [
-  {
-    id: 'INC-2026-9042',
-    severity: 'Critical',
-    severityClass: 'badge-critical',
-    category: 'Police Impersonation & Money Laundering',
-    ioc: '+66 82-419-8921',
-    channel: 'Inbound VoIP',
-    timestamp: 'Today, 14:28:10',
-    status: 'Active Takeover',
-    statusClass: 'badge-critical',
-    title: 'Organized Call Center Extortion: Police Impersonation',
-    auditLog: [
-      '[14:28:10] Inbound call initiated from +66 82-419-8921 via Poipet VoIP Gateway.',
-      '[14:28:18] Caller falsely claimed to be Pol.Capt. Thanakorn from Chiang Mai Police Station.',
-      '[14:28:35] ScamTrap Scribe NLP detected coercion triggers ("ออกหมายจับ", "อายัดทรัพย์", "ปปง.").',
-      '[14:29:10] Criminal instructed victim to wire money to mule account: นายวิชัย ภักดี.',
-      '[14:29:40] ScamTrap Honeypot AI Agent intercepted call to protect citizen.',
-      '[14:30:00] Automated IOC alert queued for Central Police & AOC 1441.',
-    ],
-    muleBank: 'Krungthai Bank (KTB)',
-    muleName: 'นายวิชัย ภักดี (Flagged Mule)',
-    muleAccount: '984-2-90184-1',
-    muleOrigin: 'Gateway Cell-04 Border Range (Poipet)',
-  },
-  {
-    id: 'INC-2026-8819',
-    severity: 'High',
-    severityClass: 'badge-warning',
-    category: 'Bank Phishing SMS (Krungthai Spoofed)',
-    ioc: 'ktb-online-claim.vip',
-    channel: 'SMS Text',
-    timestamp: 'Today, 13:12:45',
-    status: 'Reported 1441',
-    statusClass: 'badge-safe',
-    title: 'Bank Credential Harvester • Spoofed SMS Header',
-    auditLog: [
-      '[13:12:45] SMS received with forged sender "KTB-Privilege".',
-      '[13:13:02] Link pointed to credential harvester domain ktb-online-claim.vip.',
-      '[13:13:20] Domain matched Threat Intel blocklist (Google Safe Browsing & URLhaus).',
-      '[13:14:00] Citizen warned not to submit OTP. Incident report shared with Thai AOC 1441.',
-    ],
-    muleBank: 'Krungthai Bank (KTB)',
-    muleName: 'บัญชีม้าออนไลน์ ปปง. (ตรวจพบใน Blacklistseller)',
-    muleAccount: '710-0-84192-3',
-    muleOrigin: 'Bangkok SMS Gateway Trunk',
-  },
-  {
-    id: 'INC-2026-8740',
-    severity: 'Critical',
-    severityClass: 'badge-critical',
-    category: 'DLT Tax Dept Remote Trojan APK',
-    ioc: 'dlt-tax-payment.apk',
-    channel: 'Web Phish',
-    timestamp: 'Today, 11:40:02',
-    status: 'Quarantined',
-    statusClass: 'badge-safe',
-    title: 'Remote Access Trojan (RAT) Distribution Targeting Android Devices',
-    auditLog: [
-      '[11:40:02] Fake Department of Land Transport page urged victim to install APK.',
-      '[11:40:15] APK analyzed: requests BIND_ACCESSIBILITY_SERVICE permission.',
-      '[11:40:40] Malware payload quarantined. C2 IP 103.45.89.214:8080 blacklisted.',
-    ],
-    muleOrigin: 'Malware C2 Server (Cambodia IP)',
-  },
-  {
-    id: 'INC-2026-8610',
-    severity: 'Low',
-    severityClass: 'badge-info',
-    category: 'Legitimate OTP Verification (Shopee)',
-    ioc: 'ShopeePay-OTP',
-    channel: 'SMS 2FA',
-    timestamp: 'Today, 09:15:20',
-    status: 'Cleared',
-    statusClass: 'badge-safe',
-    title: 'Legitimate Two-Factor Authentication • Standard Security Protocol',
-    auditLog: [
-      '[09:15:20] Standard ShopeePay OTP SMS received.',
-      '[09:15:30] Heuristic Engine confirmed legitimate standard message with security warning.',
-      '[09:15:35] No coercion, extortion, or suspicious URLs detected.',
-    ],
-  },
-];
+const severityPresentation = {
+  critical: { severity: 'Critical', severityClass: 'badge-critical' },
+  high: { severity: 'High', severityClass: 'badge-warning' },
+  medium: { severity: 'Medium', severityClass: 'badge-warning' },
+  low: { severity: 'Low', severityClass: 'badge-info' },
+} as const;
+
+const toIncidentCase = (record: CaseRecord): IncidentCase => {
+  const analysis = record.latestAnalysis;
+  const level = analysis?.level ?? 'low';
+  const presentation = severityPresentation[level];
+  const primaryEntity = analysis?.entities.find((entity) =>
+    ['url', 'phone', 'bank_account', 'email', 'line_id'].includes(entity.type),
+  );
+  const firstInput = record.inputs[0];
+  const channel = firstInput?.source.startsWith('live_session:')
+    ? 'Live Call'
+    : firstInput?.source.startsWith('audio_upload:')
+      ? 'Audio Upload'
+      : firstInput?.type === 'url'
+        ? 'Suspicious URL'
+        : 'Text / Chat';
+  const statusPresentation = record.status === 'completed'
+    ? { status: 'Analyzed', statusClass: 'badge-safe' as const }
+    : record.status === 'analyzing'
+      ? { status: 'Analyzing', statusClass: 'badge-warning' as const }
+      : { status: record.status, statusClass: 'badge-info' as const };
+  const auditLog = [
+    `[${new Date(record.createdAt).toLocaleString()}] สร้างเคสใน ScamTrap AI`,
+    `[${new Date(record.updatedAt).toLocaleString()}] สถานะล่าสุด: ${statusPresentation.status}`,
+    ...(analysis?.threatChecks.map(
+      (check) => `[${new Date(check.checkedAt).toLocaleString()}] ${check.provider}: ${check.status}${check.threatType ? ` (${check.threatType})` : ''}`,
+    ) ?? []),
+  ];
+
+  return {
+    id: record.id,
+    isDemo: record.isDemo,
+    ...presentation,
+    category: analysis?.summary ?? record.title,
+    ioc: primaryEntity?.value ?? '—',
+    channel,
+    timestamp: new Date(record.updatedAt).toLocaleString(),
+    ...statusPresentation,
+    title: analysis?.summary ?? record.title,
+    auditLog,
+  };
+};
 
 interface ReportsViewProps {
   initialSubTab?: ('dossier' | 'blacklist' | 'live-report') | undefined;
@@ -127,7 +95,9 @@ export const ReportsView = ({
   refreshKey = 0,
 }: ReportsViewProps = {}) => {
   const [activeSubTab, setActiveSubTab] = useState<'dossier' | 'blacklist' | 'live-report'>(initialSubTab);
-  const [cases, setCases] = useState<IncidentCase[]>(INITIAL_CASES);
+  const [cases, setCases] = useState<IncidentCase[]>([]);
+  const [casesLoadError, setCasesLoadError] = useState('');
+  const [reportCaseId, setReportCaseId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selectedCase, setSelectedCase] = useState<IncidentCase | null>(null);
   const [officialReportModal, setOfficialReportModal] = useState<IncidentCase | null>(null);
@@ -153,6 +123,7 @@ export const ReportsView = ({
 
   const [latestCaseContext, setLatestCaseContext] = useState(getLatestCaseContext);
   const { caseId: latestCaseId, sessionId: latestSessionId } = latestCaseContext;
+  const activeReportCaseId = reportCaseId ?? latestCaseId;
 
   const filteredCases = cases.filter(
     (c) =>
@@ -200,6 +171,30 @@ export const ReportsView = ({
 
   useEffect(() => {
     setLatestCaseContext(getLatestCaseContext());
+  }, [refreshKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setCasesLoadError('');
+    void getCases()
+      .then((records) => {
+        if (!cancelled) {
+          const realCasesFirst = [...records].sort((left, right) => {
+            if (left.isDemo !== right.isDemo) return left.isDemo ? 1 : -1;
+            return right.updatedAt.localeCompare(left.updatedAt);
+          });
+          setCases(realCasesFirst.map(toIncidentCase));
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setCases([]);
+          setCasesLoadError(error instanceof Error ? error.message : 'โหลดรายการเคสไม่สำเร็จ');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [refreshKey]);
 
   const handleAddIoc = (e: React.FormEvent) => {
@@ -350,18 +345,21 @@ export const ReportsView = ({
             </span>
           </button>
 
-          {latestCaseId && (
+          {activeReportCaseId && (
             <button
               type="button"
               className={`nav-tab-btn ${activeSubTab === 'live-report' ? 'active' : ''}`}
-              onClick={() => setActiveSubTab('live-report')}
+              onClick={() => {
+                setReportCaseId(null);
+                setActiveSubTab('live-report');
+              }}
               style={{ fontSize: 13, padding: '7px 16px' }}
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10" />
                 <polyline points="12 6 12 12 16 14" />
               </svg>
-              <span>เคสสดจากเซสชันล่าสุด (Live Session Report)</span>
+              <span>รายงานเคสจริง (Incident Report)</span>
               <span className="badge-sev badge-safe" style={{ fontSize: 10, padding: '1px 6px' }}>ACTIVE</span>
             </button>
           )}
@@ -382,11 +380,11 @@ export const ReportsView = ({
       </div>
 
       {/* VIEW 1: LIVE SESSION REPORT */}
-      {activeSubTab === 'live-report' && latestCaseId && (
+      {activeSubTab === 'live-report' && activeReportCaseId && (
         <div>
           <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: 'var(--fg-muted)' }}>
-              กำลังแสดงรายงานคดีจากเซสชันโทรศัพท์ล่าสุดของอุปกรณ์นี้
+              กำลังแสดงรายงานที่ระบบสร้างจากข้อมูลและผลตรวจแหล่งภายนอกของเคสนี้
             </span>
             <button
               type="button"
@@ -398,8 +396,8 @@ export const ReportsView = ({
             </button>
           </div>
           <ReportPlaceholder
-            caseId={latestCaseId}
-            sessionId={latestSessionId}
+            caseId={activeReportCaseId}
+            sessionId={activeReportCaseId === latestCaseId ? latestSessionId : null}
             refreshKey={refreshKey}
           />
         </div>
@@ -427,7 +425,7 @@ export const ReportsView = ({
                   ศูนย์ตรวจสอบและวิเคราะห์บัญชีม้า / เบอร์โทรศัพท์มิจฉาชีพออนไลน์ (OSINT Threat Intelligence)
                 </h3>
                 <p style={{ fontSize: 12, color: 'var(--fg-secondary)', marginTop: 4 }}>
-                  ดึงข้อมูลและเชื่อมโยงเครือข่ายความปลอดภัย <strong>Blacklistseller, ศูนย์ AOC 1441, Whoscall, กสทช., ปปง. (AMLO), และ URLhaus</strong> แบบเรียลไทม์
+                  URL จะตรวจด้วย <strong>Google Safe Browsing และ URLhaus</strong> ผ่านขั้นตอนวิเคราะห์เคส ส่วนข้อมูลเบอร์โทรและบัญชีในหน้านี้เป็นรายการภายในเพื่อการสาธิต
                 </p>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
@@ -1077,9 +1075,15 @@ export const ReportsView = ({
       {activeSubTab === 'dossier' && (
         <>
           <div className="warning-banner" style={{ marginBottom: 16 }}>
-            <strong>ข้อมูลสาธิต</strong>
-            <p>รายการด้านล่างเป็นตัวอย่างหน้ารายงาน ยังไม่ได้ส่งข้อมูลไป AOC หรือหน่วยงานภายนอก</p>
+            <strong>ข้อมูลเคสจากระบบ ScamTrap AI</strong>
+            <p>รายการด้านล่างดึงจากฐานข้อมูลจริงของผู้ใช้จำลอง แต่ยังไม่มีการส่งข้อมูลไป AOC หรือหน่วยงานภายนอกโดยอัตโนมัติ</p>
           </div>
+          {casesLoadError && (
+            <div className="warning-banner" style={{ marginBottom: 16 }}>
+              <strong>โหลดรายการเคสไม่สำเร็จ</strong>
+              <p>{casesLoadError}</p>
+            </div>
+          )}
           <div className="card">
             <div className="card-header">
               <div>
@@ -1091,7 +1095,7 @@ export const ReportsView = ({
                   Security Incidents &amp; Forensics Dossier
                 </div>
                 <div className="card-subtitle">
-                  ฐานข้อมูลคดีและหลักฐานภัยคุกคาม ตามมาตรฐาน AOC 1441 และ พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล (PDPA)
+                  เคส การวิเคราะห์ และผลตรวจ Threat Intelligence ที่บันทึกใน PostgreSQL
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -1138,11 +1142,20 @@ export const ReportsView = ({
                   {filteredCases.map((c) => (
                     <tr
                       key={c.id}
-                      onClick={() => setSelectedCase(c)}
+                      onClick={() => {
+                        setReportCaseId(c.id);
+                        setActiveSubTab('live-report');
+                      }}
                       style={{ cursor: 'pointer' }}
                     >
                       <td>
                         <span className="code-tag">{c.id}</span>
+                        <span
+                          className={`badge-sev ${c.isDemo ? 'badge-warning' : 'badge-safe'}`}
+                          style={{ marginLeft: 6, fontSize: 9 }}
+                        >
+                          {c.isDemo ? 'DEMO' : 'REAL'}
+                        </span>
                       </td>
                       <td>
                         <span className={`badge-sev ${c.severityClass}`}>{c.severity}</span>
@@ -1163,7 +1176,8 @@ export const ReportsView = ({
                           style={{ padding: '3px 8px' }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedCase(c);
+                            setReportCaseId(c.id);
+                            setActiveSubTab('live-report');
                           }}
                         >
                           View Dossier ›

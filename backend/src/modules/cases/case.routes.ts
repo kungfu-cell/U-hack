@@ -36,6 +36,11 @@ export const registerCaseRoutes = async (
     return reply.status(201).send(toCaseRecord(record));
   });
 
+  app.get('/cases', async (request) => {
+    const records = await service.list(getOwnerId(request));
+    return records.map(toCaseRecord);
+  });
+
   app.get('/cases/:id', async (request, reply) => {
     const params = paramsSchema.safeParse(request.params);
     if (!params.success) return sendValidationError(reply, params.error);

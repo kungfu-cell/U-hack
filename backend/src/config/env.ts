@@ -37,6 +37,7 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().default(""),
   OPENAI_MODEL: z.string().default("gpt-4o-mini"),
   GOOGLE_SAFE_BROWSING_API_KEY: z.string().default(""),
+  URLHAUS_AUTH_KEY: z.string().default(""),
   DATA_ENCRYPTION_SECRET: z.string().optional(),
   DATA_PEPPER_SECRET: z.string().optional(),
   REVIEWER_API_KEY: z.preprocess(
