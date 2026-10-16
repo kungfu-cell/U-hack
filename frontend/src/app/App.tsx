@@ -9,6 +9,10 @@ type TabType = 'tab-verify' | 'tab-live-call' | 'tab-dossier';
 
 export const App = () => {
   const [activeTab, setActiveTab] = useState<TabType>('tab-verify');
+  const [mountedTabs, setMountedTabs] = useState<Set<TabType>>(
+    () => new Set<TabType>(['tab-verify']),
+  );
+  const [reportRefreshKey, setReportRefreshKey] = useState(0);
 
   const handleQuickExport = () => {
     const sampleIncident = {
@@ -39,8 +43,28 @@ export const App = () => {
   };
 
   const handleTabChange = (tab: TabType) => {
+    setMountedTabs((current) => {
+      if (current.has(tab)) return current;
+      return new Set([...current, tab]);
+    });
+    if (tab === 'tab-dossier') {
+      setReportRefreshKey((current) => current + 1);
+    }
     setActiveTab(tab);
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  };
+
+  const [dossierSubTab, setDossierSubTab] = useState<'dossier' | 'blacklist' | 'live-report'>('dossier');
+  const [targetLookupQuery, setTargetLookupQuery] = useState<string | undefined>(undefined);
+
+  const handleNavigateToBlacklist = (query: string) => {
+    setDossierSubTab('blacklist');
+    setTargetLookupQuery(query);
+    setMountedTabs((current) => new Set([...current, 'tab-dossier']));
+    setReportRefreshKey((current) => current + 1);
+    setActiveTab('tab-dossier');
+    window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+    showToast(`กำลังส่ง "${query}" ไปตรวจฐานข้อมูล Blacklist & OSINT`);
   };
 
   return (
@@ -122,10 +146,22 @@ export const App = () => {
       {/* Main Workspace */}
       <main className="app-main">
         <div style={{ display: activeTab === 'tab-verify' ? 'contents' : 'none' }}>
-          <QuickAnalysis />
+          <QuickAnalysis onNavigateToBlacklist={handleNavigateToBlacklist} />
         </div>
-        {activeTab === 'tab-live-call' && <LiveSessionView />}
-        {activeTab === 'tab-dossier' && <ReportsView />}
+        {mountedTabs.has('tab-live-call') && (
+          <div style={{ display: activeTab === 'tab-live-call' ? 'contents' : 'none' }}>
+            <LiveSessionView onNavigateToBlacklist={handleNavigateToBlacklist} />
+          </div>
+        )}
+        {mountedTabs.has('tab-dossier') && (
+          <div style={{ display: activeTab === 'tab-dossier' ? 'contents' : 'none' }}>
+            <ReportsView
+              initialSubTab={dossierSubTab}
+              initialLookupQuery={targetLookupQuery}
+              refreshKey={reportRefreshKey}
+            />
+          </div>
+        )}
       </main>
 
       {/* Global Toast Notification */}

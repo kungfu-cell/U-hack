@@ -95,7 +95,20 @@ export class CaseService {
       updatedAt: new Date().toISOString(),
     });
 
-    const combinedText = analyzableInputs.map((input) => input.content).join('\n');
+    const combinedText = analyzableInputs
+      .map((input) => {
+        if (!input.source.startsWith('live_session:')) return input.content;
+
+        // A live-call report evaluates the suspected caller. Keeping user/decoy lines in the
+        // stored input preserves the full audit trail, but sending them to the risk analyzer
+        // would incorrectly attribute defensive prompts or repeated OTP warnings to the caller.
+        return input.content
+          .split(/\r?\n/u)
+          .filter((line) => /^\[caller\]\s+/iu.test(line))
+          .join('\n');
+      })
+      .filter((content) => content.trim().length > 0)
+      .join('\n');
     const result = await this.analysisProvider.analyzeText({
       sourceId: analyzableInputs[0]!.id,
       text: combinedText,
@@ -111,7 +124,24 @@ export class CaseService {
   }
 
   buildReport(record: StoredCase, version = 1): IncidentReport {
-    if (!record.latestAnalysis) throw new Error('CASE_HAS_NO_ANALYSIS');
+    if (!record.latestAnalysis) {
+      return {
+        caseId: record.id,
+        version,
+        generatedAt: new Date().toISOString(),
+        isDemo: record.isDemo,
+        summary: 'คดีอยู่ในสถานะรวบรวมหลักฐานหรือเพิ่งเริ่มต้นเซสชัน ยังไม่มีความเสี่ยงที่ยืนยันแน่ชัด',
+        recommendation: 'หากมีการสนทนาหรือหลักฐานเพิ่มเติม ให้กดปุ่ม "วิเคราะห์สำนวนคดีด้วย AI" เพื่อสร้างข้อสรุปและตรวจสอบภัยคุกคามโดยละเอียด',
+        inputs: record.inputs.map((input) => ({ ...input })),
+        evidence: [],
+        entities: [],
+        threatChecks: [],
+        limitations: [
+          'สำนวนคดีนี้ยังอยู่ระหว่างการบันทึกหรือรอการวิเคราะห์เชิงลึกจากโมเดล AI',
+          ...(record.isDemo ? ['รายงานนี้เป็นข้อมูลจำลองและไม่เข้าสู่ฐานภัยคุกคามจริง'] : []),
+        ],
+      };
+    }
     const analysis = record.latestAnalysis;
     const sensitiveTypes = new Set([
       'phone',
@@ -169,6 +199,9 @@ export class CaseService {
   }
 
   async getOrCreateReport(record: StoredCase): Promise<IncidentReport> {
+    if (!record.latestAnalysis && record.inputs.length > 0) {
+      record = await this.analyze(record);
+    }
     if (this.reportRepository) {
       const latest = await this.reportRepository.getLatestReport(record.id);
       if (latest) {

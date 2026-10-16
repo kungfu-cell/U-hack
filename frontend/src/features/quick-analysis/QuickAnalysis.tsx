@@ -226,7 +226,11 @@ const readFileAsBase64 = (file: File) =>
     reader.readAsDataURL(file);
   });
 
-export const QuickAnalysis = () => {
+interface QuickAnalysisProps {
+  onNavigateToBlacklist?: (query: string) => void;
+}
+
+export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}) => {
   const [activePreset, setActivePreset] = useState<string>('police');
   const [inputMode, setInputMode] = useState<'text' | 'image' | 'audio' | 'link'>('text');
   const [payloadText, setPayloadText] = useState(PRESETS.police.payload);
@@ -1177,9 +1181,22 @@ export const QuickAnalysis = () => {
                           <span className={`badge-sev ${ioc.statusClass}`}>{ioc.status}</span>
                         </td>
                         <td>
-                          <button type="button" className="btn-copy" onClick={() => copyToClipboard(ioc.val)}>
-                            Copy
-                          </button>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <button type="button" className="btn-copy" onClick={() => copyToClipboard(ioc.val)}>
+                              Copy
+                            </button>
+                            {onNavigateToBlacklist && (
+                              <button
+                                type="button"
+                                className="btn-copy"
+                                style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                                onClick={() => onNavigateToBlacklist(ioc.val)}
+                                title="ส่งค่าตัวบ่งชี้นี้ไปตรวจกับฐานข้อมูล Blacklist & OSINT"
+                              >
+                                ตรวจ Blacklist ›
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))

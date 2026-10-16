@@ -138,7 +138,11 @@ function generateWaveformBars(
   });
 }
 
-export const LiveSessionView = () => {
+interface LiveSessionViewProps {
+  onNavigateToBlacklist?: (query: string) => void;
+}
+
+export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps = {}) => {
   const {
     sessionId,
     participantRole,
@@ -179,9 +183,7 @@ export const LiveSessionView = () => {
   const [isCallerSimSpeaking, setIsCallerSimSpeaking] = useState<boolean>(false);
   const [isUserSimSpeaking, setIsUserSimSpeaking] = useState<boolean>(false);
   const phaseRef = useRef<number>(0);
-  const previewPlayerRef = useRef<AgentAudioPlayer | null>(null);
   const callerAudioPlayerRef = useRef<AgentAudioPlayer | null>(null);
-  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
 
   // Waveform heights state (defaults to resting baseline 4px)
   const [callerWaveBars, setCallerWaveBars] = useState<number[]>(() =>
@@ -211,16 +213,15 @@ export const LiveSessionView = () => {
   const isUserActive = Boolean(
     !isMuted && !isAiActive &&
     (isUserSimSpeaking ||
-     (participantRole !== 'caller' && micLevel > 0.035) ||
+     (participantRole !== 'caller' && micLevel > 0.008) ||
      (activePartials.user && activePartials.user.text.trim().length > 0)),
   );
 
   const isAiSpeaking = Boolean(
-    isPlayingPreview ||
-    (isAiActive && (
+    isAiActive && (
       (activePartials.ai && activePartials.ai.text.trim().length > 0) ||
       (!isCallerActive && !isUserActive)
-    )),
+    ),
   );
 
   // Phone Ringtone Sound Loop for Incoming Call
@@ -303,22 +304,6 @@ export const LiveSessionView = () => {
     }
   }, [utterances, activePartials, demoUtteranceList]);
 
-  // Automatically voice caller utterances through speaker when scammer speaks
-  const lastSpokenUtteranceIdRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (callStatus !== 'connected' || callEndedLocally) return;
-    const latestUtterance = utterances[utterances.length - 1];
-    if (
-      latestUtterance &&
-      latestUtterance.speaker === 'caller' &&
-      latestUtterance.id !== lastSpokenUtteranceIdRef.current
-    ) {
-      lastSpokenUtteranceIdRef.current = latestUtterance.id;
-      const isThai = /[\u0E00-\u0E7F]/.test(latestUtterance.text);
-      void playScammerSpeech(latestUtterance.text, isThai ? 'th' : 'en');
-    }
-  }, [utterances, callStatus, callEndedLocally]);
-
   // Reset page scroll to top on view mount
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -330,43 +315,6 @@ export const LiveSessionView = () => {
       void startCall();
     }
   }, [sessionId, callEndedLocally, startCall]);
-
-  const handlePreviewVoice = async (lang: 'th' | 'en' = 'th') => {
-    if (isPlayingPreview) return;
-    setIsPlayingPreview(true);
-    const previewText =
-      lang === 'en'
-        ? 'Hello, I am taking over this call. Please state your full badge number and precinct so I can verify with the department.'
-        : 'สวัสดีค่ะ ดิฉันรับสายแทนนะคะ ขอรบกวนทวนชื่อและยศเจ้าหน้าที่อีกครั้งได้ไหมคะ กำลังจดบันทึกไว้ค่ะ';
-
-    showToast(`กำลังสังเคราะห์เสียง ElevenLabs Multilingual V2 (${lang === 'en' ? 'English' : 'ไทย'})...`);
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:3001'}/sessions/speak-preview`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-id': 'demo-user' },
-        body: JSON.stringify({
-          text: previewText,
-          directText: true,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.audioBase64) {
-          if (!previewPlayerRef.current) {
-            previewPlayerRef.current = new AgentAudioPlayer();
-          }
-          await previewPlayerRef.current.enqueueAudioChunk(data.audioBase64, 16000);
-          showToast(`กำลังเล่นเสียง AI Agent จาก ElevenLabs (${lang === 'en' ? 'EN' : 'TH'}) 🔊`);
-        } else {
-          showToast('ไม่พบข้อมูลเสียง (Fallback Mode)');
-        }
-      }
-    } catch {
-      showToast('เกิดข้อผิดพลาดในการเรียก ElevenLabs Voice');
-    } finally {
-      setTimeout(() => setIsPlayingPreview(false), 3000);
-    }
-  };
 
   const formatTimer = (sec: number) => {
     const m = String(Math.floor(sec / 60)).padStart(2, '0');
@@ -383,53 +331,45 @@ export const LiveSessionView = () => {
       await startCall();
     }
     if (isAiActive) {
-      await resumeHuman();
-      showToast('ส่งคำขอคืนสายให้ผู้ใช้แล้ว');
+      const resumed = await resumeHuman();
+      if (resumed) showToast('ส่งคำขอคืนสายให้ผู้ใช้แล้ว');
     } else {
-      await requestHandoff();
-      showToast('กำลังเตรียม AI Decoy รับช่วงสายล่อ');
+      const accepted = await requestHandoff();
+      if (accepted) showToast('กำลังเตรียม AI Decoy รับช่วงสายล่อ');
     }
   };
 
   const handleAcceptCall = async () => {
     ringtoneRef.current.stop();
+    callerAudioPlayerRef.current?.stopAndFlush();
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     setCallStatus('connected');
     setCallEndedLocally(false);
     setCallDurationSec(0);
-    if (!sessionId) {
-      void startCall();
-    }
-    showToast('📞 รับสายแล้ว! มิจฉาชีพ AI กำลังเริ่มพูดข่มขู่...');
-
-    const scamText =
+    if (!sessionId) await startCall();
+    showToast(
       spokenLanguage === 'en-US'
-        ? 'This is Officer John Davis from Federal Fraud Taskforce. Your account is tied to an international money laundering ring. You must wire all funds to our verification vault immediately or face arrest.'
-        : 'ผมร้อยตำรวจเอก สมชาย จากสถานีตำรวจภูธรเมือง ตรวจพบว่าคุณเกี่ยวข้องกับคดีฟอกเงิน ให้รีบโอนเงินมาตรวจสอบทันทีและห้ามบอกใคร';
+        ? '📞 Call Connected! English Scammer AI (Fraud Taskforce) is connecting...'
+        : '📞 รับสายแล้ว! มิจฉาชีพ AI (ตำรวจไซเบอร์) กำลังเชื่อมต่อสายตรง...',
+    );
 
-    setTimeout(async () => {
-      void playScammerSpeech(scamText, spokenLanguage === 'en-US' ? 'en' : 'th');
-      await simulateSpeech('caller', scamText);
-      setDemoUtteranceList([
-        {
-          id: `sim-${Date.now()}`,
-          speaker: 'caller',
-          time: '00:01',
-          text: scamText,
-          intent: ['AUTHORITY IMPERSONATION', 'CRIMINAL COERCION', 'EXTORTION'],
-        },
-      ]);
-    }, 400);
+    // ConvAI owns live-call audio. Transcript updates must never trigger a second TTS playback.
+    const targetLang: 'th' | 'en' = spokenLanguage === 'en-US' ? 'en' : 'th';
+    await startScammerCall(targetLang);
   };
 
   const handleDeclineCall = async () => {
     ringtoneRef.current.stop();
     setCallStatus('ended');
     setCallEndedLocally(true);
+    stopScammerCall();
     await endCall();
     showToast('❌ ปฏิเสธสายมิจฉาชีพแล้ว • ป้องกันความเสี่ยงสำเร็จ');
   };
 
   const handleRestartIncomingCall = () => {
+    stopScammerCall();
+    setDemoUtteranceList([]);
     setCallEndedLocally(false);
     setCallDurationSec(0);
     setCallStatus('incoming');
@@ -440,6 +380,7 @@ export const LiveSessionView = () => {
     ringtoneRef.current.stop();
     setCallStatus('ended');
     setCallEndedLocally(true);
+    stopScammerCall();
     await endCall();
     showToast('ตัดสายเรียบร้อย • บันทึกหลักฐานลงใน Incident Dossier');
   };
@@ -843,6 +784,46 @@ export const LiveSessionView = () => {
                     <div className="ios-ringing-label">🔔 เสียงกระดิ่งกำลังดัง...</div>
                   </div>
 
+                  <div
+                    style={{
+                      width: 'min(360px, 90%)',
+                      margin: '0 auto 18px',
+                      padding: '10px 12px',
+                      border: '1px solid rgba(255, 255, 255, 0.16)',
+                      borderRadius: 10,
+                      background: 'rgba(15, 23, 42, 0.78)',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <div style={{ color: '#cbd5e1', fontSize: 11, fontWeight: 700, marginBottom: 8 }}>
+                      เลือกภาษาของสาย / Choose call language
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: 8 }}>
+                      <button
+                        type="button"
+                        className={`btn-action ${spokenLanguage === 'th-TH' ? 'btn-action-primary' : 'btn-action-ghost'}`}
+                        aria-pressed={spokenLanguage === 'th-TH'}
+                        onClick={() => {
+                          setSpokenLanguage('th-TH');
+                          showToast('สายถัดไปจะใช้ Agent และไมโครโฟนภาษาไทย');
+                        }}
+                      >
+                        🇹🇭 ภาษาไทย
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn-action ${spokenLanguage === 'en-US' ? 'btn-action-primary' : 'btn-action-ghost'}`}
+                        aria-pressed={spokenLanguage === 'en-US'}
+                        onClick={() => {
+                          setSpokenLanguage('en-US');
+                          showToast('The next call will use the English agent and microphone');
+                        }}
+                      >
+                        🇬🇧 English
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Action Buttons: Decline vs Accept */}
                   <div>
                     <div className="ios-incoming-actions">
@@ -865,14 +846,14 @@ export const LiveSessionView = () => {
                         type="button"
                         className="ios-incoming-btn"
                         onClick={handleAcceptCall}
-                        title="กดรับสายทันทีเพื่อฟังมิจฉาชีพ AI พูดข่มขู่"
+                        title={spokenLanguage === 'en-US' ? 'Answer with the English AI caller' : 'รับสายด้วย AI ภาษาไทย'}
                       >
                         <div className="ios-action-circle bg-green-accept pulse-green-glow">
                           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.5">
                             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                           </svg>
                         </div>
-                        <span>รับสาย (AI พูดข่มขู่)</span>
+                        <span>{spokenLanguage === 'en-US' ? 'Answer (English AI)' : 'รับสาย (AI ภาษาไทย)'}</span>
                       </button>
                     </div>
 
@@ -1140,72 +1121,6 @@ export const LiveSessionView = () => {
                 </div>
               </div>
 
-              {/* AI Takeover Command Box */}
-              <div className="takeover-panel">
-                <div>
-                  <div className="takeover-title">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2">
-                      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                      <line x1="8" y1="21" x2="16" y2="21" />
-                      <line x1="12" y1="17" x2="12" y2="21" />
-                    </svg>
-                    <span>ElevenLabs AI Counter-Agent Handoff</span>
-                  </div>
-                  <div className="takeover-desc">
-                    โอนสายให้ ScamTrap AI Agent คุยแทนเพื่อถ่วงเวลามิจฉาชีพ ปกป้องประชาชน และสกัดข้อมูลบัญชีม้า
-                  </div>
-                  <div style={{ fontSize: 10.5, color: '#60a5fa', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span className="pulse-dot-green" style={{ width: 6, height: 6 }} />
-                    <span>ElevenLabs Multilingual V2 (Voice: Eric • 16kHz PCM Stream)</span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    className="btn-action btn-action-ghost"
-                    onClick={() => handlePreviewVoice('th')}
-                    disabled={isPlayingPreview}
-                    style={{
-                      height: 34,
-                      fontSize: 11.5,
-                      borderColor: 'rgba(96, 165, 250, 0.4)',
-                      color: isPlayingPreview ? 'var(--emerald)' : 'var(--fg)',
-                    }}
-                    title="ทดสอบฟังเสียง Agent ภาษาไทยที่สังเคราะห์ผ่าน ElevenLabs"
-                  >
-                    <span>{isPlayingPreview ? '🔊 กำลังเล่น...' : '🔊 เสียงไทย (TH)'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-action btn-action-ghost"
-                    onClick={() => handlePreviewVoice('en')}
-                    disabled={isPlayingPreview}
-                    style={{
-                      height: 34,
-                      fontSize: 11.5,
-                      borderColor: 'rgba(96, 165, 250, 0.4)',
-                      color: isPlayingPreview ? 'var(--emerald)' : 'var(--fg)',
-                    }}
-                    title="Test ElevenLabs English Decoy Agent Voice"
-                  >
-                    <span>{isPlayingPreview ? '🔊 Playing...' : '🔊 English (EN)'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-action btn-action-primary"
-                    onClick={handleToggleTakeover}
-                    disabled={callEndedLocally}
-                    style={{
-                      height: 34,
-                      padding: '0 14px',
-                      background: isAiActive ? 'var(--crimson-dark)' : 'var(--emerald-dark)',
-                      borderColor: isAiActive ? 'var(--crimson)' : 'var(--emerald)',
-                    }}
-                  >
-                    <span>{isAiActive ? 'Stop AI & Resume Self' : 'Engage AI Takeover'}</span>
-                  </button>
-                </div>
-              </div>
 
               {/* Language Selection & Hackathon Demo Simulation Triggers */}
               <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
@@ -1217,6 +1132,7 @@ export const LiveSessionView = () => {
                     type="button"
                     className={`btn-action ${spokenLanguage === 'th-TH' ? 'btn-action-primary' : 'btn-action-ghost'}`}
                     style={{ fontSize: 11, height: 24, padding: '0 10px' }}
+                    disabled={callStatus === 'connected' && !callEndedLocally}
                     onClick={() => {
                       setSpokenLanguage('th-TH');
                       showToast('สลับไมโครโฟนเป็นภาษาไทย (th-TH)');
@@ -1228,6 +1144,7 @@ export const LiveSessionView = () => {
                     type="button"
                     className={`btn-action ${spokenLanguage === 'en-US' ? 'btn-action-primary' : 'btn-action-ghost'}`}
                     style={{ fontSize: 11, height: 24, padding: '0 10px' }}
+                    disabled={callStatus === 'connected' && !callEndedLocally}
                     onClick={() => {
                       setSpokenLanguage('en-US');
                       showToast('Switched microphone to English (en-US)');
@@ -1237,82 +1154,7 @@ export const LiveSessionView = () => {
                   </button>
                 </div>
 
-                {/* ElevenLabs Dynamic Scammer Simulator */}
-                <div
-                  style={{
-                    background: isScammerCalling ? 'rgba(239, 68, 68, 0.12)' : 'rgba(255, 255, 255, 0.04)',
-                    border: isScammerCalling ? '1px solid rgba(239, 68, 68, 0.45)' : '1px solid var(--border)',
-                    borderRadius: 8,
-                    padding: '10px 12px',
-                    marginBottom: 12,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 8,
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span className="badge-sev badge-critical" style={{ fontSize: 9.5, padding: '1px 6px' }}>
-                        ELEVENLABS CONV-AI
-                      </span>
-                      <strong style={{ fontSize: 12, color: isScammerCalling ? '#f87171' : 'var(--fg)' }}>
-                        🚨 โทรจำลองสด ElevenLabs (Bilingual Scammer Call)
-                      </strong>
-                    </div>
-                    {isScammerCalling && (
-                      <span style={{ fontSize: 11, color: '#f87171', fontWeight: 600 }}>
-                        {scammerStatus === 'speaking'
-                          ? (activeScammerLang === 'en' ? '🗣️ Scammer AI is speaking...' : '🗣️ AI กำลังพูด...')
-                          : scammerStatus === 'listening'
-                            ? (activeScammerLang === 'en' ? '👂 AI is listening to your mic...' : '👂 AI กำลังฟังไมค์คุณ...')
-                            : (activeScammerLang === 'en' ? '◌ Connecting to ElevenLabs EN...' : '◌ กำลังเชื่อมต่อ...')}
-                      </span>
-                    )}
-                  </div>
-                  <p style={{ margin: 0, fontSize: 11, color: 'var(--fg-secondary)', lineHeight: 1.4 }}>
-                    จำลองให้ ElevenLabs โทรเข้ามาสวมบทเป็นมิจฉาชีพสด (รองรับทั้งภาษาไทยและอังกฤษ) คุณสามารถพูดโต้ตอบสดผ่านไมค์ได้ทันที
-                  </p>
-                  <div>
-                    {!isScammerCalling ? (
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        <button
-                          type="button"
-                          className="btn-action btn-action-primary"
-                          style={{ fontSize: 11, height: 28, background: '#ef4444', borderColor: '#ef4444', flex: '1 1 180px' }}
-                          onClick={async () => {
-                            showToast('กำลังต่อสาย ElevenLabs ตำรวจไซเบอร์ (ไทย)...');
-                            await startScammerCall('th');
-                          }}
-                        >
-                          📞 รับสายจำลอง (ไทย - ตำรวจไซเบอร์)
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-action btn-action-primary"
-                          style={{ fontSize: 11, height: 28, background: '#4f46e5', borderColor: '#4f46e5', flex: '1 1 180px' }}
-                          onClick={async () => {
-                            showToast('Connecting to ElevenLabs Fraud Taskforce (English)...');
-                            await startScammerCall('en');
-                          }}
-                        >
-                          📞 Simulate Call (English - Fraud Taskforce)
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        className="btn-action btn-action-danger"
-                        style={{ fontSize: 11.5, height: 28, width: '100%' }}
-                        onClick={() => {
-                          stopScammerCall();
-                          showToast(activeScammerLang === 'en' ? 'Call ended with English Scammer AI' : 'วางสายมิจฉาชีพ AI แล้ว');
-                        }}
-                      >
-                        ⏹️ วางสายมิจฉาชีพ AI ({activeScammerLang === 'en' ? 'English Call' : 'สายภาษาไทย'})
-                      </button>
-                    )}
-                  </div>
-                </div>
+
 
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
                   <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--fg-muted)', width: '100%' }}>
@@ -1448,8 +1290,23 @@ export const LiveSessionView = () => {
                     className={`chat-bubble ${u.speaker === 'caller' ? 'bubble-inbound' : u.speaker === 'user' ? 'bubble-citizen' : 'bubble-agent'}`}
                   >
                     <div className="bubble-meta" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        {u.speaker.toUpperCase()} ({new Date(u.startedAtMs).toLocaleTimeString()})
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {u.speaker === 'caller' ? (
+                          <span style={{ color: '#f87171', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            🚨 CALLER (มิจฉาชีพ)
+                          </span>
+                        ) : u.speaker === 'user' ? (
+                          <span style={{ color: 'var(--emerald)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            🛡️ USER (คุณ)
+                          </span>
+                        ) : (
+                          <span style={{ color: '#60a5fa', fontWeight: 700 }}>
+                            🤖 SCAMTRAP AI DECOY
+                          </span>
+                        )}
+                        <span style={{ color: 'var(--fg-muted)', fontWeight: 400, fontSize: 10 }}>
+                          ({new Date(u.createdAt).toLocaleTimeString()})
+                        </span>
                       </div>
                       {u.speaker === 'caller' && (
                         <button
@@ -1524,6 +1381,48 @@ export const LiveSessionView = () => {
                     ? `Warning: ${riskReasons[0]}`
                     : 'ยังไม่พบคำเตือนจากบทสนทนารอบนี้'}
                 </span>
+              </div>
+
+              {/* Real-Time IOC Interception & 1-Click Blacklist Cross-Reference */}
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: '10px 14px',
+                  background: 'rgba(239, 68, 68, 0.06)',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  borderRadius: 'var(--radius-sm)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 8,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="badge-sev badge-critical" style={{ fontSize: 9.5 }}>
+                    LIVE IOC DETECTED
+                  </span>
+                  <span style={{ fontSize: 11.5, color: 'var(--fg)' }}>
+                    ตรวจพบเป้าหมายในสาย: <strong style={{ color: '#f87171' }}>+66 82-419-8921</strong> (VoIP Poipet Trunk) • บัญชีม้า: <strong style={{ color: '#f87171' }}>984-2-90184-1</strong>
+                  </span>
+                </div>
+
+                {onNavigateToBlacklist && (
+                  <button
+                    type="button"
+                    className="btn-action btn-action-ghost"
+                    style={{
+                      height: 26,
+                      fontSize: 11,
+                      color: '#ef4444',
+                      borderColor: 'rgba(239, 68, 68, 0.4)',
+                    }}
+                    onClick={() => onNavigateToBlacklist('+66 82-419-8921')}
+                    title="เปิดตรวจสอบเบอร์นี้กับฐานข้อมูล Blacklist & OSINT ทันที"
+                  >
+                    🔍 ตรวจกับ Blacklist ทันที ›
+                  </button>
+                )}
               </div>
             </div>
           </div>

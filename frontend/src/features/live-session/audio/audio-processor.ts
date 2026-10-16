@@ -13,7 +13,7 @@ export class AudioProcessor {
     private readonly onAudioChunk: (base64Data: string) => void,
     private readonly onVolume?: (rms: number) => void,
     private readonly targetSampleRate = 16000,
-    private readonly bufferSize = 4096,
+    private readonly bufferSize = 2048,
   ) {}
 
   start(): void {
@@ -66,6 +66,16 @@ export class AudioProcessor {
     silentGain.gain.value = 0;
     this.processorNode.connect(silentGain);
     silentGain.connect(this.audioContext.destination);
+  }
+
+  async resume(): Promise<void> {
+    if (this.audioContext && this.audioContext.state === 'suspended') {
+      try {
+        await this.audioContext.resume();
+      } catch {
+        // ignore
+      }
+    }
   }
 
   stop(): void {

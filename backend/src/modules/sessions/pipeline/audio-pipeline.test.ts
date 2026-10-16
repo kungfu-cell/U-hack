@@ -141,6 +141,37 @@ describe('AudioPipeline', () => {
     }
   });
 
+  it('does not synthesize another scammer reply from citizen speech', async () => {
+    vi.useFakeTimers();
+    const events: SessionEvent[] = [];
+    const scribeProvider = new MockScribeProvider();
+    const pipeline = new AudioPipeline({
+      sessionId: 'session-convai',
+      caseId: 'case-convai',
+      scribeProvider,
+      analysisProvider: new DemoAnalysisProvider(),
+      onEvent: (event) => events.push(event),
+    });
+
+    try {
+      await pipeline.ingestAudioChunk({
+        speaker: 'user',
+        audioBase64: 'AAAA',
+        timestampMs: 1000,
+      });
+
+      scribeProvider.sessions[0]!.emitCommitted('ฉันไม่โอนเงินให้คุณค่ะ');
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(pipeline.getSnapshot().utterances).toHaveLength(1);
+      expect(pipeline.getSnapshot().utterances[0]?.speaker).toBe('user');
+      expect(events.some((event) => event.type === 'agent.audio_chunk')).toBe(false);
+    } finally {
+      pipeline.close();
+      vi.useRealTimers();
+    }
+  });
+
   it('handles provider errors by emitting service.degraded without crashing', async () => {
     const events: SessionEvent[] = [];
     const scribeProvider = new MockScribeProvider();
