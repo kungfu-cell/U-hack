@@ -703,7 +703,7 @@ export const ReportsView = ({
                 </div>
 
                 {/* Threat Signals & Recommendation */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 14, marginTop: 14 }}>
+                <div className="threat-signals-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 14, marginTop: 14 }}>
                   <div
                     style={{
                       background: 'rgba(255, 255, 255, 0.02)',
@@ -773,7 +773,7 @@ export const ReportsView = ({
           </div>
 
           {/* Metrics & Threat Activity */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 16 }}>
+          <div className="reports-charts-grid" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 16 }}>
             {/* Chart 1: Threat Attack Vectors & Wave Activity */}
             <div
               className="card"
@@ -1005,10 +1005,10 @@ export const ReportsView = ({
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div className="table-toolbar-group" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 <select
                   className="input-control"
-                  style={{ height: 30, fontSize: 11.5, width: 140 }}
+                  style={{ height: 30, fontSize: 11.5, minWidth: 130, flex: '1 1 auto' }}
                   value={blacklistFilter}
                   onChange={(e) => setBlacklistFilter(e.target.value as any)}
                 >
@@ -1022,7 +1022,7 @@ export const ReportsView = ({
                   type="text"
                   placeholder="Search threat registry..."
                   className="input-control"
-                  style={{ height: 30, width: 200, fontSize: 11.5 }}
+                  style={{ height: 30, minWidth: 160, flex: '2 1 180px', fontSize: 11.5 }}
                   value={blacklistSearch}
                   onChange={(e) => setBlacklistSearch(e.target.value)}
                 />
@@ -1031,6 +1031,7 @@ export const ReportsView = ({
                   type="button"
                   className="btn-action btn-action-ghost"
                   onClick={exportBlacklistJson}
+                  style={{ flex: '0 0 auto' }}
                 >
                   Export JSON
                 </button>
@@ -1038,7 +1039,8 @@ export const ReportsView = ({
             </div>
 
             <div className="card-body" style={{ padding: 0 }}>
-              <table className="data-table">
+              <div className="table-responsive-wrap">
+                <table className="data-table">
                 <thead>
                   <tr>
                     <th>Identifier Ref</th>
@@ -1134,6 +1136,7 @@ export const ReportsView = ({
               </table>
             </div>
           </div>
+          </div>
         </div>
       )}
 
@@ -1208,11 +1211,11 @@ export const ReportsView = ({
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div className="table-toolbar-group" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
                 {/* Status Triage Filter */}
                 <select
                   className="input-control"
-                  style={{ height: 30, fontSize: 11.5, width: 155 }}
+                  style={{ height: 30, fontSize: 11.5, minWidth: 140, flex: '1 1 auto' }}
                   value={dossierStatusFilter}
                   onChange={(e) => setDossierStatusFilter(e.target.value)}
                   aria-label="Filter by case status"
@@ -1230,7 +1233,7 @@ export const ReportsView = ({
                 {/* Priority Filter */}
                 <select
                   className="input-control"
-                  style={{ height: 30, fontSize: 11.5, width: 140 }}
+                  style={{ height: 30, fontSize: 11.5, minWidth: 120, flex: '1 1 auto' }}
                   value={dossierPriorityFilter}
                   onChange={(e) => setDossierPriorityFilter(e.target.value)}
                   aria-label="Filter by priority tier"
@@ -1251,7 +1254,7 @@ export const ReportsView = ({
                       : 'ค้นหารหัสเคส, เลขบัญชี, เบอร์โทร, หรือแท็ก...'
                   }
                   className="input-control"
-                  style={{ height: 30, width: 230, fontSize: 11.5 }}
+                  style={{ height: 30, minWidth: 180, flex: '2 1 200px', fontSize: 11.5 }}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
@@ -1261,6 +1264,7 @@ export const ReportsView = ({
                   className="btn-action btn-action-ghost"
                   id="btn-export-all"
                   onClick={exportAllCases}
+                  style={{ flex: '0 0 auto' }}
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -1273,103 +1277,105 @@ export const ReportsView = ({
             </div>
 
             <div className="card-body" style={{ padding: 0 }}>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Case ID</th>
-                    <th>Priority</th>
-                    <th>Severity</th>
-                    <th>Threat Category</th>
-                    <th>Primary Indicator (IOC)</th>
-                    <th>Investigator</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredCases.map((c) => (
-                    <tr
-                      key={c.id}
-                      onClick={() => setSelectedCase(c)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <td>
-                        <span className="code-tag">{c.id}</span>
-                        {c.tags && c.tags.length > 0 && (
-                          <div style={{ display: 'flex', gap: 4, marginTop: 3, flexWrap: 'wrap' }}>
-                            {c.tags.map((t, idx) => (
-                              <span
-                                key={idx}
-                                style={{
-                                  fontSize: 9.5,
-                                  padding: '1px 5px',
-                                  borderRadius: 3,
-                                  background: 'rgba(255,255,255,0.06)',
-                                  color: 'var(--fg-muted)',
-                                }}
-                              >
-                                #{t}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <span
-                          className={`badge-sev ${
-                            c.priority === 'P1 - Urgent'
-                              ? 'badge-critical'
-                              : c.priority === 'P2 - Elevated'
-                                ? 'badge-warning'
-                                : 'badge-safe'
-                          }`}
-                          style={{ fontSize: 10, letterSpacing: 0.3 }}
-                        >
-                          {c.priority || 'P3 - Standard'}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`badge-sev ${c.severityClass}`}>{c.severity}</span>
-                      </td>
-                      <td>
-                        <div style={{ fontWeight: 600, color: 'var(--fg)', fontSize: 12 }}>{c.category}</div>
-                        <div style={{ fontSize: 10.5, color: 'var(--fg-muted)', marginTop: 2 }}>
-                          {c.channel} &bull; {c.timestamp}
-                        </div>
-                      </td>
-                      <td>
-                        <span className="code-tag">{c.ioc}</span>
-                      </td>
-                      <td style={{ fontSize: 11.5, color: c.assignedInvestigator ? 'var(--fg)' : 'var(--fg-muted)' }}>
-                        {c.assignedInvestigator || 'Unassigned'}
-                      </td>
-                      <td>
-                        <span className={`badge-sev ${c.statusClass}`}>{c.status}</span>
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className="btn-copy"
-                          style={{ padding: '3px 8px', fontSize: 11 }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedCase(c);
-                          }}
-                        >
-                          Triage ›
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredCases.length === 0 && (
+              <div className="table-responsive-wrap">
+                <table className="data-table">
+                  <thead>
                     <tr>
-                      <td colSpan={8} style={{ textAlign: 'center', padding: '36px 0', color: 'var(--fg-muted)' }}>
-                        No incident cases match your criteria.
-                      </td>
+                      <th>Case ID</th>
+                      <th>Priority</th>
+                      <th>Severity</th>
+                      <th>Threat Category</th>
+                      <th>Primary Indicator (IOC)</th>
+                      <th>Investigator</th>
+                      <th>Status</th>
+                      <th>Action</th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filteredCases.map((c) => (
+                      <tr
+                        key={c.id}
+                        onClick={() => setSelectedCase(c)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <td>
+                          <span className="code-tag">{c.id}</span>
+                          {c.tags && c.tags.length > 0 && (
+                            <div style={{ display: 'flex', gap: 4, marginTop: 3, flexWrap: 'wrap' }}>
+                              {c.tags.map((t, idx) => (
+                                <span
+                                  key={idx}
+                                  style={{
+                                    fontSize: 9.5,
+                                    padding: '1px 5px',
+                                    borderRadius: 3,
+                                    background: 'rgba(255,255,255,0.06)',
+                                    color: 'var(--fg-muted)',
+                                  }}
+                                >
+                                  #{t}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <span
+                            className={`badge-sev ${
+                              c.priority === 'P1 - Urgent'
+                                ? 'badge-critical'
+                                : c.priority === 'P2 - Elevated'
+                                  ? 'badge-warning'
+                                  : 'badge-safe'
+                            }`}
+                            style={{ fontSize: 10, letterSpacing: 0.3 }}
+                          >
+                            {c.priority || 'P3 - Standard'}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`badge-sev ${c.severityClass}`}>{c.severity}</span>
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 600, color: 'var(--fg)', fontSize: 12 }}>{c.category}</div>
+                          <div style={{ fontSize: 10.5, color: 'var(--fg-muted)', marginTop: 2 }}>
+                            {c.channel} &bull; {c.timestamp}
+                          </div>
+                        </td>
+                        <td>
+                          <span className="code-tag">{c.ioc}</span>
+                        </td>
+                        <td style={{ fontSize: 11.5, color: c.assignedInvestigator ? 'var(--fg)' : 'var(--fg-muted)' }}>
+                          {c.assignedInvestigator || 'Unassigned'}
+                        </td>
+                        <td>
+                          <span className={`badge-sev ${c.statusClass}`}>{c.status}</span>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn-copy"
+                            style={{ padding: '3px 8px', fontSize: 11 }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedCase(c);
+                            }}
+                          >
+                            Triage ›
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredCases.length === 0 && (
+                      <tr>
+                        <td colSpan={8} style={{ textAlign: 'center', padding: '36px 0', color: 'var(--fg-muted)' }}>
+                          No incident cases match your criteria.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </>
