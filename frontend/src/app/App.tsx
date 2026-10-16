@@ -73,9 +73,7 @@ export const App = () => {
       <header className="app-header">
         <div className="brand-section">
           <div className="brand-shield" title="ScamTrap AI Defense Core">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
+            <img src="/logo.jpg" alt="ScamTrap AI Logo" className="brand-logo-img" />
           </div>
           <span className="brand-name">ScamTrap AI</span>
           <span className="brand-pill">DEFENSE HUB</span>

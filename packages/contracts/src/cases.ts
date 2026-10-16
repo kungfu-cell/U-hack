@@ -26,6 +26,26 @@ export const addCaseInputRequestSchema = z.object({
 });
 export type AddCaseInputRequest = z.infer<typeof addCaseInputRequestSchema>;
 
+export const imageUploadRequestSchema = z.object({
+  fileName: z.string().trim().min(1).max(180),
+  mimeType: z.enum([
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+  ]),
+  imageBase64: z.string().min(1).max(21_000_000),
+});
+export type ImageUploadRequest = z.infer<typeof imageUploadRequestSchema>;
+
+export const imageUploadResponseSchema = z.object({
+  case: z.lazy(() => caseSchema),
+  ocrText: z.string(),
+  provider: z.string(),
+});
+export type ImageUploadResponse = z.infer<typeof imageUploadResponseSchema>;
+
 export const audioUploadRequestSchema = z.object({
   fileName: z.string().trim().min(1).max(180),
   mimeType: z.enum([

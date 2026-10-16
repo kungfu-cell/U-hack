@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, type FormEvent } from 'react';
 import type { AnalysisResult } from '@scamtrap/contracts';
-import { createCase, addCaseInput, analyzeCase, uploadCaseAudio } from '../../lib/api';
+import { createCase, addCaseInput, analyzeCase, uploadCaseAudio, uploadCaseImage } from '../../lib/api';
 import { copyToClipboard, showToast } from '../../lib/toast';
 
 interface PresetData {
@@ -262,6 +262,7 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
   const [imageName, setImageName] = useState<string>('');
   const [imageSize, setImageSize] = useState<string>('');
   const [imageOcrText, setImageOcrText] = useState<string>('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   // Dedicated audio state
   const [audioName, setAudioName] = useState<string | null>(null);
@@ -403,15 +404,26 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
     try {
       // Execute against backend Case API
       const content = payloadText.trim() || url.trim();
-      if (!content && !audioFile) {
-        throw new Error('กรุณาใส่ข้อความ ลิงก์ หรือเลือกไฟล์เสียงก่อนเริ่มวิเคราะห์');
+      if (!content && !audioFile && !imageFile) {
+        throw new Error('กรุณาใส่ข้อความ ลิงก์ เลือกไฟล์เสียง หรืออัปโหลดรูปภาพก่อนเริ่มวิเคราะห์');
       }
       if (audioFile && !audioConsentConfirmed) {
         throw new Error('กรุณายืนยันว่าคุณมีสิทธิ์ส่งไฟล์เสียงนี้ไปประมวลผล');
       }
-      if (content || audioFile) {
+      if (content || audioFile || imageFile) {
         const created = await createCase();
-        const analyzed = audioFile
+        const analyzed = imageFile
+          ? (await (async () => {
+              const res = await uploadCaseImage(created.id, {
+                fileName: imageFile.name,
+                mimeType: imageFile.type || 'image/jpeg',
+                imageBase64: await readFileAsBase64(imageFile),
+              });
+              setImageOcrText(`[OCR ผลลัพธ์โดย ${res.provider}]\n${res.ocrText}`);
+              setPayloadText(res.ocrText);
+              return res.case;
+            })())
+          : audioFile
           ? (await uploadCaseAudio(created.id, {
               fileName: audioFile.name,
               mimeType: audioFile.type || 'audio/mpeg',
@@ -740,8 +752,8 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                     <circle cx="8.5" cy="8.5" r="1.5" />
                     <polyline points="21 15 16 10 5 21" />
                   </svg>
-                  <div className="dropzone-title">{imageName ? `Uploaded: ${imageName}` : 'Click to upload screenshot or drag image here'}</div>
-                  <div className="dropzone-subtitle">Preview only — OCR is not enabled in this prototype</div>
+                  <div className="dropzone-title">{imageName ? `Selected: ${imageName}` : 'Click to upload screenshot or drag image here'}</div>
+                  <div className="dropzone-subtitle">AI Vision OCR enabled — extracts text, bank accounts &amp; intent automatically</div>
                   <input
                     type="file"
                     ref={fileInputImageRef}
@@ -750,13 +762,14 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
+                        setImageFile(file);
                         const reader = new FileReader();
                         reader.onload = (ev) => {
                           setImagePreview(String(ev.target?.result ?? ''));
                           setImageName(file.name);
                           setImageSize(`${(file.size / 1024 / 1024).toFixed(2)} MB`);
-                          setImageOcrText('OCR ยังไม่เปิดใช้ในต้นแบบ กรุณาวางข้อความจากภาพในช่องข้อความ');
-                          showToast(`อัปโหลดรูปภาพ "${file.name}" สำหรับดูตัวอย่างแล้ว (ยังไม่ได้ทำ OCR)`);
+                          setImageOcrText('รูปภาพพร้อมประมวลผล • กด "Execute Risk Analysis" เพื่อให้ AI ถอดข้อความและวิเคราะห์ความเสี่ยง');
+                          showToast(`เลือกรูปภาพ "${file.name}" แล้ว กดวิเคราะห์เพื่อถอดข้อความ`);
                         };
                         reader.readAsDataURL(file);
                       }
@@ -773,10 +786,10 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg)' }}>{imageName}</span>
-                          <span className="badge-sev badge-info">Preview only</span>
+                          <span className="badge-sev badge-safe">AI Vision OCR</span>
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--fg-muted)', marginTop: 2 }}>{imageSize}</div>
-                        <div style={{ marginTop: 6, fontSize: 11.5, color: 'var(--fg-secondary)', background: 'var(--surface)', padding: '6px 8px', borderRadius: 4, border: '1px solid var(--border-subtle)', maxHeight: 60, overflowY: 'auto' }}>
+                        <div style={{ marginTop: 6, fontSize: 11.5, color: 'var(--fg-secondary)', background: 'var(--surface)', padding: '6px 8px', borderRadius: 4, border: '1px solid var(--border-subtle)', maxHeight: 60, overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
                           {imageOcrText}
                         </div>
                       </div>
@@ -786,6 +799,8 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                         onClick={() => {
                           setImagePreview(null);
                           setImageName('');
+                          setImageFile(null);
+                          setImageOcrText('');
                           showToast('ลบรูปภาพแล้ว');
                         }}
                       >
