@@ -148,11 +148,24 @@ interface AttachmentItem {
 
 type IocItem = PresetData['iocs'][number];
 
-const getVerdictPresentation = (level: AnalysisResult['level']) => {
-  if (level === 'critical') return { label: 'Critical Severity', className: 'badge-critical' };
-  if (level === 'high') return { label: 'High Risk', className: 'badge-warning' };
-  if (level === 'medium') return { label: 'Medium Risk', className: 'badge-warning' };
-  return { label: 'Low / Cleared', className: 'badge-safe' };
+const getVerdictPresentation = (result: AnalysisResult) => {
+  if (result.level === 'critical') return { label: 'Critical Severity', className: 'badge-critical' };
+  if (result.level === 'high') return { label: 'High Risk', className: 'badge-warning' };
+  if (result.level === 'medium') return { label: 'Medium Risk', className: 'badge-warning' };
+  if (result.verificationStatus === 'unverified') {
+    return { label: 'Unverified / No Match', className: 'badge-info' };
+  }
+  return { label: 'Low Risk', className: 'badge-safe' };
+};
+
+const normalizeComparableUrl = (value: string) => {
+  try {
+    const parsed = new URL(value.trim());
+    parsed.hash = '';
+    return parsed.toString().replace(/\/$/, '').toLowerCase();
+  } catch {
+    return value.trim().replace(/\/$/, '').toLowerCase();
+  }
 };
 
 const buildAnalysisBars = (result: AnalysisResult): [number, number, number] => {
@@ -177,13 +190,18 @@ const buildAnalysisIocs = (result: AnalysisResult, url: string, phone: string): 
   const normalizedPhone = phone.trim();
 
   if (normalizedUrl && !normalizedUrl.toLowerCase().startsWith('none detected')) {
-    const check = result.threatChecks.find((item) => item.indicator === normalizedUrl);
-    const presentation = check?.status === 'match'
-      ? { status: check.threatType ?? 'Threat match', statusClass: 'badge-critical' }
-      : check?.status === 'unavailable'
-        ? { status: 'Threat check unavailable', statusClass: 'badge-warning' }
-        : check?.status === 'not_found'
-          ? { status: 'Not found in threat source', statusClass: 'badge-info' }
+    const checks = result.threatChecks.filter(
+      (item) => normalizeComparableUrl(item.indicator) === normalizeComparableUrl(normalizedUrl),
+    );
+    const matchedCheck = checks.find((item) => item.status === 'match');
+    const unavailableChecks = checks.filter((item) => item.status === 'unavailable');
+    const notFoundChecks = checks.filter((item) => item.status === 'not_found');
+    const presentation = matchedCheck
+      ? { status: matchedCheck.threatType ?? 'Threat source match', statusClass: 'badge-critical' }
+      : unavailableChecks.length > 0
+        ? { status: `${unavailableChecks.length} threat source(s) unavailable`, statusClass: 'badge-warning' }
+        : notFoundChecks.length > 0
+          ? { status: `Not listed by ${notFoundChecks.length} checked source(s) — unverified`, statusClass: 'badge-info' }
           : { status: 'Provided input', statusClass: 'badge-info' };
     items.push({
       type: 'Domain',
@@ -229,9 +247,10 @@ const readFileAsBase64 = (file: File) =>
 
 interface QuickAnalysisProps {
   onNavigateToBlacklist?: (query: string) => void;
+  onAnalysisComplete?: () => void;
 }
 
-export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}) => {
+export const QuickAnalysis = ({ onNavigateToBlacklist, onAnalysisComplete }: QuickAnalysisProps = {}) => {
   const { language } = useAppLanguage();
   const [activePreset, setActivePreset] = useState<string>('police');
   const [inputMode, setInputMode] = useState<'text' | 'image' | 'audio' | 'link'>('text');
@@ -445,7 +464,7 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
         const result: AnalysisResult | null = analyzed.latestAnalysis;
 
         if (result) {
-          const verdictPresentation = getVerdictPresentation(result.level);
+          const verdictPresentation = getVerdictPresentation(result);
           setScore(`${result.score}%`);
           setRiskScoreValue(result.score);
           setSummary(result.summary);
@@ -458,6 +477,7 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
           setAiEvidence(result.evidence);
           setAnalysisReference(`${result.isDemo ? 'Demo analysis' : 'Analysis'}: ${result.id.slice(0, 8)}`);
           setActivePreset('');
+          onAnalysisComplete?.();
         }
       }
       showToast('การวิเคราะห์เสร็จสิ้น • โปรดตรวจสถานะแหล่งข้อมูลในผลลัพธ์');
@@ -762,9 +782,13 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                     type="button"
                     className="btn-attach"
                     onClick={() => loadPreset('warrant')}
-                    style={{ fontSize: '10.5px', height: 22, padding: '0 7px' }}
+                    style={{ fontSize: '10.5px', height: 22, padding: '0 7px', display: 'flex', alignItems: 'center', gap: 4 }}
                   >
-                    <span>📄 Load Sample Warrant</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    <span>Load Sample Warrant</span>
                   </button>
                 </div>
                 <div className="upload-dropzone" onClick={() => fileInputImageRef.current?.click()}>
@@ -844,9 +868,13 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                     type="button"
                     className="btn-attach"
                     onClick={() => loadPreset('vishing')}
-                    style={{ fontSize: '10.5px', height: 22, padding: '0 7px' }}
+                    style={{ fontSize: '10.5px', height: 22, padding: '0 7px', display: 'flex', alignItems: 'center', gap: 4 }}
                   >
-                    <span>🎙️ Load Sample Audio</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                    </svg>
+                    <span>Load Sample Audio</span>
                   </button>
                 </div>
                 <div className="upload-dropzone" onClick={() => fileInputAudioRef.current?.click()}>
@@ -1093,7 +1121,7 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
 
             <div className="score-row">
               <div className="score-meta">
-                <span>2. Blacklist IOC &amp; Threat Intelligence Matching</span>
+                <span>2. Known Threat Source Matches (0% does not mean safe)</span>
                 <strong>{bars[1]}%</strong>
               </div>
               <div className="score-track">
@@ -1109,7 +1137,7 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
 
             <div className="score-row">
               <div className="score-meta">
-                <span>3. Domain &amp; Channel Authenticity Verification</span>
+                <span>3. Known URL Threat Matches (unlisted remains unverified)</span>
                 <strong>{bars[2]}%</strong>
               </div>
               <div className="score-track">

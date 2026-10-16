@@ -106,6 +106,7 @@ export interface OpenAIAnalysisProviderOptions {
   apiKey: string;
   model?: string;
   threatIntelProvider?: ThreatIntelProvider;
+  threatIntelProviders?: readonly ThreatIntelProvider[];
   fetchImpl?: FetchLike;
 }
 
@@ -202,12 +203,18 @@ export class OpenAIAnalysisProvider implements AnalysisProvider {
   private async checkUrls(
     entities: ReturnType<typeof extractEntities>,
   ): Promise<ThreatCheck[]> {
-    if (!this.options.threatIntelProvider) return [];
-    const provider = this.options.threatIntelProvider;
+    const providers = [
+      ...(this.options.threatIntelProviders ?? []),
+      ...(this.options.threatIntelProvider ? [this.options.threatIntelProvider] : []),
+    ].filter(
+      (provider, index, all) =>
+        all.findIndex((candidate) => candidate.name === provider.name) === index,
+    );
+    if (providers.length === 0) return [];
     const urls = entities.filter((entity) => entity.type === "url");
 
     return Promise.all(
-      urls.map(async (entity) => {
+      urls.flatMap((entity) => providers.map(async (provider) => {
         const result = await provider.checkIndicator(entity.normalizedValue);
         return {
           provider: provider.name,
@@ -218,7 +225,7 @@ export class OpenAIAnalysisProvider implements AnalysisProvider {
           ...(result.message ? { message: result.message } : {}),
           isDemo: false,
         };
-      }),
+      })),
     );
   }
 

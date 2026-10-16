@@ -31,7 +31,7 @@ services:
       API_PORT: 3001
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:5173}
       PERSISTENCE_MODE: postgres
-      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-scamtrap}:${POSTGRES_PASSWORD:-scamtrap}@postgres:5432/${POSTGRES_DB:-scamtrap}?schema=public}
+      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://${POSTGRES_USER:-scamtrap}:${POSTGRES_PASSWORD:-scamtrap}@postgres:5432/${POSTGRES_DB:-scamtrap}?schema=public}
     ports:
       - "${API_PORT:-3001}:3001"
     depends_on:

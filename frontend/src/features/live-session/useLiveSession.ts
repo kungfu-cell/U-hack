@@ -716,20 +716,20 @@ export const useLiveSession = () => {
             if (status === 'connected') {
               showToast(
                 chosenLang === 'en'
-                  ? '✅ Connected to English Scammer AI (Fraud Taskforce)'
-                  : '✅ เชื่อมต่อสายมิจฉาชีพ AI สำเร็จ (ตำรวจไซเบอร์)',
+                  ? 'Connected to English Scammer AI (Fraud Taskforce)'
+                  : 'เชื่อมต่อสายมิจฉาชีพ AI สำเร็จ (ตำรวจไซเบอร์)',
               );
             } else if (status === 'speaking') {
               showToast(
                 chosenLang === 'en'
-                  ? '🗣️ English Scammer AI is speaking...'
-                  : '🗣️ ตำรวจไซเบอร์ AI กำลังพูด...',
+                  ? 'English Scammer AI is speaking...'
+                  : 'ตำรวจไซเบอร์ AI กำลังพูด...',
               );
             } else if (status === 'closed' || status === 'error') {
               setIsScammerCalling(false);
               if (err) {
                 setDegradedMessage(err);
-                showToast('⚠️ ' + err);
+                showToast(err);
               }
             }
           },
@@ -862,7 +862,7 @@ export const useLiveSession = () => {
       setIsScammerCalling(false);
       setScammerStatus('error');
       setDegradedMessage(msg);
-      showToast('⚠️ ' + msg);
+      showToast(msg);
     } finally {
       scammerConnectingRef.current = false;
     }

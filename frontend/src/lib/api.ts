@@ -1,6 +1,7 @@
 import {
   apiErrorSchema,
   audioUploadResponseSchema,
+  caseListSchema,
   imageUploadResponseSchema,
   caseSchema,
   incidentReportSchema,
@@ -39,8 +40,15 @@ const request = async <T>(path: string, init: RequestInit, parse: (data: unknown
 export const createCase = () =>
   request<CaseRecord>(
     '/cases',
-    { method: 'POST', body: JSON.stringify({ title: 'Quick analysis', isDemo: true }) },
+    { method: 'POST', body: JSON.stringify({ title: 'ScamTrap analysis', isDemo: false }) },
     (data) => caseSchema.parse(data),
+  );
+
+export const getCases = () =>
+  request<CaseRecord[]>(
+    '/cases',
+    { method: 'GET' },
+    (data) => caseListSchema.parse(data),
   );
 
 export const addCaseInput = (caseId: string, input: AddCaseInputRequest) =>
