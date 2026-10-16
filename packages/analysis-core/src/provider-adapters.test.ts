@@ -99,6 +99,8 @@ describe("OpenAIAnalysisProvider", () => {
 
     expect(requestBody).not.toContain("123-4-56789-0");
     expect(requestBody).toContain("[REDACTED_BANK_ACCOUNT_1]");
+    expect(requestBody).toContain("[caller]");
+    expect(requestBody).toContain("ห้ามนำคำพูดของ [user] หรือ [ai]");
     expect(
       result.evidence.some((item) => item.quote === "ให้โอนเงินทันที"),
     ).toBe(true);

@@ -113,9 +113,19 @@ const INITIAL_CASES: IncidentCase[] = [
 interface ReportsViewProps {
   initialSubTab?: ('dossier' | 'blacklist' | 'live-report') | undefined;
   initialLookupQuery?: string | undefined;
+  refreshKey?: number;
 }
 
-export const ReportsView = ({ initialSubTab = 'dossier', initialLookupQuery }: ReportsViewProps = {}) => {
+const getLatestCaseContext = () => ({
+  caseId: window.localStorage.getItem('scamtrap:lastCaseId'),
+  sessionId: window.localStorage.getItem('scamtrap:lastSessionId'),
+});
+
+export const ReportsView = ({
+  initialSubTab = 'dossier',
+  initialLookupQuery,
+  refreshKey = 0,
+}: ReportsViewProps = {}) => {
   const [activeSubTab, setActiveSubTab] = useState<'dossier' | 'blacklist' | 'live-report'>(initialSubTab);
   const [cases, setCases] = useState<IncidentCase[]>(INITIAL_CASES);
   const [search, setSearch] = useState('');
@@ -141,7 +151,8 @@ export const ReportsView = ({ initialSubTab = 'dossier', initialLookupQuery }: R
     description: '',
   });
 
-  const latestCaseId = window.localStorage.getItem('scamtrap:lastCaseId');
+  const [latestCaseContext, setLatestCaseContext] = useState(getLatestCaseContext);
+  const { caseId: latestCaseId, sessionId: latestSessionId } = latestCaseContext;
 
   const filteredCases = cases.filter(
     (c) =>
@@ -186,6 +197,10 @@ export const ReportsView = ({ initialSubTab = 'dossier', initialLookupQuery }: R
       handleRunLookup(initialLookupQuery);
     }
   }, [initialLookupQuery]);
+
+  useEffect(() => {
+    setLatestCaseContext(getLatestCaseContext());
+  }, [refreshKey]);
 
   const handleAddIoc = (e: React.FormEvent) => {
     e.preventDefault();
@@ -382,7 +397,11 @@ export const ReportsView = ({ initialSubTab = 'dossier', initialLookupQuery }: R
               ← กลับไปสำนวนคดีหลัก
             </button>
           </div>
-          <ReportPlaceholder />
+          <ReportPlaceholder
+            caseId={latestCaseId}
+            sessionId={latestSessionId}
+            refreshKey={refreshKey}
+          />
         </div>
       )}
 

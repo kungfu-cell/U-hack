@@ -1,7 +1,8 @@
-import type { HandoffState, Speaker, Utterance } from '@scamtrap/contracts';
+import type { HandoffState, Speaker, Utterance } from "@scamtrap/contracts";
 
 export interface AgentContextPacket {
   sessionId: string;
+  hasPriorAgentTurn: boolean;
   callerClaims: string[];
   knownEntities: { type: string; value: string }[];
   unresolvedQuestions: string[];

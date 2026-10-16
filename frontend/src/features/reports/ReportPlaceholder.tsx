@@ -10,61 +10,40 @@ import {
   withdrawCase,
 } from '../../lib/api';
 
-export const ReportPlaceholder = () => {
+interface ReportPlaceholderProps {
+  caseId?: string;
+  sessionId?: string | null;
+  refreshKey?: number;
+}
+
+export const ReportPlaceholder = ({
+  caseId: propCaseId,
+  sessionId: propSessionId,
+  refreshKey = 0,
+}: ReportPlaceholderProps = {}) => {
   const [report, setReport] = useState<IncidentReport | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [consentConfirmed, setConsentConfirmed] = useState(false);
   const [proposal, setProposal] = useState<ShareProposal | null>(null);
   const [timeline, setTimeline] = useState<Utterance[]>([]);
-  const [status, setStatus] = useState<'loading' | 'analyzing' | 'ready' | 'empty' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'analyzing' | 'ready' | 'pending' | 'empty' | 'error'>('loading');
   const [message, setMessage] = useState('');
-  const [currentCaseId, setCurrentCaseId] = useState<string | null>(null);
+  const [manualRefreshKey, setManualRefreshKey] = useState(0);
 
-  const loadReport = useCallback(async (caseId: string, autoAnalyzeOnMissing = true) => {
-    try {
-      setStatus('loading');
-      const nextReport = await getCaseReport(caseId);
-      setReport(nextReport);
-      setStatus('ready');
+  const effectiveCaseId = propCaseId || window.localStorage.getItem('scamtrap:lastCaseId') || '';
+  const effectiveSessionId = propSessionId ?? window.localStorage.getItem('scamtrap:lastSessionId');
 
-      const sessionId = window.localStorage.getItem('scamtrap:lastSessionId');
-      if (sessionId) {
-        try {
-          const snapshot = await getSessionSnapshot(sessionId);
-          if (snapshot.utterances && snapshot.utterances.length > 0) {
-            setTimeline(snapshot.utterances);
-          }
-        } catch {
-          // ignore
-        }
-      }
-    } catch (error: unknown) {
-      const errMsg = error instanceof Error ? error.message : 'โหลดรายงานไม่สำเร็จ';
-      if (
-        autoAnalyzeOnMissing &&
-        (errMsg.includes('CASE_HAS_NO_ANALYSIS') || errMsg.includes('Analyze the case'))
-      ) {
-        // Attempt automatic analysis recovery using session utterances if present
-        await handleTriggerAnalysis(caseId);
-      } else {
-        setMessage(errMsg);
-        setStatus('error');
-      }
-    }
-  }, []);
-
-  const handleTriggerAnalysis = async (targetCaseId?: string) => {
-    const caseId = targetCaseId ?? currentCaseId ?? window.localStorage.getItem('scamtrap:lastCaseId');
-    if (!caseId) return;
+  const handleTriggerAnalysis = useCallback(async (targetCaseId?: string) => {
+    const id = targetCaseId || effectiveCaseId;
+    if (!id) return;
 
     setStatus('analyzing');
     try {
-      const sessionId = window.localStorage.getItem('scamtrap:lastSessionId');
       let capturedUtterances: Utterance[] = timeline;
 
-      if (sessionId && capturedUtterances.length === 0) {
+      if (effectiveSessionId && capturedUtterances.length === 0) {
         try {
-          const snap = await getSessionSnapshot(sessionId);
+          const snap = await getSessionSnapshot(effectiveSessionId);
           if (snap.utterances && snap.utterances.length > 0) {
             capturedUtterances = snap.utterances;
             setTimeline(snap.utterances);
@@ -81,10 +60,10 @@ export const ReportPlaceholder = () => {
           .join('\n');
 
         try {
-          await addCaseInput(caseId, {
+          await addCaseInput(id, {
             type: 'text',
             content: transcriptText.slice(0, 50000),
-            source: sessionId ? `live_session:${sessionId}` : 'live_call_transcript',
+            source: effectiveSessionId ? `live_session:${effectiveSessionId}` : 'live_call_transcript',
           });
         } catch {
           // might already have inputs, proceed to analyze
@@ -92,27 +71,61 @@ export const ReportPlaceholder = () => {
       }
 
       // Trigger AI analysis on the case
-      await analyzeCase(caseId);
+      await analyzeCase(id);
 
       // Fetch fresh report
-      const updatedReport = await getCaseReport(caseId);
+      const updatedReport = await getCaseReport(id);
       setReport(updatedReport);
       setStatus('ready');
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'วิเคราะห์สำนวนคดีไม่สำเร็จ');
       setStatus('error');
     }
-  };
+  }, [effectiveCaseId, effectiveSessionId, timeline]);
+
+  const loadReport = useCallback(async (id: string, autoAnalyzeOnMissing = true) => {
+    try {
+      setStatus('loading');
+      const nextReport = await getCaseReport(id);
+      setReport(nextReport);
+      setStatus('ready');
+
+      if (effectiveSessionId) {
+        try {
+          const snapshot = await getSessionSnapshot(effectiveSessionId);
+          if (snapshot.utterances && snapshot.utterances.length > 0) {
+            setTimeline(snapshot.utterances);
+          }
+        } catch {
+          // ignore
+        }
+      }
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : 'โหลดรายงานไม่สำเร็จ';
+      if (
+        autoAnalyzeOnMissing &&
+        (errMsg.includes('CASE_HAS_NO_ANALYSIS') || errMsg.includes('Analyze the case') || /วิเคราะห์/iu.test(errMsg))
+      ) {
+        // Attempt automatic analysis recovery using session utterances if present
+        await handleTriggerAnalysis(id);
+      } else {
+        setMessage(errMsg);
+        setStatus(
+          /analy|analysis|วิเคราะห์/iu.test(errMsg)
+            ? 'pending'
+            : 'error',
+        );
+      }
+    }
+  }, [effectiveSessionId, handleTriggerAnalysis]);
 
   useEffect(() => {
-    const caseId = window.localStorage.getItem('scamtrap:lastCaseId');
-    setCurrentCaseId(caseId);
-    if (!caseId) {
+    if (!effectiveCaseId) {
       setStatus('empty');
       return;
     }
-    void loadReport(caseId, true);
-  }, [loadReport]);
+    void loadReport(effectiveCaseId, true);
+  }, [effectiveCaseId, refreshKey, manualRefreshKey, loadReport]);
 
   const toggleEntity = (id: string) => {
     setSelectedIds((current) =>
@@ -134,7 +147,10 @@ export const ReportPlaceholder = () => {
     if (!report || !window.confirm('ลบเหตุการณ์และถอนข้อเสนอแบ่งปันทั้งหมดหรือไม่?')) return;
     try {
       await withdrawCase(report.caseId, 'ผู้ใช้ถอนข้อมูลจากหน้ารายงาน');
-      window.localStorage.removeItem('scamtrap:lastCaseId');
+      if (window.localStorage.getItem('scamtrap:lastCaseId') === report.caseId) {
+        window.localStorage.removeItem('scamtrap:lastCaseId');
+        window.localStorage.removeItem('scamtrap:lastSessionId');
+      }
       setReport(null);
       setStatus('empty');
     } catch (err) {
@@ -143,12 +159,11 @@ export const ReportPlaceholder = () => {
   };
 
   const correctUtterance = async (utterance: Utterance) => {
-    const sessionId = window.localStorage.getItem('scamtrap:lastSessionId');
-    if (!sessionId) return;
+    if (!effectiveSessionId) return;
     const correctedText = window.prompt('แก้ไขข้อความถอดเสียง', utterance.text)?.trim();
     if (!correctedText || correctedText === utterance.text) return;
     try {
-      const corrected = await correctSessionUtterance(sessionId, utterance.id, correctedText);
+      const corrected = await correctSessionUtterance(effectiveSessionId, utterance.id, correctedText);
       setTimeline((current) => current.map((item) => item.id === corrected.id ? corrected : item));
     } catch (err) {
       alert(err instanceof Error ? err.message : 'แก้ไขข้อความไม่สำเร็จ');
@@ -244,7 +259,7 @@ export const ReportPlaceholder = () => {
     );
   }
 
-  if (status === 'error' || !report) {
+  if (status === 'pending' || status === 'error' || !report) {
     return (
       <div
         className="card"
@@ -268,7 +283,7 @@ export const ReportPlaceholder = () => {
                 fontWeight: 700,
               }}
             >
-              คดียังไม่ได้รับการวิเคราะห์สรุปผล
+              {status === 'pending' ? 'รอการวิเคราะห์สำนวน' : 'คดียังไม่ได้รับการวิเคราะห์สรุปผล'}
             </span>
           </div>
 
@@ -276,7 +291,7 @@ export const ReportPlaceholder = () => {
             เคสสดนี้ยังไม่มีการประมวลผลสรุปสำนวน
           </h2>
           <p style={{ fontSize: 13, color: 'var(--fg-muted)', margin: 0, lineHeight: 1.6 }}>
-            เกิดจากเซสชันโทรศัพท์ล่าสุดเพิ่งเริ่มสร้าง หรือยังไม่ได้รวบรวมข้อความถอดเสียงส่งให้ระบบ AI วิเคราะห์สรุปผล (ระบบตรวจพบรหัส: <code>{message}</code>)
+            เกิดจากเซสชันโทรศัพท์ล่าสุดเพิ่งเริ่มสร้าง หรือยังไม่ได้รวบรวมข้อความถอดเสียงส่งให้ระบบ AI วิเคราะห์สรุปผล ({message || 'กดปุ่มด้านล่างเพื่อประมวลผลทันที'})
           </p>
 
           <div style={{ display: 'flex', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
@@ -291,7 +306,7 @@ export const ReportPlaceholder = () => {
             <button
               type="button"
               className="btn-action btn-action-ghost"
-              onClick={() => currentCaseId && void loadReport(currentCaseId, false)}
+              onClick={() => setManualRefreshKey((k) => k + 1)}
             >
               🔄 ลองโหลดใหม่อีกครั้ง
             </button>
@@ -300,6 +315,11 @@ export const ReportPlaceholder = () => {
       </div>
     );
   }
+
+  const committedUtteranceCount = timeline.filter(
+    (utterance) => utterance.transcriptState === 'committed',
+  ).length;
+  const isLiveSessionReport = report.inputs.some((input) => input.source.startsWith('live_session:'));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -367,12 +387,17 @@ export const ReportPlaceholder = () => {
 
       {/* SUMMARY & RECOMMENDATION */}
       <div className="card" style={{ padding: 20 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 700, margin: '0 0 10px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 700, margin: '0 0 6px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--emerald)" strokeWidth="2">
             <polyline points="20 6 9 17 4 12" />
           </svg>
           <span>บทสรุปการประเมินภัยคุกคาม (Executive Threat Summary)</span>
         </h3>
+        <p style={{ color: 'var(--fg-muted)', fontSize: 11.5, margin: '0 0 10px 0' }}>
+          {isLiveSessionReport
+            ? `สรุปโดยระบบวิเคราะห์จาก transcript ที่บันทึกหลังจบสาย ${committedUtteranceCount} ช่วง โดยแยกผู้โทร (caller) ออกจากผู้รับสายและ AI Decoy`
+            : `สรุปโดยระบบวิเคราะห์จากข้อมูลที่แนบกับเคสนี้ ${report.inputs.length} รายการ`}
+        </p>
         <p style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--fg)', margin: '0 0 14px 0' }}>
           {report.summary}
         </p>
@@ -447,14 +472,16 @@ export const ReportPlaceholder = () => {
                       {u.text}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    className="btn-action btn-action-ghost"
-                    onClick={() => void correctUtterance(u)}
-                    style={{ fontSize: 11, padding: '3px 8px', flexShrink: 0 }}
-                  >
-                    ✏️ แก้ไข
-                  </button>
+                  {effectiveSessionId && (
+                    <button
+                      type="button"
+                      className="btn-action btn-action-ghost"
+                      onClick={() => void correctUtterance(u)}
+                      style={{ fontSize: 11, padding: '3px 8px', flexShrink: 0 }}
+                    >
+                      ✏️ แก้ไข
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -611,4 +638,3 @@ export const ReportPlaceholder = () => {
     </div>
   );
 };
-
