@@ -27,6 +27,7 @@ export class ScammerConvAiClient {
   private audioPlayer: AgentAudioPlayer | null = null;
   private status: ScammerConvAiStatus = 'idle';
   private pingInterval: NodeJS.Timeout | null = null;
+  private playbackFinishTimeout: NodeJS.Timeout | null = null;
   private syntheticTextQueue: string[] = [];
   private isDisposed = false;
   private outputSampleRate = 16000;
@@ -44,9 +45,17 @@ export class ScammerConvAiClient {
   isSpeaking(): boolean {
     const isActuallyPlaying = this.audioPlayer?.isPlaying() ?? false;
     if (!isActuallyPlaying) {
-      this.finishPlaybackIfIdle();
+      this.schedulePlaybackFinishIfIdle();
     }
-    return isActuallyPlaying;
+    return isActuallyPlaying || this.status === 'speaking';
+  }
+
+  private schedulePlaybackFinishIfIdle(): void {
+    if (this.status !== 'speaking' || this.playbackFinishTimeout) return;
+    this.playbackFinishTimeout = setTimeout(() => {
+      this.playbackFinishTimeout = null;
+      this.finishPlaybackIfIdle();
+    }, 250);
   }
 
   private finishPlaybackIfIdle(): void {
@@ -122,12 +131,16 @@ export class ScammerConvAiClient {
             // Audio chunk event
             const audioChunk = data.audio_event?.audio_base_64;
             if (audioChunk) {
+              if (this.playbackFinishTimeout) {
+                clearTimeout(this.playbackFinishTimeout);
+                this.playbackFinishTimeout = null;
+              }
               this.setStatus('speaking');
               this.callbacks.onAudioChunkReceived?.();
               const playback = this.audioPlayer?.enqueueAudioChunk(audioChunk, this.outputSampleRate);
               if (playback) {
                 void playback.then(() => {
-                  this.finishPlaybackIfIdle();
+                  this.schedulePlaybackFinishIfIdle();
                 });
               }
             }
@@ -237,6 +250,10 @@ export class ScammerConvAiClient {
     if (this.pingInterval) {
       clearInterval(this.pingInterval);
       this.pingInterval = null;
+    }
+    if (this.playbackFinishTimeout) {
+      clearTimeout(this.playbackFinishTimeout);
+      this.playbackFinishTimeout = null;
     }
     this.syntheticTextQueue = [];
     this.audioPlayer?.stopAndFlush();

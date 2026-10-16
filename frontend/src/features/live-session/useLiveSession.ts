@@ -41,6 +41,13 @@ const toRiskLevel = (score: number): RiskLevel => {
   return 'low';
 };
 
+interface QueuedDecoyAudio {
+  audioBase64: string;
+  sampleRate: number;
+  decoyText?: string;
+  playbackVersion: number;
+}
+
 export const useLiveSession = () => {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [caseId, setCaseId] = useState<string | null>(null);
@@ -86,7 +93,11 @@ export const useLiveSession = () => {
   const sessionIdRef = useRef<string | null>(null);
   const handoffStateRef = useRef<HandoffState>('human_active');
   const pendingDecoyTurnsRef = useRef<string[]>([]);
+  const pendingDecoyAudioRef = useRef<QueuedDecoyAudio[]>([]);
   const decoyPlaybackVersionRef = useRef<number>(0);
+  const scammerTurnInProgressRef = useRef<boolean>(false);
+  const scammerTurnSafetyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const flushPendingDecoyAudioRef = useRef<() => void>(() => undefined);
   const lastScammerSpokenTimeRef = useRef<number>(0);
   const lastScammerTextRef = useRef<string>('');
   const scammerPhrasesHistoryRef = useRef<string[]>([]);
@@ -96,6 +107,42 @@ export const useLiveSession = () => {
       wsRef.current.send(JSON.stringify(msg));
     }
   }, []);
+
+  const playDecoyAudio = useCallback((audio: QueuedDecoyAudio) => {
+    if (!agentPlayerRef.current) {
+      agentPlayerRef.current = new AgentAudioPlayer();
+    }
+    const player = agentPlayerRef.current;
+    void player
+      .enqueueAudioChunk(audio.audioBase64, audio.sampleRate)
+      .then(() => {
+        if (
+          audio.decoyText &&
+          handoffStateRef.current === 'ai_active' &&
+          audio.playbackVersion === decoyPlaybackVersionRef.current
+        ) {
+          scammerClientRef.current?.sendSyntheticUserMessage(audio.decoyText);
+        }
+      });
+    if (webrtcRef.current) {
+      void webrtcRef.current.switchToAiTrack(player.getAudioTrack());
+    }
+  }, []);
+
+  const flushPendingDecoyAudio = useCallback(() => {
+    if (
+      scammerTurnInProgressRef.current ||
+      (scammerClientRef.current?.isSpeaking() ?? false)
+    ) {
+      return;
+    }
+    const queuedAudio = pendingDecoyAudioRef.current.splice(0);
+    for (const audio of queuedAudio) {
+      playDecoyAudio(audio);
+    }
+  }, [playDecoyAudio]);
+
+  flushPendingDecoyAudioRef.current = flushPendingDecoyAudio;
 
   const connectWebSocket = useCallback((
     targetSessionId: string,
@@ -132,6 +179,7 @@ export const useLiveSession = () => {
           handoffStateRef.current = data.state;
           if (data.state !== 'ai_active') {
             pendingDecoyTurnsRef.current = [];
+            pendingDecoyAudioRef.current = [];
             decoyPlaybackVersionRef.current += 1;
           }
           setHandoffState(data.state);
@@ -157,30 +205,27 @@ export const useLiveSession = () => {
             webrtcRef.current?.setLocalMicMuted(true);
           }
         } else if (data.type === 'agent.audio_chunk') {
-          if (!agentPlayerRef.current) {
-            agentPlayerRef.current = new AgentAudioPlayer();
-          }
           const decoyText =
             handoffStateRef.current === 'ai_active'
               ? pendingDecoyTurnsRef.current.shift()
               : undefined;
-          const playbackVersion = decoyPlaybackVersionRef.current;
-          void agentPlayerRef.current
-            .enqueueAudioChunk(data.audioBase64, data.sampleRate)
-            .then(() => {
-              if (
-                decoyText &&
-                handoffStateRef.current === 'ai_active' &&
-                playbackVersion === decoyPlaybackVersionRef.current
-              ) {
-                scammerClientRef.current?.sendSyntheticUserMessage(decoyText);
-              }
-            });
-          if (webrtcRef.current && agentPlayerRef.current) {
-            void webrtcRef.current.switchToAiTrack(agentPlayerRef.current.getAudioTrack());
+          const audio: QueuedDecoyAudio = {
+            audioBase64: data.audioBase64,
+            sampleRate: data.sampleRate,
+            ...(decoyText ? { decoyText } : {}),
+            playbackVersion: decoyPlaybackVersionRef.current,
+          };
+          if (
+            scammerTurnInProgressRef.current ||
+            (scammerClientRef.current?.isSpeaking() ?? false)
+          ) {
+            pendingDecoyAudioRef.current.push(audio);
+          } else {
+            playDecoyAudio(audio);
           }
         } else if (data.type === 'agent.interrupted') {
           pendingDecoyTurnsRef.current = [];
+          pendingDecoyAudioRef.current = [];
           decoyPlaybackVersionRef.current += 1;
           agentPlayerRef.current?.stopAndFlush();
         } else if (data.type === 'transcript.partial') {
@@ -268,7 +313,7 @@ export const useLiveSession = () => {
         setConnectionStatus('disconnected');
       }
     };
-  }, [sendClientMessage]);
+  }, [playDecoyAudio, sendClientMessage]);
 
   const startCall = useCallback(async () => {
     if (startingRef.current || sessionId) return;
@@ -281,6 +326,7 @@ export const useLiveSession = () => {
     lastScammerSpokenTimeRef.current = 0;
     lastScammerTextRef.current = '';
     pendingDecoyTurnsRef.current = [];
+    pendingDecoyAudioRef.current = [];
     decoyPlaybackVersionRef.current += 1;
     setConnectionStatus('connecting');
     try {
@@ -500,6 +546,12 @@ export const useLiveSession = () => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
     }
+    if (scammerTurnSafetyTimeoutRef.current) {
+      clearTimeout(scammerTurnSafetyTimeoutRef.current);
+      scammerTurnSafetyTimeoutRef.current = null;
+    }
+    scammerTurnInProgressRef.current = false;
+    pendingDecoyAudioRef.current = [];
 
     if (sessionId && participantRoleRef.current === 'owner') {
       try {
@@ -673,6 +725,17 @@ export const useLiveSession = () => {
             const cleanText = text.trim();
             if (!cleanText) return;
 
+            scammerTurnInProgressRef.current = true;
+            if (scammerTurnSafetyTimeoutRef.current) {
+              clearTimeout(scammerTurnSafetyTimeoutRef.current);
+            }
+            const safetyDelayMs = Math.max(8_000, Math.min(45_000, cleanText.length * 120));
+            scammerTurnSafetyTimeoutRef.current = setTimeout(() => {
+              scammerTurnSafetyTimeoutRef.current = null;
+              scammerTurnInProgressRef.current = false;
+              flushPendingDecoyAudioRef.current();
+            }, safetyDelayMs);
+
             // Strip emotion/roleplay tags like [concerned], [polite], [angry] for echo matching
             const strippedForMatching = cleanText.replace(/\[.*?\]/g, '').replace(/[^\w\u0E00-\u0E7F]/g, '');
             lastScammerSpokenTimeRef.current = Date.now();
@@ -756,6 +819,25 @@ export const useLiveSession = () => {
 
             void simulateSpeech('user', cleanText);
           },
+          onAudioChunkReceived: () => {
+            scammerTurnInProgressRef.current = true;
+          },
+          onInterrupted: () => {
+            if (scammerTurnSafetyTimeoutRef.current) {
+              clearTimeout(scammerTurnSafetyTimeoutRef.current);
+              scammerTurnSafetyTimeoutRef.current = null;
+            }
+            scammerTurnInProgressRef.current = false;
+            flushPendingDecoyAudioRef.current();
+          },
+          onPlaybackFinished: () => {
+            if (scammerTurnSafetyTimeoutRef.current) {
+              clearTimeout(scammerTurnSafetyTimeoutRef.current);
+              scammerTurnSafetyTimeoutRef.current = null;
+            }
+            scammerTurnInProgressRef.current = false;
+            flushPendingDecoyAudioRef.current();
+          },
         },
         { language: chosenLang },
       );
@@ -777,6 +859,12 @@ export const useLiveSession = () => {
   const stopScammerCall = useCallback(() => {
     scammerAttemptRef.current += 1;
     scammerConnectingRef.current = false;
+    scammerTurnInProgressRef.current = false;
+    pendingDecoyAudioRef.current = [];
+    if (scammerTurnSafetyTimeoutRef.current) {
+      clearTimeout(scammerTurnSafetyTimeoutRef.current);
+      scammerTurnSafetyTimeoutRef.current = null;
+    }
     scammerClientRef.current?.disconnect();
     scammerClientRef.current = null;
     setIsScammerCalling(false);
@@ -790,6 +878,11 @@ export const useLiveSession = () => {
         clearTimeout(reconnectTimeoutRef.current);
       }
       scammerAttemptRef.current += 1;
+      if (scammerTurnSafetyTimeoutRef.current) {
+        clearTimeout(scammerTurnSafetyTimeoutRef.current);
+        scammerTurnSafetyTimeoutRef.current = null;
+      }
+      pendingDecoyAudioRef.current = [];
       scammerClientRef.current?.disconnect();
       scammerClientRef.current = null;
       speechRecognizerRef.current?.stop();
