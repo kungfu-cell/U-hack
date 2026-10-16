@@ -14,7 +14,8 @@ const trimUrlPunctuation = (value: string) => value.replace(/[.,!?;:]+$/u, "");
 const digitsOnly = (value: string) => value.replace(/\D/gu, "");
 const normalizeUrl = (value: string) => {
   try {
-    return new URL(value).toString();
+    const withProto = value.startsWith("www.") ? `https://${value}` : value;
+    return new URL(withProto).toString();
   } catch {
     return value;
   }
@@ -62,7 +63,7 @@ const collectCandidates = (text: string): Candidate[] => {
   }
 
   const bankAccountPattern =
-    /(?:เลข(?:ที่)?\s*)?บัญชี(?:ธนาคาร)?(?:เลข(?:ที่)?)?\s*[:：-]?\s*((?:\d[ -]?){9,14}\d)/giu;
+    /(?:(?:เลข(?:ที่)?\s*)?บัญชี(?:ธนาคาร)?(?:เลข(?:ที่)?)?|พร้อมเพย์|promptpay)\s*[:：-]?\s*((?:\d[ -]?){9,14}\d)/giu;
   for (const match of text.matchAll(bankAccountPattern)) {
     if (match.index === undefined || !match[1]) continue;
     const accountOffset = match[0].lastIndexOf(match[1]);
@@ -117,7 +118,7 @@ const collectCandidates = (text: string): Candidate[] => {
     });
   }
 
-  const urlPattern = /https?:\/\/[^\s<>()]+/giu;
+  const urlPattern = /(?:https?:\/\/|www\.)[^\s<>()]+/giu;
   for (const match of text.matchAll(urlPattern)) {
     if (match.index === undefined) continue;
     const value = trimUrlPunctuation(match[0]);

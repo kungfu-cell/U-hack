@@ -236,13 +236,24 @@ export class AudioPipeline {
     }
   }
 
-  async startHandoff(): Promise<boolean> {
+  async startHandoff(preferredLang?: 'th' | 'en'): Promise<boolean> {
     try {
-      const context = ContextBuilder.build(this.sessionId, this.utterances);
-      const reply = await this.agentClient.generateReply(
-        context,
-        'ผู้ใช้อนุมัติให้ AI รับช่วงแล้ว กรุณาแนะนำตัวสั้น ๆ เพียงครั้งเดียว จากนั้นอ่านประวัติและถามเฉพาะคำถามเป้าหมายของรอบนี้ ห้ามถามข้อมูลที่ผู้โทรบอกไว้แล้ว',
-      );
+      const context = ContextBuilder.build(this.sessionId, this.utterances, preferredLang);
+      const isEnglish = context.language === 'en';
+      const lastCallerUtterance = [...this.utterances].reverse().find((u) => u.speaker === 'caller')?.text;
+
+      let prompt: string;
+      if (isEnglish) {
+        prompt = lastCallerUtterance
+          ? `The user authorized AI to take over. The caller just stated: "${lastCallerUtterance}". Introduce yourself briefly just once as an assistant/family member and respond directly to what they said in English, then ask only the target question for this turn.`
+          : 'The user has authorized AI to take over the call. Introduce yourself briefly just once, then review the conversation history and ask only the target question for this turn in English. Do not ask for information the caller has already provided.';
+      } else {
+        prompt = lastCallerUtterance
+          ? `ผู้ใช้อนุมัติให้ AI รับช่วงแล้ว คู่สนทนาเพิ่งพูดว่า: "${lastCallerUtterance}" กรุณาแนะนำตัวสั้น ๆ และตอบรับสิ่งที่คู่สนทนาเพิ่งถามหรือพูดมา จากนั้นถามเฉพาะคำถามเป้าหมายของรอบนี้`
+          : 'ผู้ใช้อนุมัติให้ AI รับช่วงแล้ว กรุณาแนะนำตัวสั้น ๆ เพียงครั้งเดียว จากนั้นอ่านประวัติและถามเฉพาะคำถามเป้าหมายของรอบนี้ ห้ามถามข้อมูลที่ผู้โทรบอกไว้แล้ว';
+      }
+
+      const reply = await this.agentClient.generateReply(context, prompt);
       if (this.getState() !== 'preparing_ai') return false;
       this.setState('ai_active');
       await this.emitAgentReply(reply);
@@ -383,10 +394,13 @@ export class AudioPipeline {
   /**
    * Triggers the opening decoy agent greeting with ElevenLabs synthesized voice.
    */
-  async triggerInitialGreeting(): Promise<void> {
-    const greetingPrompt = 'สวัสดีค่ะ ดิฉันรับสายแทนเจ้าของเบอร์นะคะ พอดีสัญญาณขาดหาย รบกวนแจ้งชื่อ ยศ และสังกัดสถานีตำรวจที่ติดต่อมาอีกครั้งได้ไหมคะ';
+  async triggerInitialGreeting(preferredLang?: 'th' | 'en'): Promise<void> {
+    const context = ContextBuilder.build(this.sessionId, this.utterances, preferredLang);
+    const isEnglish = context.language === 'en';
+    const greetingPrompt = isEnglish
+      ? 'Hello, I am taking over this call on behalf of the recipient. The connection was unstable earlier. Could you please state your full name, badge ID, and the department you are calling from?'
+      : 'สวัสดีค่ะ ดิฉันรับสายแทนเจ้าของเบอร์นะคะ พอดีสัญญาณขาดหาย รบกวนแจ้งชื่อ ยศ และสังกัดสถานีตำรวจที่ติดต่อมาอีกครั้งได้ไหมคะ';
     try {
-      const context = ContextBuilder.build(this.sessionId, this.utterances);
       const reply = await this.agentClient.generateReply(context, greetingPrompt);
       const textToUse = reply.text || greetingPrompt;
       this.addAiUtterance(textToUse);

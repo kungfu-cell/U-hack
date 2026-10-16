@@ -8,6 +8,7 @@ export interface AgentContextPacket {
   unresolvedQuestions: string[];
   recentDialogue: { speaker: Speaker; text: string }[];
   systemPrompt: string;
+  language: 'th' | 'en';
 }
 
 export interface GuardrailResult {

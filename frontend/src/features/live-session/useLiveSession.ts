@@ -397,8 +397,16 @@ export const useLiveSession = () => {
       // Initialize WebRTC and the local microphone before signaling starts.
       const webrtc = new WebRtcManager(getIceServers());
       webrtcRef.current = webrtc;
-      const localStream = await webrtc.startLocalMic();
-      setIsMicActive(true);
+      let localStream: MediaStream | null = null;
+      try {
+        localStream = await webrtc.startLocalMic();
+        setIsMicActive(true);
+      } catch (micErr) {
+        setDegradedMessage(
+          'ไมโครโฟนไม่พร้อมใช้งาน: ' +
+            (micErr instanceof Error ? micErr.message : 'ไม่สามารถเข้าถึงไมโครโฟนได้'),
+        );
+      }
       webrtc.initPeerConnection();
       webrtc.setOnIceCandidate((candidate) => {
         sendClientMessage({
@@ -410,35 +418,37 @@ export const useLiveSession = () => {
 
       // Each participant sends only their own microphone to Scribe.
       const localSpeaker: 'user' | 'caller' = localRole === 'owner' ? 'user' : 'caller';
-      const localProcessor = new AudioProcessor(
-        localStream,
-        (audioBase64) => {
-          const scammerClient = scammerClientRef.current;
-          const scammerIsActive =
-            scammerClient &&
-            !['idle', 'closed', 'error'].includes(scammerClient.getStatus());
+      if (localStream) {
+        const localProcessor = new AudioProcessor(
+          localStream,
+          (audioBase64) => {
+            const scammerClient = scammerClientRef.current;
+            const scammerIsActive =
+              scammerClient &&
+              !['idle', 'closed', 'error'].includes(scammerClient.getStatus());
 
-          if (scammerIsActive) {
-            if (handoffStateRef.current !== 'ai_active') {
-              scammerClient.sendUserAudioChunk(audioBase64);
+            if (scammerIsActive) {
+              if (handoffStateRef.current !== 'ai_active') {
+                scammerClient.sendUserAudioChunk(audioBase64);
+              }
+            } else {
+              sendClientMessage({
+                type: 'audio.chunk',
+                sessionId: targetSessionId,
+                speaker: localSpeaker,
+                audioBase64,
+                sampleRate: 16000,
+                timestampMs: Date.now(),
+              });
             }
-          } else {
-            sendClientMessage({
-              type: 'audio.chunk',
-              sessionId: targetSessionId,
-              speaker: localSpeaker,
-              audioBase64,
-              sampleRate: 16000,
-              timestampMs: Date.now(),
-            });
-          }
-        },
-        (rms) => {
-          setMicLevel(rms);
-        },
-      );
-      localProcessor.start();
-      userAudioProcessorRef.current = localProcessor;
+          },
+          (rms) => {
+            setMicLevel(rms);
+          },
+        );
+        localProcessor.start();
+        userAudioProcessorRef.current = localProcessor;
+      }
 
       // Browser recognition provides immediate, reliable real-time transcript for the local speaker
       const recognizer = new BrowserSpeechRecognizer((text, isFinal) => {
@@ -594,10 +604,12 @@ export const useLiveSession = () => {
   const requestHandoff = async (): Promise<boolean> => {
     if (!sessionId || participantRoleRef.current !== 'owner') return false;
     try {
+      const preferredLang =
+        activeScammerLang || (spokenLanguageRef.current?.startsWith('en') ? 'en' : 'th');
       const res = await fetch(`${apiUrl}/sessions/${sessionId}/handoff`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-user-id': 'demo-user' },
-        body: '{}',
+        body: JSON.stringify({ lang: preferredLang }),
       });
       if (!res.ok) throw new Error('AI ยังไม่พร้อมรับช่วงในสถานะปัจจุบัน');
       const updated = await res.json();

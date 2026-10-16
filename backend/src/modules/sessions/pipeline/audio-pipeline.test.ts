@@ -202,4 +202,52 @@ describe('AudioPipeline', () => {
 
     pipeline.close();
   });
+
+  it('matches caller language on handoff takeover (English and Thai)', async () => {
+    // 1. English caller scenario
+    const enEvents: SessionEvent[] = [];
+    const enPipeline = new AudioPipeline({
+      sessionId: 'session-handoff-en',
+      caseId: 'case-handoff-en',
+      scribeProvider: new MockScribeProvider(),
+      analysisProvider: new DemoAnalysisProvider(),
+      onEvent: (event) => enEvents.push(event),
+    });
+
+    await enPipeline.handleLiveTranscript('caller', 'This is Officer Smith. Transfer your funds immediately!', true);
+    enPipeline.setState('preparing_ai');
+    await enPipeline.startHandoff();
+
+    const enAiUtterance = enEvents.find(
+      (e) => e.type === 'transcript.committed' && e.utterance.speaker === 'ai',
+    );
+    expect(enAiUtterance).toBeDefined();
+    if (enAiUtterance && enAiUtterance.type === 'transcript.committed') {
+      expect(enAiUtterance.utterance.text).toContain('All my funds are locked');
+    }
+    enPipeline.close();
+
+    // 2. Thai caller scenario
+    const thEvents: SessionEvent[] = [];
+    const thPipeline = new AudioPipeline({
+      sessionId: 'session-handoff-th',
+      caseId: 'case-handoff-th',
+      scribeProvider: new MockScribeProvider(),
+      analysisProvider: new DemoAnalysisProvider(),
+      onEvent: (event) => thEvents.push(event),
+    });
+
+    await thPipeline.handleLiveTranscript('caller', 'ผมเป็นตำรวจ ให้รีบโอนเงินมาตรวจสอบบัญชีกลางด่วน', true);
+    thPipeline.setState('preparing_ai');
+    await thPipeline.startHandoff();
+
+    const thAiUtterance = thEvents.find(
+      (e) => e.type === 'transcript.committed' && e.utterance.speaker === 'ai',
+    );
+    expect(thAiUtterance).toBeDefined();
+    if (thAiUtterance && thAiUtterance.type === 'transcript.committed') {
+      expect(thAiUtterance.utterance.text).toContain('ตอนนี้เงินเก็บทั้งหมดอยู่ในบัญชีเงินฝากประจำค่ะ');
+    }
+    thPipeline.close();
+  });
 });
