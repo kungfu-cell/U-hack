@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { IncidentReport, ShareProposal, Utterance } from '@scamtrap/contracts';
 import {
+  analyzeCase,
   correctSessionUtterance,
   createShareProposal,
   getCaseReport,
@@ -8,37 +9,67 @@ import {
   withdrawCase,
 } from '../../lib/api';
 
-export const ReportPlaceholder = () => {
+interface ReportPlaceholderProps {
+  caseId: string;
+  sessionId?: string | null;
+  refreshKey?: number;
+}
+
+export const ReportPlaceholder = ({
+  caseId,
+  sessionId,
+  refreshKey = 0,
+}: ReportPlaceholderProps) => {
   const [report, setReport] = useState<IncidentReport | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [consentConfirmed, setConsentConfirmed] = useState(false);
   const [proposal, setProposal] = useState<ShareProposal | null>(null);
   const [timeline, setTimeline] = useState<Utterance[]>([]);
-  const [status, setStatus] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'ready' | 'pending' | 'empty' | 'error'>('loading');
   const [message, setMessage] = useState('');
+  const [manualRefreshKey, setManualRefreshKey] = useState(0);
+  const [isReanalyzing, setIsReanalyzing] = useState(false);
 
   useEffect(() => {
-    const caseId = window.localStorage.getItem('scamtrap:lastCaseId');
-    if (!caseId) {
-      setStatus('empty');
-      return;
-    }
-    void getCaseReport(caseId)
-      .then((nextReport) => {
-        setReport(nextReport);
+    let cancelled = false;
+    setStatus('loading');
+    setMessage('');
+    setReport(null);
+    setTimeline([]);
+
+    const reportRequest = getCaseReport(caseId);
+    const timelineRequest = sessionId
+      ? getSessionSnapshot(sessionId).then((snapshot) => snapshot.utterances)
+      : Promise.resolve([] as Utterance[]);
+
+    void Promise.allSettled([reportRequest, timelineRequest]).then(([reportResult, timelineResult]) => {
+      if (cancelled) return;
+
+      if (timelineResult.status === 'fulfilled') {
+        setTimeline(timelineResult.value);
+      }
+
+      if (reportResult.status === 'fulfilled') {
+        setReport(reportResult.value);
         setStatus('ready');
-        const sessionId = window.localStorage.getItem('scamtrap:lastSessionId');
-        if (sessionId) {
-          void getSessionSnapshot(sessionId)
-            .then((snapshot) => setTimeline(snapshot.utterances))
-            .catch(() => undefined);
-        }
-      })
-      .catch((error: unknown) => {
-        setMessage(error instanceof Error ? error.message : 'โหลดรายงานไม่สำเร็จ');
-        setStatus('error');
-      });
-  }, []);
+        return;
+      }
+
+      const errorMessage = reportResult.reason instanceof Error
+        ? reportResult.reason.message
+        : 'โหลดรายงานไม่สำเร็จ';
+      setMessage(errorMessage);
+      setStatus(
+        /analy|analysis|วิเคราะห์/iu.test(errorMessage)
+          ? 'pending'
+          : 'error',
+      );
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [caseId, sessionId, refreshKey, manualRefreshKey]);
 
   const toggleEntity = (id: string) => {
     setSelectedIds((current) =>
@@ -55,19 +86,56 @@ export const ReportPlaceholder = () => {
   const removeCase = async () => {
     if (!report || !window.confirm('ลบเหตุการณ์และถอนข้อเสนอแบ่งปันทั้งหมดหรือไม่?')) return;
     await withdrawCase(report.caseId, 'ผู้ใช้ถอนข้อมูลจากหน้ารายงาน');
-    window.localStorage.removeItem('scamtrap:lastCaseId');
+    if (window.localStorage.getItem('scamtrap:lastCaseId') === report.caseId) {
+      window.localStorage.removeItem('scamtrap:lastCaseId');
+      window.localStorage.removeItem('scamtrap:lastSessionId');
+    }
     setReport(null);
     setStatus('empty');
   };
 
   const correctUtterance = async (utterance: Utterance) => {
-    const sessionId = window.localStorage.getItem('scamtrap:lastSessionId');
     if (!sessionId) return;
     const correctedText = window.prompt('แก้ไขข้อความถอดเสียง', utterance.text)?.trim();
     if (!correctedText || correctedText === utterance.text) return;
     const corrected = await correctSessionUtterance(sessionId, utterance.id, correctedText);
     setTimeline((current) => current.map((item) => item.id === corrected.id ? corrected : item));
   };
+
+  const reanalyzeTranscript = async () => {
+    setIsReanalyzing(true);
+    try {
+      await analyzeCase(caseId);
+      setManualRefreshKey((current) => current + 1);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'วิเคราะห์บทสนทนาใหม่ไม่สำเร็จ');
+      setStatus('error');
+    } finally {
+      setIsReanalyzing(false);
+    }
+  };
+
+  const timelineSection = (
+    <section className="report-section">
+      <h2>ลำดับการสนทนา</h2>
+      {timeline.length === 0 ? <p>รายงานนี้ไม่มีบทสนทนาสด</p> : (
+        <ol className="timeline-list">
+          {timeline.map((utterance) => (
+            <li key={utterance.id}>
+              <strong>{utterance.speaker}</strong>
+              <span>{new Date(utterance.startedAtMs).toLocaleTimeString()}</span>
+              <p>{utterance.text}</p>
+              {sessionId && (
+                <button className="secondary-button" onClick={() => void correctUtterance(utterance)}>
+                  แก้ข้อความถอดเสียง
+                </button>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
 
   if (status === 'loading') {
     return <main className="placeholder-page"><p>กำลังประกอบรายงาน…</p></main>;
@@ -81,9 +149,43 @@ export const ReportPlaceholder = () => {
       </main>
     );
   }
-  if (status === 'error' || !report) {
-    return <main className="placeholder-page"><h1>เปิดรายงานไม่ได้</h1><p>{message}</p></main>;
+  if (status === 'pending') {
+    return (
+      <main className="report-page">
+        <header className="report-heading">
+          <div>
+            <span className="eyebrow">Live session · {caseId}</span>
+            <h1>รายงานยังไม่พร้อม</h1>
+            <p>ระบบจะวิเคราะห์และสร้างสรุปจากบทสนทนาที่บันทึกไว้หลังจบสาย</p>
+          </div>
+          <button className="secondary-button" onClick={() => setManualRefreshKey((current) => current + 1)}>
+            โหลดรายงานอีกครั้ง
+          </button>
+        </header>
+        <div className="warning-banner">
+          <strong>ยังไม่พบผลวิเคราะห์ของเคสนี้</strong>
+          <p>หากสายยังดำเนินอยู่ ให้กดวางสายก่อน แล้วกลับมาหน้านี้อีกครั้ง</p>
+        </div>
+        {timelineSection}
+      </main>
+    );
   }
+  if (status === 'error' || !report) {
+    return (
+      <main className="placeholder-page">
+        <h1>เปิดรายงานไม่ได้</h1>
+        <p>{message}</p>
+        <button className="secondary-button" onClick={() => setManualRefreshKey((current) => current + 1)}>
+          ลองอีกครั้ง
+        </button>
+      </main>
+    );
+  }
+
+  const committedUtteranceCount = timeline.filter(
+    (utterance) => utterance.transcriptState === 'committed',
+  ).length;
+  const isLiveSessionReport = report.inputs.some((input) => input.source.startsWith('live_session:'));
 
   return (
     <main className="report-page">
@@ -94,6 +196,15 @@ export const ReportPlaceholder = () => {
           <p>{new Date(report.generatedAt).toLocaleString()}</p>
         </div>
         <div className="report-actions">
+          {sessionId && (
+            <button
+              className="secondary-button"
+              disabled={isReanalyzing}
+              onClick={() => void reanalyzeTranscript()}
+            >
+              {isReanalyzing ? 'กำลังวิเคราะห์…' : 'วิเคราะห์ transcript ใหม่'}
+            </button>
+          )}
           <button className="secondary-button" onClick={() => window.print()}>พิมพ์ / บันทึก PDF</button>
           <button className="danger-button" onClick={removeCase}>ลบเหตุการณ์</button>
         </div>
@@ -103,27 +214,16 @@ export const ReportPlaceholder = () => {
 
       <section className="report-section">
         <h2>สรุปผล</h2>
+        <p style={{ color: 'var(--fg-muted)', fontSize: 12 }}>
+          {isLiveSessionReport
+            ? `สรุปโดยระบบวิเคราะห์จาก transcript ที่บันทึกหลังจบสาย ${committedUtteranceCount} ช่วง โดยแยกผู้โทร (caller) ออกจากผู้รับสายและ AI Decoy`
+            : `สรุปโดยระบบวิเคราะห์จากข้อมูลที่แนบกับเคสนี้ ${report.inputs.length} รายการ`}
+        </p>
         <p>{report.summary}</p>
         <p><strong>คำแนะนำ:</strong> {report.recommendation}</p>
       </section>
 
-      <section className="report-section">
-        <h2>ลำดับการสนทนา</h2>
-        {timeline.length === 0 ? <p>รายงานนี้ไม่มีบทสนทนาสด</p> : (
-          <ol className="timeline-list">
-            {timeline.map((utterance) => (
-              <li key={utterance.id}>
-                <strong>{utterance.speaker}</strong>
-                <span>{new Date(utterance.startedAtMs).toLocaleTimeString()}</span>
-                <p>{utterance.text}</p>
-                <button className="secondary-button" onClick={() => void correctUtterance(utterance)}>
-                  แก้ข้อความถอดเสียง
-                </button>
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
+      {timelineSection}
 
       <section className="report-section">
         <h2>เหตุผลและข้อความอ้างอิง</h2>

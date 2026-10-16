@@ -95,7 +95,20 @@ export class CaseService {
       updatedAt: new Date().toISOString(),
     });
 
-    const combinedText = analyzableInputs.map((input) => input.content).join('\n');
+    const combinedText = analyzableInputs
+      .map((input) => {
+        if (!input.source.startsWith('live_session:')) return input.content;
+
+        // A live-call report evaluates the suspected caller. Keeping user/decoy lines in the
+        // stored input preserves the full audit trail, but sending them to the risk analyzer
+        // would incorrectly attribute defensive prompts or repeated OTP warnings to the caller.
+        return input.content
+          .split(/\r?\n/u)
+          .filter((line) => /^\[caller\]\s+/iu.test(line))
+          .join('\n');
+      })
+      .filter((content) => content.trim().length > 0)
+      .join('\n');
     const result = await this.analysisProvider.analyzeText({
       sourceId: analyzableInputs[0]!.id,
       text: combinedText,

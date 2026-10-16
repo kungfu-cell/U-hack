@@ -90,6 +90,49 @@ describe('API smoke test', () => {
     });
   });
 
+  it('analyzes only caller speech from a live-session transcript', async () => {
+    const demoProvider = new DemoAnalysisProvider();
+    let analyzedText = '';
+    app = await buildApp({
+      analysisProvider: {
+        name: 'live-transcript-test',
+        analyzeText: async (command) => {
+          analyzedText = command.text;
+          return demoProvider.analyzeText(command);
+        },
+      },
+    });
+    const created = (await app.inject({
+      method: 'POST',
+      url: '/cases',
+      payload: { title: 'Live transcript', isDemo: true },
+    })).json<{ id: string }>();
+
+    await app.inject({
+      method: 'POST',
+      url: `/cases/${created.id}/inputs`,
+      payload: {
+        type: 'text',
+        content: [
+          '[caller] ผมเป็นตำรวจ ให้โอนเงินมาตรวจสอบทันที',
+          '[user] ฉันจะไม่โอนเงิน',
+          '[ai] กรุณาบอกรหัส OTP อีกครั้ง',
+        ].join('\n'),
+        source: 'live_session:test-session',
+      },
+    });
+    const response = await app.inject({
+      method: 'POST',
+      url: `/cases/${created.id}/analyses`,
+      payload: {},
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(analyzedText).toContain('[caller] ผมเป็นตำรวจ');
+    expect(analyzedText).not.toContain('[user]');
+    expect(analyzedText).not.toContain('[ai]');
+  });
+
   it('transcribes an authorized audio upload and analyzes the transcript', async () => {
     app = await buildApp({
       analysisProvider: new DemoAnalysisProvider(),
