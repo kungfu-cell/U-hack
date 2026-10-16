@@ -596,7 +596,7 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
 
             {/* Channel / Modality Selector */}
             <div className="form-group">
-              <span className="form-label">Input Modality:</span>
+              <span className="form-label">{language === 'en' ? 'Input Modality:' : 'เลือกรูปแบบข้อมูล (Input Modality):'}</span>
               <div className="input-mode-tabs">
                 <button
                   type="button"
@@ -606,7 +606,7 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                   </svg>
-                  Text / Chat Log
+                  {language === 'en' ? 'Text / Chat Log' : 'ข้อความ / แชต'}
                 </button>
                 <button
                   type="button"
@@ -618,7 +618,7 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                     <circle cx="8.5" cy="8.5" r="1.5" />
                     <polyline points="21 15 16 10 5 21" />
                   </svg>
-                  Image / OCR
+                  {language === 'en' ? 'Image / OCR' : 'รูปภาพ / OCR'}
                 </button>
                 <button
                   type="button"
@@ -629,7 +629,7 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                     <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
                     <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                   </svg>
-                  Audio File (Scribe STT)
+                  {language === 'en' ? 'Audio File (Scribe STT)' : 'ไฟล์เสียง (Scribe STT)'}
                 </button>
                 <button
                   type="button"
@@ -640,7 +640,7 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
                     <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                     <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                   </svg>
-                  Suspicious URL
+                  {language === 'en' ? 'Suspicious URL' : 'ลิงก์ / URL'}
                 </button>
               </div>
             </div>
@@ -1021,13 +1021,13 @@ export const QuickAnalysis = ({ onNavigateToBlacklist }: QuickAnalysisProps = {}
               disabled={analyzing}
             >
               {analyzing ? (
-                <span>Evaluating with AI Core &amp; configured threat sources...</span>
+                <span>{language === 'en' ? 'Evaluating threat telemetry with AI Core...' : 'กำลังประมวลผลและตรวจสอบกับฐานข้อมูลภัยคุกคาม...'}</span>
               ) : (
                 <>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <polygon points="5 3 19 12 5 21 5 3" />
                   </svg>
-                  <span>Execute Risk Analysis</span>
+                  <span>{language === 'en' ? 'Execute Risk Analysis' : 'เริ่มการวิเคราะห์ความเสี่ยง (Run Analysis)'}</span>
                 </>
               )}
             </button>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { showToast } from '../../lib/toast';
 import { ReportPlaceholder } from './ReportPlaceholder';
+import { useAppLanguage } from '../../lib/LanguageContext';
 import {
   type BlacklistItem,
   INITIAL_BLACKLIST,
@@ -146,6 +147,7 @@ export const ReportsView = ({
   initialLookupQuery,
   refreshKey = 0,
 }: ReportsViewProps = {}) => {
+  const { language } = useAppLanguage();
   const [activeSubTab, setActiveSubTab] = useState<'dossier' | 'blacklist' | 'live-report'>(initialSubTab);
   const [cases, setCases] = useState<IncidentCase[]>(INITIAL_CASES);
   const [search, setSearch] = useState('');
@@ -390,7 +392,7 @@ export const ReportsView = ({
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <polyline points="14 2 14 8 20 8" />
             </svg>
-            <span>Incident Dossier</span>
+            <span>{language === 'en' ? 'Incident Dossier' : 'แฟ้มคดี & หลักฐาน (Dossier)'}</span>
             <span className="code-tag" style={{ fontSize: 10.5, padding: '1px 6px' }}>{cases.length}</span>
           </button>
 
@@ -404,7 +406,7 @@ export const ReportsView = ({
               <circle cx="12" cy="12" r="10" />
               <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
             </svg>
-            <span>Mule Accounts &amp; Threat Intelligence</span>
+            <span>{language === 'en' ? 'Mule Accounts & Threat Intelligence' : 'บัญชีม้า & ฐานข้อมูล Blacklist'}</span>
             <span
               className="badge-sev badge-critical"
               style={{ fontSize: 10, padding: '1px 6px' }}
@@ -424,7 +426,7 @@ export const ReportsView = ({
                 <circle cx="12" cy="12" r="10" />
                 <polyline points="12 6 12 12 16 14" />
               </svg>
-              <span>Live Session Report</span>
+              <span>{language === 'en' ? 'Live Session Report' : 'รายงานการดักฟังสายสด'}</span>
               <span className="badge-sev badge-safe" style={{ fontSize: 10, padding: '1px 6px' }}>ACTIVE</span>
             </button>
           )}
@@ -438,7 +440,7 @@ export const ReportsView = ({
               onClick={() => setShowAddModal(true)}
               style={{ height: 32, fontSize: 12, padding: '0 14px' }}
             >
-              Add Identifier to Blacklist
+              {language === 'en' ? '+ Add Target to Blacklist' : '+ เพิ่มเป้าหมายใน Blacklist'}
             </button>
           )}
         </div>
@@ -502,7 +504,11 @@ export const ReportsView = ({
             <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
               <input
                 type="text"
-                placeholder="Enter bank account (e.g. 984-2-90184-1), phone number (+66 82-419-8921), holder name, or URL..."
+                placeholder={
+                  language === 'en'
+                    ? 'Enter bank account (e.g. 984-2-90184-1), phone (+66 82-419-8921), holder name, or URL...'
+                    : 'ค้นหาเลขบัญชี (เช่น 984-2-90184-1), เบอร์โทร (+66 82-419-8921), ชื่อเจ้าของบัญชี หรือ URL...'
+                }
                 className="input-control"
                 value={lookupQuery}
                 onChange={(e) => setLookupQuery(e.target.value)}
@@ -529,7 +535,9 @@ export const ReportsView = ({
                   borderColor: 'var(--crimson)',
                 }}
               >
-                {isAnalyzing ? 'Querying Intelligence...' : 'Verify Identifier'}
+                {isAnalyzing
+                  ? (language === 'en' ? 'Querying Intelligence...' : 'กำลังสืบค้นฐานข้อมูล...')
+                  : (language === 'en' ? 'Verify Identifier' : 'ตรวจสอบข้อมูล (Verify)')}
               </button>
             </div>
 
@@ -1237,7 +1245,11 @@ export const ReportsView = ({
                 <input
                   type="text"
                   id="filter-dossier"
-                  placeholder="Search docket, IOC, analyst, or tag..."
+                  placeholder={
+                    language === 'en'
+                      ? 'Search docket, IOC, analyst, or tag...'
+                      : 'ค้นหารหัสเคส, เลขบัญชี, เบอร์โทร, หรือแท็ก...'
+                  }
                   className="input-control"
                   style={{ height: 30, width: 230, fontSize: 11.5 }}
                   value={search}
@@ -1385,7 +1397,7 @@ export const ReportsView = ({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="card-header" style={{ borderBottom: '1px solid var(--border)' }}>
-              <div className="card-title">Add Target to Active Blacklist</div>
+              <div className="card-title">{language === 'en' ? 'Add Target to Active Blacklist' : 'บันทึกเป้าหมายเข้าฐานข้อมูล Blacklist'}</div>
               <button
                 type="button"
                 className="btn-copy"
@@ -1398,26 +1410,26 @@ export const ReportsView = ({
             </div>
             <form onSubmit={handleAddNewIoc} style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
-                <label className="form-label">Identifier Type</label>
+                <label className="form-label">{language === 'en' ? 'Identifier Type' : 'ประเภทข้อมูล (Identifier Type)'}</label>
                 <select
                   className="input-control"
                   value={newIoc.type}
                   onChange={(e) => setNewIoc({ ...newIoc, type: e.target.value as any })}
                 >
-                  <option value="bank_account">Bank Mule Account</option>
-                  <option value="phone">Fraudulent Phone Number</option>
-                  <option value="url">Phishing URL / Malicious APK</option>
-                  <option value="wallet">Crypto Wallet Address</option>
+                  <option value="bank_account">{language === 'en' ? 'Bank Mule Account' : 'บัญชีม้าธนาคาร (Bank Mule)'}</option>
+                  <option value="phone">{language === 'en' ? 'Fraudulent Phone Number' : 'เบอร์โทรศัพท์มิจฉาชีพ (Phone / VoIP)'}</option>
+                  <option value="url">{language === 'en' ? 'Phishing URL / Malicious APK' : 'ลิงก์ฟิชชิ่ง / ไฟล์ APK อันตราย'}</option>
+                  <option value="wallet">{language === 'en' ? 'Crypto Wallet Address' : 'กระเป๋าคริปโต (Crypto Wallet)'}</option>
                   <option value="c2_ip">C2 Server IP</option>
                 </select>
               </div>
 
               <div>
-                <label className="form-label">Indicator Value (Account / Number / URL)</label>
+                <label className="form-label">{language === 'en' ? 'Indicator Value (Account / Number / URL)' : 'ข้อมูลเป้าหมาย (เลขบัญชี / เบอร์โทร / ลิงก์)'}</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. 020-3-19482-8 or +66 94-812-3004"
+                  placeholder={language === 'en' ? 'e.g. 020-3-19482-8 or +66 94-812-3004' : 'เช่น 020-3-19482-8 หรือ +66 94-812-3004'}
                   className="input-control"
                   value={newIoc.value}
                   onChange={(e) => setNewIoc({ ...newIoc, value: e.target.value })}
@@ -1425,10 +1437,10 @@ export const ReportsView = ({
               </div>
 
               <div>
-                <label className="form-label">Account Holder / Claimed Entity Name</label>
+                <label className="form-label">{language === 'en' ? 'Account Holder / Claimed Entity Name' : 'ชื่อเจ้าของบัญชี / บุคคลแอบอ้าง'}</label>
                 <input
                   type="text"
-                  placeholder="e.g. Registered mule account name"
+                  placeholder={language === 'en' ? 'e.g. Registered mule account name' : 'เช่น นายสมชาย หมายจับ หรือชื่อตามบัญชีม้า'}
                   className="input-control"
                   value={newIoc.holderOrAlias}
                   onChange={(e) => setNewIoc({ ...newIoc, holderOrAlias: e.target.value })}
@@ -1436,10 +1448,10 @@ export const ReportsView = ({
               </div>
 
               <div>
-                <label className="form-label">Financial Institution / Network Carrier</label>
+                <label className="form-label">{language === 'en' ? 'Financial Institution / Network Carrier' : 'ธนาคาร / ผู้ให้บริการเครือข่าย'}</label>
                 <input
                   type="text"
-                  placeholder="e.g. Siam Commercial Bank (SCB)"
+                  placeholder={language === 'en' ? 'e.g. Siam Commercial Bank (SCB)' : 'เช่น ธนาคารกสิกรไทย (KBANK), AIS, True'}
                   className="input-control"
                   value={newIoc.bankOrProvider}
                   onChange={(e) => setNewIoc({ ...newIoc, bankOrProvider: e.target.value })}
@@ -1447,11 +1459,11 @@ export const ReportsView = ({
               </div>
 
               <div>
-                <label className="form-label">Incident Synopsis / Modus Operandi</label>
+                <label className="form-label">{language === 'en' ? 'Incident Synopsis / Modus Operandi' : 'พฤติการณ์ / รายละเอียดภัยคุกคาม'}</label>
                 <textarea
                   className="input-control"
                   rows={2}
-                  placeholder="Summary of extortion, investment scheme, or spoofed pretext"
+                  placeholder={language === 'en' ? 'Summary of extortion, investment scheme, or spoofed pretext' : 'ระบุพฤติกรรม เช่น หลอกลงทุน, อ้างตำรวจขู่โอนเงิน, ส่ง SMS หลอกรับรางวัล'}
                   value={newIoc.description}
                   onChange={(e) => setNewIoc({ ...newIoc, description: e.target.value })}
                   style={{ height: 'auto', padding: 8 }}
@@ -1464,10 +1476,10 @@ export const ReportsView = ({
                   className="btn-action btn-action-ghost"
                   onClick={() => setShowAddModal(false)}
                 >
-                  Cancel
+                  {language === 'en' ? 'Cancel' : 'ยกเลิก'}
                 </button>
                 <button type="submit" className="btn-action btn-action-primary">
-                  Save to Blacklist
+                  {language === 'en' ? 'Save to Blacklist' : 'บันทึกลง Blacklist'}
                 </button>
               </div>
             </form>
@@ -1652,7 +1664,7 @@ export const ReportsView = ({
                 onClick={() => deleteCase(selectedCase.id)}
                 style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
               >
-                Delete / Revoke
+                {language === 'en' ? 'Delete / Revoke' : 'ลบ / ยกเลิกเคส'}
               </button>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
@@ -1669,7 +1681,7 @@ export const ReportsView = ({
                   style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
                   title="Cross-reference this case identifier against the threat database"
                 >
-                  Verify in Blacklist
+                  {language === 'en' ? 'Verify in Blacklist' : 'ตรวจใน Blacklist'}
                 </button>
                 <button
                   type="button"
@@ -1682,7 +1694,7 @@ export const ReportsView = ({
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <polyline points="14 2 14 8 20 8" />
                   </svg>
-                  <span>Official Dossier</span>
+                  <span>{language === 'en' ? 'Official Dossier' : 'เอกสารส่งเจ้าหน้าที่'}</span>
                 </button>
                 <button
                   type="button"
@@ -1696,7 +1708,7 @@ export const ReportsView = ({
                   className="btn-action btn-action-primary"
                   onClick={() => dispatchAoc(selectedCase.id)}
                 >
-                  Dispatch to AOC 1441
+                  {language === 'en' ? 'Dispatch to AOC 1441' : 'ส่งต่อข้อมูล AOC 1441'}
                 </button>
               </div>
             </div>
