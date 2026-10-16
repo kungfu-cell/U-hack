@@ -394,7 +394,9 @@ export const ReportPlaceholder = ({
             : `Synthesized from ${report.inputs.length} submitted evidentiary records.`}
         </p>
         <p style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--fg)', margin: '0 0 14px 0' }}>
-          {report.summary}
+          {report.summary?.includes('คดีอยู่ในสถานะรวบรวมหลักฐาน')
+            ? 'Case is currently compiling evidentiary records or in early session initialization. No definitive threats confirmed yet.'
+            : report.summary}
         </p>
         <div
           style={{
@@ -406,7 +408,9 @@ export const ReportPlaceholder = ({
         >
           <strong style={{ fontSize: 12.5, color: 'var(--emerald)' }}>Operational Advisory:</strong>
           <p style={{ fontSize: 12.5, color: 'var(--fg-muted)', margin: '4px 0 0 0', lineHeight: 1.5 }}>
-            {report.recommendation}
+            {report.recommendation?.includes('วิเคราะห์สำนวนคดีด้วย AI')
+              ? 'If further dialogue or telemetry is captured, trigger "Re-Analyze" to synthesize conclusions and evaluate indicators in detail.'
+              : report.recommendation}
           </p>
         </div>
       </div>
