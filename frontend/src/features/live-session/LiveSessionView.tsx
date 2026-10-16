@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useLiveSession } from './useLiveSession';
 import { AgentAudioPlayer } from './audio/agent-audio-player';
 import { showToast } from '../../lib/toast';
+import { useAppLanguage } from '../../lib/LanguageContext';
 
 interface DemoUtterance {
   id: string;
@@ -143,6 +144,7 @@ interface LiveSessionViewProps {
 }
 
 export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps = {}) => {
+  const { language } = useAppLanguage();
   const {
     sessionId,
     participantRole,
@@ -576,12 +578,12 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
             <div className="call-meta-title">
               <span style={{ color: callEndedLocally ? 'var(--fg-muted)' : 'var(--fg)' }}>
                 {callStatus === 'incoming'
-                  ? '📲 Incoming Call (สายเรียกเข้าจากมิจฉาชีพ)...'
+                  ? (language === 'en' ? '📲 Incoming Call (Suspected Scam Caller)...' : '📲 Incoming Call (สายเรียกเข้าจากมิจฉาชีพ)...')
                   : callEndedLocally
-                    ? 'Call Terminated (สายถูกตัดแล้ว)'
+                    ? (language === 'en' ? 'Call Terminated' : 'Call Terminated (สายถูกตัดแล้ว)')
                     : participantRole === 'owner'
-                      ? 'Live Scam Shield · เจ้าของห้อง'
-                      : 'Live Scam Shield · ผู้ร่วมทดสอบ'}
+                      ? (language === 'en' ? 'Live Scam Shield · Session Owner' : 'Live Scam Shield · เจ้าของห้อง')
+                      : (language === 'en' ? 'Live Scam Shield · Test Participant' : 'Live Scam Shield · ผู้ร่วมทดสอบ')}
               </span>
               <span
                 className={`badge-sev ${
@@ -623,10 +625,10 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
               type="button"
               className="btn-action btn-action-primary pulse-green-glow"
               onClick={handleAcceptCall}
-              title="กดรับสายทันทีเพื่อฟังมิจฉาชีพ AI ข่มขู่"
+              title={language === 'en' ? 'Answer call immediately' : 'กดรับสายทันทีเพื่อฟังมิจฉาชีพ AI ข่มขู่'}
               style={{ background: '#22c55e', borderColor: '#16a34a', color: '#ffffff', fontWeight: 600 }}
             >
-              📞 กดรับสาย (AI มิจฉาชีพจะเริ่มพูด)
+              {language === 'en' ? '📞 Answer Call (AI Scammer Speaks)' : '📞 กดรับสาย (AI มิจฉาชีพจะเริ่มพูด)'}
             </button>
           )}
 
@@ -667,9 +669,9 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
               type="button"
               className="btn-action btn-action-primary"
               onClick={handleRestartIncomingCall}
-              title="จำลองสายมิจฉาชีพโทรเข้ามาใหม่"
+              title={language === 'en' ? 'Simulate new incoming scam call' : 'จำลองสายมิจฉาชีพโทรเข้ามาใหม่'}
             >
-              📲 จำลองสายมิจฉาชีพโทรเข้าใหม่
+              {language === 'en' ? '📲 Simulate Incoming Call' : '📲 จำลองสายมิจฉาชีพโทรเข้าใหม่'}
             </button>
           )}
         </div>
@@ -677,24 +679,24 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
 
       {degradedMessage && (
         <div className="warning-banner" style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid var(--amber)', padding: '10px 14px', borderRadius: 6, marginBottom: 16 }}>
-          <strong style={{ color: 'var(--amber)' }}>⚠️ แจ้งเตือนระบบเสียง: </strong>
+          <strong style={{ color: 'var(--amber)' }}>{language === 'en' ? '⚠️ Audio Pipeline Notice: ' : '⚠️ แจ้งเตือนระบบเสียง: '}</strong>
           <span style={{ color: 'var(--fg-secondary)', fontSize: 12 }}>{degradedMessage}</span>
         </div>
       )}
 
       {participantRole === 'owner' && inviteUrl && !callEndedLocally && (
         <div className="warning-banner" style={{ marginBottom: 16 }}>
-          <strong>ลิงก์เชิญผู้ร่วมทดสอบ · รหัส {joinCode}</strong>
+          <strong>{language === 'en' ? `Invitee Test Link · Code ${joinCode}` : `ลิงก์เชิญผู้ร่วมทดสอบ · รหัส ${joinCode}`}</strong>
           <p style={{ overflowWrap: 'anywhere' }}>{inviteUrl}</p>
           <button
             type="button"
             className="btn-action btn-action-ghost"
             onClick={() => {
               void navigator.clipboard.writeText(inviteUrl);
-              showToast('คัดลอกลิงก์เชิญแล้ว');
+              showToast(language === 'en' ? 'Invite link copied' : 'คัดลอกลิงก์เชิญแล้ว');
             }}
           >
-            คัดลอกลิงก์เชิญ
+            {language === 'en' ? 'Copy Invite Link' : 'คัดลอกลิงก์เชิญ'}
           </button>
         </div>
       )}
@@ -767,9 +769,13 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                       <span>SUSPECTED SCAM CALLER</span>
                     </div>
                     <div className="ios-incoming-number">08-2419-8921</div>
-                    <div className="ios-incoming-tag">🚨 เบอร์ต้องสงสัย · กองปราบปรามปลอม</div>
+                    <div className="ios-incoming-tag">
+                      {language === 'en' ? '🚨 Flagged Caller · Fraud Taskforce Impersonation' : '🚨 เบอร์ต้องสงสัย · กองปราบปรามปลอม'}
+                    </div>
                     <div className="ios-incoming-warning">
-                      ScamTrap Live Shield ตรวจจับพฤติกรรมเสี่ยงสูง
+                      {language === 'en'
+                        ? 'ScamTrap Live Shield detected high-risk scam activity'
+                        : 'ScamTrap Live Shield ตรวจจับพฤติกรรมเสี่ยงสูง'}
                     </div>
                   </div>
 
@@ -782,7 +788,9 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                         <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                       </svg>
                     </div>
-                    <div className="ios-ringing-label">🔔 เสียงกระดิ่งกำลังดัง...</div>
+                    <div className="ios-ringing-label">
+                      {language === 'en' ? '🔔 Ringing...' : '🔔 เสียงกระดิ่งกำลังดัง...'}
+                    </div>
                   </div>
 
                   <div
@@ -797,7 +805,7 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                     }}
                   >
                     <div style={{ color: '#cbd5e1', fontSize: 11, fontWeight: 700, marginBottom: 8 }}>
-                      เลือกภาษาของสาย / Choose call language
+                      {language === 'en' ? 'Choose call language' : 'เลือกภาษาของสาย / Choose call language'}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'center', gap: 8 }}>
                       <button
@@ -809,7 +817,7 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                           showToast('สายถัดไปจะใช้ Agent และไมโครโฟนภาษาไทย');
                         }}
                       >
-                        🇹🇭 ภาษาไทย
+                        🇹🇭 {language === 'en' ? 'Thai' : 'ภาษาไทย'}
                       </button>
                       <button
                         type="button"
@@ -832,7 +840,7 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                         type="button"
                         className="ios-incoming-btn"
                         onClick={handleDeclineCall}
-                        title="ปฏิเสธสาย"
+                        title={language === 'en' ? 'Decline Call' : 'ปฏิเสธสาย'}
                       >
                         <div className="ios-action-circle bg-red-decline">
                           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.5">
@@ -840,7 +848,7 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                             <line x1="6" y1="6" x2="18" y2="18" />
                           </svg>
                         </div>
-                        <span>ปฏิเสธสาย</span>
+                        <span>{language === 'en' ? 'Decline' : 'ปฏิเสธสาย'}</span>
                       </button>
 
                       <button
@@ -854,7 +862,11 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                           </svg>
                         </div>
-                        <span>{spokenLanguage === 'en-US' ? 'Answer (English AI)' : 'รับสาย (AI ภาษาไทย)'}</span>
+                        <span>
+                          {spokenLanguage === 'en-US'
+                            ? 'Answer (English AI)'
+                            : (language === 'en' ? 'Answer (Thai AI)' : 'รับสาย (AI ภาษาไทย)')}
+                        </span>
                       </button>
                     </div>
 
@@ -880,9 +892,9 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                       style={{ color: callEndedLocally ? '#ef4444' : '#ffffff', fontSize: callEndedLocally ? 22 : isScammerCalling ? 22 : 30 }}
                     >
                       {callEndedLocally
-                        ? 'สายถูกตัดแล้ว'
+                        ? (language === 'en' ? 'Call Ended' : 'สายถูกตัดแล้ว')
                         : isScammerCalling
-                          ? (activeScammerLang === 'en' ? '08-2419-8921 (Fraud Taskforce AI)' : '08-2419-8921 (ตำรวจไซเบอร์ AI)')
+                          ? (activeScammerLang === 'en' ? '08-2419-8921 (Fraud Taskforce AI)' : (language === 'en' ? '08-2419-8921 (Cyber Police AI)' : '08-2419-8921 (ตำรวจไซเบอร์ AI)'))
                           : '08-2419-8921'}
                     </div>
                   </div>
@@ -901,12 +913,12 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                       </svg>
                       <span>
                         {participantRole !== 'owner'
-                          ? 'เจ้าของห้องเป็นผู้ควบคุม AI'
+                          ? (language === 'en' ? 'Owner controls AI' : 'เจ้าของห้องเป็นผู้ควบคุม AI')
                           : isAiActive
-                            ? 'AI กำลังคุยแทน... (แตะเพื่อคุยเอง)'
+                            ? (language === 'en' ? 'AI Decoy Active... (Tap to talk)' : 'AI กำลังคุยแทน... (แตะเพื่อคุยเอง)')
                             : handoffState === 'preparing_ai'
-                              ? 'กำลังเตรียม AI...'
-                              : '🤖 ให้ AI รับช่วงสาย (Handoff)'}
+                              ? (language === 'en' ? 'Preparing AI...' : 'กำลังเตรียม AI...')
+                              : (language === 'en' ? '🤖 Let AI Takeover Call (Handoff)' : '🤖 ให้ AI รับช่วงสาย (Handoff)')}
                       </span>
                     </button>
                   </div>
@@ -915,7 +927,7 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                   <div>
                     <div className="ios-call-grid">
                       {/* 1: Speaker */}
-                      <button type="button" className="ios-grid-btn" onClick={handleToggleSpeaker} title="เสียง">
+                      <button type="button" className="ios-grid-btn" onClick={handleToggleSpeaker} title={language === 'en' ? 'Speaker' : 'เสียง'}>
                         <div className={`ios-btn-circle ${isSpeaker ? 'active-white' : ''}`}>
                           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
@@ -923,14 +935,14 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                             <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
                           </svg>
                         </div>
-                        <span className="ios-btn-label">เสียง</span>
+                        <span className="ios-btn-label">{language === 'en' ? 'Speaker' : 'เสียง'}</span>
                       </button>
 
                       {/* 2: FaceTime */}
                       <button
                         type="button"
                         className="ios-grid-btn"
-                        onClick={() => showToast('FaceTime ไม่พร้อมใช้งานขณะโทรเสียง')}
+                        onClick={() => showToast(language === 'en' ? 'FaceTime unavailable during voice call' : 'FaceTime ไม่พร้อมใช้งานขณะโทรเสียง')}
                         title="FaceTime"
                       >
                         <div className="ios-btn-circle">
@@ -944,7 +956,7 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                       </button>
 
                       {/* 3: Mute */}
-                      <button type="button" className="ios-grid-btn" onClick={handleToggleMic} title="ปิดเสียง">
+                      <button type="button" className="ios-grid-btn" onClick={handleToggleMic} title={language === 'en' ? (isMuted ? 'Unmute' : 'Mute') : (isMuted ? 'เปิดเสียง' : 'ปิดเสียง')}>
                         <div className={`ios-btn-circle ${isMuted ? 'active-white' : ''}`}>
                           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <line x1="1" y1="1" x2="23" y2="23" />
@@ -954,11 +966,15 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                             <line x1="8" y1="23" x2="16" y2="23" />
                           </svg>
                         </div>
-                        <span className="ios-btn-label">{isMuted ? 'เปิดเสียง' : 'ปิดเสียง'}</span>
+                        <span className="ios-btn-label">
+                          {language === 'en'
+                            ? (isMuted ? 'Unmute' : 'Mute')
+                            : (isMuted ? 'เปิดเสียง' : 'ปิดเสียง')}
+                        </span>
                       </button>
 
                       {/* 4: More */}
-                      <button type="button" className="ios-grid-btn" onClick={() => showToast('ตัวเลือกเพิ่มเติม')} title="เพิ่มเติม">
+                      <button type="button" className="ios-grid-btn" onClick={() => showToast(language === 'en' ? 'More options' : 'ตัวเลือกเพิ่มเติม')} title={language === 'en' ? 'More' : 'เพิ่มเติม'}>
                         <div className="ios-btn-circle">
                           <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
                             <circle cx="5" cy="12" r="2.2" />
@@ -966,7 +982,7 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                             <circle cx="19" cy="12" r="2.2" />
                           </svg>
                         </div>
-                        <span className="ios-btn-label">เพิ่มเติม</span>
+                        <span className="ios-btn-label">{language === 'en' ? 'More' : 'เพิ่มเติม'}</span>
                       </button>
 
                       {/* 5: Hangup */}
@@ -975,7 +991,7 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                         className="ios-grid-btn"
                         onClick={handleEndCall}
                         disabled={callEndedLocally}
-                        title="วางสาย"
+                        title={language === 'en' ? 'End' : 'วางสาย'}
                       >
                         <div
                           className="ios-btn-circle btn-red-end"
@@ -986,15 +1002,15 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                             <line x1="23" y1="1" x2="1" y2="23" />
                           </svg>
                         </div>
-                        <span className="ios-btn-label">วางสาย</span>
+                        <span className="ios-btn-label">{language === 'en' ? 'End' : 'วางสาย'}</span>
                       </button>
 
                       {/* 6: Keypad */}
                       <button
                         type="button"
                         className="ios-grid-btn"
-                        onClick={() => showToast('เปิดแป้นตัวเลข')}
-                        title="แป้นตัวเลข"
+                        onClick={() => showToast(language === 'en' ? 'Keypad opened' : 'เปิดแป้นตัวเลข')}
+                        title={language === 'en' ? 'Keypad' : 'แป้นตัวเลข'}
                       >
                         <div className="ios-btn-circle">
                           <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
@@ -1009,7 +1025,7 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                             <circle cx="18" cy="18" r="1.8" />
                           </svg>
                         </div>
-                        <span className="ios-btn-label">แป้นตัวเลข</span>
+                        <span className="ios-btn-label">{language === 'en' ? 'Keypad' : 'แป้นตัวเลข'}</span>
                       </button>
                     </div>
 
@@ -1064,11 +1080,11 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                   {isCallerActive ? (
                     <span style={{ color: '#f43f5e', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
                       <span className="pulse-dot-red" style={{ width: 6, height: 6 }} />
-                      Active Speech (เสียงมิจฉาชีพออนไลน์)
+                      {language === 'en' ? 'Active Speech (Caller Streaming)' : 'Active Speech (เสียงมิจฉาชีพออนไลน์)'}
                     </span>
                   ) : (
                     <span style={{ color: 'var(--fg-muted)', fontWeight: 500 }}>
-                      Listening (รอฟังสาย)
+                      {language === 'en' ? 'Listening (Awaiting voice)' : 'Listening (รอฟังสาย)'}
                     </span>
                   )}
                 </div>
@@ -1098,7 +1114,9 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                       : 'CHANNEL B: Protected Citizen (End-User)'}
                   </span>
                   {isMuted ? (
-                    <span style={{ color: '#ff6b6b', fontWeight: 600 }}>🔇 Muted (ปิดเสียงไมค์)</span>
+                    <span style={{ color: '#ff6b6b', fontWeight: 600 }}>
+                      {language === 'en' ? '🔇 Muted (Microphone Off)' : '🔇 Muted (ปิดเสียงไมค์)'}
+                    </span>
                   ) : isAiSpeaking ? (
                     <span style={{ color: '#60a5fa', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
                       <span className="pulse-dot-green" style={{ width: 6, height: 6, background: '#60a5fa' }} />
@@ -1107,11 +1125,11 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                   ) : isUserActive ? (
                     <span style={{ color: 'var(--emerald)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
                       <span className="pulse-dot-green" style={{ width: 6, height: 6 }} />
-                      🎙️ Active Speech (กำลังพูด...)
+                      {language === 'en' ? '🎙️ Active Speech (Talking...)' : '🎙️ Active Speech (กำลังพูด...)'}
                     </span>
                   ) : (
                     <span style={{ color: 'var(--fg-muted)', fontWeight: 500 }}>
-                      Listening (พร้อมตรวจจับเสียง)
+                      {language === 'en' ? 'Listening (Ready for voice)' : 'Listening (พร้อมตรวจจับเสียง)'}
                     </span>
                   )}
                 </div>
@@ -1127,7 +1145,7 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
               <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--fg-muted)' }}>
-                    🗣️ ภาษาที่รองรับ (Spoken Language):
+                    {language === 'en' ? '🗣️ Spoken Language (Microphone):' : '🗣️ ภาษาที่รองรับ (Spoken Language):'}
                   </span>
                   <button
                     type="button"
@@ -1136,10 +1154,10 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                     disabled={callStatus === 'connected' && !callEndedLocally}
                     onClick={() => {
                       setSpokenLanguage('th-TH');
-                      showToast('สลับไมโครโฟนเป็นภาษาไทย (th-TH)');
+                      showToast(language === 'en' ? 'Switched microphone to Thai (th-TH)' : 'สลับไมโครโฟนเป็นภาษาไทย (th-TH)');
                     }}
                   >
-                    🇹🇭 ภาษาไทย
+                    🇹🇭 {language === 'en' ? 'Thai' : 'ภาษาไทย'}
                   </button>
                   <button
                     type="button"
@@ -1159,7 +1177,7 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
 
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
                   <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--fg-muted)', width: '100%' }}>
-                    🇹🇭 จำลองบทสนทนาไทย:
+                    {language === 'en' ? '🇹🇭 Thai Scam Simulations:' : '🇹🇭 จำลองบทสนทนาไทย:'}
                   </span>
                   <button
                     type="button"
@@ -1167,7 +1185,7 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                     style={{ fontSize: 11, height: 26 }}
                     onClick={() => handleSimulate('police')}
                   >
-                    🚨 ขู่คดีฟอกเงิน
+                    {language === 'en' ? '🚨 Police Money Laundering' : '🚨 ขู่คดีฟอกเงิน'}
                   </button>
                   <button
                     type="button"
@@ -1175,7 +1193,7 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                     style={{ fontSize: 11, height: 26 }}
                     onClick={() => handleSimulate('otp')}
                   >
-                    🔑 หลอกขอ OTP
+                    {language === 'en' ? '🔑 Phish OTP' : '🔑 หลอกขอ OTP'}
                   </button>
                   <button
                     type="button"
@@ -1183,7 +1201,7 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                     style={{ fontSize: 11, height: 26 }}
                     onClick={() => handleSimulate('user')}
                   >
-                    💬 ผู้ใช้ปฏิเสธ
+                    {language === 'en' ? '💬 User Refusal' : '💬 ผู้ใช้ปฏิเสธ'}
                   </button>
                 </div>
 
@@ -1276,7 +1294,7 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                           }}
                           onClick={() => void playScammerSpeech(item.text, /[\u0E00-\u0E7F]/.test(item.text) ? 'th' : 'en')}
                         >
-                          🔊 ฟังเสียงซ้ำ
+                          {language === 'en' ? '🔊 Replay Voice' : '🔊 ฟังเสียงซ้ำ'}
                         </button>
                       )}
                     </div>
@@ -1294,11 +1312,11 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         {u.speaker === 'caller' ? (
                           <span style={{ color: '#f87171', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                            🚨 CALLER (มิจฉาชีพ)
+                            {language === 'en' ? '🚨 CALLER (Scammer)' : '🚨 CALLER (มิจฉาชีพ)'}
                           </span>
                         ) : u.speaker === 'user' ? (
                           <span style={{ color: 'var(--emerald)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                            🛡️ USER (คุณ)
+                            {language === 'en' ? '🛡️ USER (You)' : '🛡️ USER (คุณ)'}
                           </span>
                         ) : (
                           <span style={{ color: '#60a5fa', fontWeight: 700 }}>
@@ -1327,7 +1345,7 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                           }}
                           onClick={() => void playScammerSpeech(u.text, /[\u0E00-\u0E7F]/.test(u.text) ? 'th' : 'en')}
                         >
-                          🔊 ฟังเสียงซ้ำ
+                          {language === 'en' ? '🔊 Replay Voice' : '🔊 ฟังเสียงซ้ำ'}
                         </button>
                       )}
                     </div>
@@ -1338,13 +1356,13 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                 {/* Interim partial typing indicator */}
                 {activePartials.caller && activePartials.caller.text.trim() && (
                   <div className="chat-bubble bubble-inbound" style={{ borderStyle: 'dashed', opacity: 0.85 }}>
-                    <div className="bubble-meta">CALLER (กำลังพูด...)</div>
+                    <div className="bubble-meta">{language === 'en' ? 'CALLER (Speaking...)' : 'CALLER (กำลังพูด...)'}</div>
                     <em>{activePartials.caller.text}</em>
                   </div>
                 )}
                 {activePartials.user && activePartials.user.text.trim() && (
                   <div className="chat-bubble bubble-citizen" style={{ borderStyle: 'dashed', opacity: 0.85 }}>
-                    <div className="bubble-meta">USER (กำลังพูด...)</div>
+                    <div className="bubble-meta">{language === 'en' ? 'USER (Speaking...)' : 'USER (กำลังพูด...)'}</div>
                     <em>{activePartials.user.text}</em>
                   </div>
                 )}
@@ -1380,7 +1398,7 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                 <span style={{ color: '#ff6b6b', fontWeight: 500 }}>
                   {riskReasons.length > 0
                     ? `Warning: ${riskReasons[0]}`
-                    : 'ยังไม่พบคำเตือนจากบทสนทนารอบนี้'}
+                    : (language === 'en' ? 'No active threat keywords detected' : 'ยังไม่พบคำเตือนจากบทสนทนารอบนี้')}
                 </span>
               </div>
 
@@ -1404,7 +1422,15 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                     LIVE IOC DETECTED
                   </span>
                   <span style={{ fontSize: 11.5, color: 'var(--fg)' }}>
-                    ตรวจพบเป้าหมายในสาย: <strong style={{ color: '#f87171' }}>+66 82-419-8921</strong> (VoIP Poipet Trunk) • บัญชีม้า: <strong style={{ color: '#f87171' }}>984-2-90184-1</strong>
+                    {language === 'en' ? (
+                      <>
+                        Flagged Caller: <strong style={{ color: '#f87171' }}>+66 82-419-8921</strong> (VoIP Poipet Trunk) • Mule Account: <strong style={{ color: '#f87171' }}>984-2-90184-1</strong>
+                      </>
+                    ) : (
+                      <>
+                        ตรวจพบเป้าหมายในสาย: <strong style={{ color: '#f87171' }}>+66 82-419-8921</strong> (VoIP Poipet Trunk) • บัญชีม้า: <strong style={{ color: '#f87171' }}>984-2-90184-1</strong>
+                      </>
+                    )}
                   </span>
                 </div>
 
@@ -1419,9 +1445,9 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
                       borderColor: 'rgba(239, 68, 68, 0.4)',
                     }}
                     onClick={() => onNavigateToBlacklist('+66 82-419-8921')}
-                    title="เปิดตรวจสอบเบอร์นี้กับฐานข้อมูล Blacklist & OSINT ทันที"
+                    title={language === 'en' ? 'Check number against Blacklist & OSINT database' : 'เปิดตรวจสอบเบอร์นี้กับฐานข้อมูล Blacklist & OSINT ทันที'}
                   >
-                    🔍 ตรวจกับ Blacklist ทันที ›
+                    {language === 'en' ? '🔍 Cross-Check Blacklist ›' : '🔍 ตรวจกับ Blacklist ทันที ›'}
                   </button>
                 )}
               </div>

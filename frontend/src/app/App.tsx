@@ -4,6 +4,7 @@ import { LiveSessionView } from '../features/live-session/LiveSessionView';
 import { ReportsView } from '../features/reports/ReportsView';
 import { Toast } from '../components/Toast';
 import { showToast } from '../lib/toast';
+import { useAppLanguage } from '../lib/LanguageContext';
 
 type TabType = 'tab-verify' | 'tab-live-call' | 'tab-dossier';
 
@@ -56,6 +57,7 @@ export const App = () => {
 
   const [dossierSubTab, setDossierSubTab] = useState<'dossier' | 'blacklist' | 'live-report'>('dossier');
   const [targetLookupQuery, setTargetLookupQuery] = useState<string | undefined>(undefined);
+  const { language, setLanguage } = useAppLanguage();
 
   const handleNavigateToBlacklist = (query: string) => {
     setDossierSubTab('blacklist');
@@ -120,6 +122,30 @@ export const App = () => {
 
         {/* Header Tools */}
         <div className="header-controls">
+          {/* Top Bar Language Selector */}
+          <div className="lang-switcher-bar" title="Select Application Language">
+            <button
+              type="button"
+              className={`lang-btn ${language === 'th' ? 'active' : ''}`}
+              onClick={() => {
+                setLanguage('th');
+                showToast('สลับโหมดภาษาเป็น: 🇹🇭 ภาษาไทย');
+              }}
+            >
+              🇹🇭 TH
+            </button>
+            <button
+              type="button"
+              className={`lang-btn ${language === 'en' ? 'active' : ''}`}
+              onClick={() => {
+                setLanguage('en');
+                showToast('Switched language to: 🇬🇧 English');
+              }}
+            >
+              🇬🇧 EN
+            </button>
+          </div>
+
           <div className="ws-status-badge" title="Realtime WebRTC Audio Telemetry">
             <span className="pulse-dot-green" />
             <span>LIVE WS: ONLINE</span>
