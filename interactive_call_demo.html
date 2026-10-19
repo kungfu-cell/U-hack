@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    background: #090d16;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #f8fafc;
+  }
+  .preview-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+  }
+  .preview-img {
+    width: 100%;
+    display: block;
+  }
+  /* Callout Annotation Overlay */
+  .callout {
+    position: absolute;
+    background: rgba(13, 21, 39, 0.95);
+    border: 1px solid #38bdf8;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6), 0 0 15px rgba(56, 189, 248, 0.2);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 11px;
+    line-height: 1.4;
+    z-index: 10;
+    backdrop-filter: blur(8px);
+    transition: all 0.2s ease;
+  }
+  .callout .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #38bdf8;
+    color: #090d16;
+    font-weight: 800;
+    font-size: 10px;
+    margin-right: 6px;
+  }
+  .callout .title {
+    font-weight: 700;
+    color: #38bdf8;
+  }
+  .callout.danger {
+    border-color: #f43f5e;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6), 0 0 15px rgba(244, 63, 94, 0.3);
+  }
+  .callout.danger .step-num {
+    background: #f43f5e;
+    color: white;
+  }
+  .callout.danger .title {
+    color: #fb7185;
+  }
+  .callout.success {
+    border-color: #10b981;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6), 0 0 15px rgba(16, 185, 129, 0.3);
+  }
+  .callout.success .step-num {
+    background: #10b981;
+    color: #090d16;
+  }
+  .callout.success .title {
+    color: #34d399;
+  }
+  /* Pulse pointer marker */
+  .pointer-dot {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 9;
+  }
+  .pointer-dot.cyan {
+    background: #38bdf8;
+    box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.4);
+    animation: pulseCyan 1.5s infinite;
+  }
+  .pointer-dot.rose {
+    background: #f43f5e;
+    box-shadow: 0 0 0 4px rgba(244, 63, 94, 0.4);
+    animation: pulseRose 1.5s infinite;
+  }
+  .pointer-dot.emerald {
+    background: #10b981;
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.4);
+    animation: pulseEmerald 1.5s infinite;
+  }
+  @keyframes pulseCyan {
+    0% { transform: translate(-50%, -50%) scale(0.9); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7); }
+    70% { transform: translate(-50%, -50%) scale(1.1); box-shadow: 0 0 0 10px rgba(56, 189, 248, 0); }
+    100% { transform: translate(-50%, -50%) scale(0.9); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+  }
+  @keyframes pulseRose {
+    0% { transform: translate(-50%, -50%) scale(0.9); box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7); }
+    70% { transform: translate(-50%, -50%) scale(1.1); box-shadow: 0 0 0 10px rgba(244, 63, 94, 0); }
+    100% { transform: translate(-50%, -50%) scale(0.9); box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
+  }
+  @keyframes pulseEmerald {
+    0% { transform: translate(-50%, -50%) scale(0.9); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+    70% { transform: translate(-50%, -50%) scale(1.1); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+    100% { transform: translate(-50%, -50%) scale(0.9); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  }
+</style>
+</head>
+<body>
+  <div class="preview-wrapper">
+    <img src="live_call_tab.png" class="preview-img" alt="ScamTrap Live UI">
+
+    <!-- Step 1: Start WebRTC Simulation -->
+    <div class="pointer-dot cyan" style="top: 26%; left: 24%;"></div>
+    <div class="callout" style="top: 14%; left: 16%; width: 220px;">
+      <span class="step-num">1</span><span class="title">เริ่มต้นห้องสนทนาสด</span>
+      <div style="color: #cbd5e1; margin-top: 4px;">คลิกเปิดห้องเสียง WebRTC จำลองสถานการณ์มิจฉาชีพโทรเข้ามา ระบบแยกสตรีมเสียง 2 ฝั่งทันที</div>
+    </div>
+
+    <!-- Step 2: Real-time Threat Flagging -->
+    <div class="pointer-dot rose" style="top: 50%; left: 74%;"></div>
+    <div class="callout danger" style="top: 36%; right: 4%; width: 240px;">
+      <span class="step-num">2</span><span class="title">ระบบตรวจจับพฤติกรรมกดดัน</span>
+      <div style="color: #cbd5e1; margin-top: 4px;">ถอดเสียงคำพูดสด พบคำว่า "หมายจับ/โอนตรวจสอบ" คำนวณความเสี่ยงพุ่ง 85%+ เตือนสีแดงข้างหน้าจอ</div>
+    </div>
+
+    <!-- Step 3: 1-Click AI Takeover -->
+    <div class="pointer-dot emerald" style="top: 78%; left: 38%;"></div>
+    <div class="callout success" style="top: 66%; left: 28%; width: 250px;">
+      <span class="step-num">3</span><span class="title">กดปุ่มสลับให้ AI สวมรอย</span>
+      <div style="color: #cbd5e1; margin-top: 4px;">ผู้ใช้กดยืนยัน AI ตัดหน้าคุยแทนทันที ดึงเวลา-หลอกล่อให้มิจฉาชีพส่งเลขบัญชีม้าจริงออกมา</div>
+    </div>
+  </div>
+</body>
+</html>

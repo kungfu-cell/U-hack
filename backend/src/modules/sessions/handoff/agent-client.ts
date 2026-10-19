@@ -187,7 +187,7 @@ export class DemoAgentAdapter implements AgentClient {
 
 export class ElevenLabsAgentClient implements AgentClient {
   readonly name = "elevenlabs-convai-v1";
-  private readonly voiceId: string = "cjVigY5qzO86Huf0OWal"; // ScamTrap Assistant agent voice
+  private readonly voiceId: string = "pNInz6obpgDQGcFmaJgB"; // ScamTrap Assistant agent voice (matches Caller TH voice)
 
   constructor(
     private readonly apiKey: string,

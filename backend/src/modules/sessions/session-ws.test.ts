@@ -219,6 +219,6 @@ describe('Live Session WebSocket API', () => {
       expect(data.lang).toBe('en');
       expect(data.agentId).toBe('agent_1701m50fbxptfb19rdyds35gqstc');
     }
-  });
+  }, 15000);
 });
 

@@ -658,15 +658,15 @@ export const useLiveSession = () => {
     }
   };
 
-  const startScammerCall = useCallback(async (langOverride?: 'th' | 'en') => {
-    if (scammerConnectingRef.current) return;
+  const startScammerCall = useCallback(async (langOverride?: 'th' | 'en'): Promise<boolean> => {
+    if (scammerConnectingRef.current) return false;
 
     const existingClient = scammerClientRef.current;
     if (
       existingClient &&
       ['connecting', 'connected', 'speaking', 'listening'].includes(existingClient.getStatus())
     ) {
-      return;
+      return true;
     }
 
     existingClient?.disconnect();
@@ -681,7 +681,7 @@ export const useLiveSession = () => {
     }
     if (!targetId) {
       scammerConnectingRef.current = false;
-      return;
+      return false;
     }
 
     const chosenLang: 'th' | 'en' =
@@ -706,7 +706,7 @@ export const useLiveSession = () => {
         throw new Error(errJson?.error?.message ?? 'Failed to get ElevenLabs signed URL');
       }
       const data = (await res.json()) as { signedUrl: string; lang?: string };
-      if (attemptId !== scammerAttemptRef.current) return;
+      if (attemptId !== scammerAttemptRef.current) return false;
 
       const client = new ScammerConvAiClient(
         data.signedUrl,
@@ -855,6 +855,7 @@ export const useLiveSession = () => {
       );
       scammerClientRef.current = client;
       client.connect();
+      return true;
     } catch (err) {
       scammerClientRef.current?.disconnect();
       scammerClientRef.current = null;
@@ -863,6 +864,7 @@ export const useLiveSession = () => {
       setScammerStatus('error');
       setDegradedMessage(msg);
       showToast(msg);
+      return false;
     } finally {
       scammerConnectingRef.current = false;
     }

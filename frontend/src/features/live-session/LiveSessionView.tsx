@@ -409,13 +409,16 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
         : '📞 รับสายแล้ว! มิจฉาชีพ (ตำรวจไซเบอร์ปลอม) กำลังข่มขู่ในสาย...',
     );
 
-    // Automatically trigger realistic scam opening threat right on answer!
-    setTimeout(async () => {
+    // Connect directly to the ElevenLabs Scammer Agent (ScamTrap Security Awareness Caller)
+    const connected = await startScammerCall(targetLang);
+
+    // ONLY fallback to local speech synthesis if ElevenLabs ConvAI failed to connect
+    if (!connected) {
       const scammerText =
         targetLang === 'en'
           ? 'This is Officer John Davis from Federal Fraud Taskforce. Your bank account has been flagged in an international 2.4-million-dollar money laundering syndicate. Do not hang up, you are required to cooperate immediately!'
           : 'สวัสดีครับ ผมร้อยตำรวจเอก ธนกร จากกองบัญชาการตำรวจไซเบอร์ มีเรื่องด่วนที่สุด! ตรวจพบว่าบัญชีของคุณพัวพันคดีฟอกเงินข้ามชาติ 2 ล้าน 4 แสนบาท คุณต้องฟังเดี๋ยวนี้และห้ามวางสายเด็ดขาด!';
-      
+
       void playScammerSpeech(scammerText, targetLang);
       await simulateSpeech('caller', scammerText);
       setDemoUtteranceList((prev) => [
@@ -428,9 +431,7 @@ export const LiveSessionView = ({ onNavigateToBlacklist }: LiveSessionViewProps 
           intent: ['AUTHORITY IMPERSONATION', 'CRIMINAL COERCION', 'URGENCY TRIGGER'],
         },
       ]);
-    }, 600);
-
-    await startScammerCall(targetLang);
+    }
   };
 
   const handleDeclineCall = async () => {
